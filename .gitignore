@@ -1,14 +1,14 @@
-# Dependencies
+# Dependencies (ignore all node_modules folders)
 node_modules/
 client/node_modules/
 server/node_modules/
 
-# Environment variables
+# Environment Variables (private secrets)
 .env
 *.env
 
-# Logs and system files
-npm-debug.log*
+# Build outputs & cache
+client/dist/
+client/build/
 .DS_Store
-dist/
-build/
+*.log
