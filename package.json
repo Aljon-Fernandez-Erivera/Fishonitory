@@ -13,5 +13,8 @@
   "description": "",
   "devDependencies": {
     "concurrently": "^10.0.5"
+  },
+  "dependencies": {
+    "recharts": "^3.10.1"
   }
 }
