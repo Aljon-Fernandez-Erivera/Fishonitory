@@ -3,13 +3,15 @@
 function LandingPage() {
     return (
         <div>
-            <h1>Fishonitory</h1>
-            <p>Welcome to Fishonitory!</p>
-
-            <a href="/login">Login</a>
-            <a href="/register">Register a Business</a>
+            <div className="branding">
+                <h1>Fishonitory</h1>
+                <p>Welcome to Fishonitory!</p>
+            </div>
+            <div className="buttons">
+                <button onClick={() => window.location.href = '/login'}>Login</button>
+                <button onClick={() => window.location.href = '/register'}>Register a Business</button>
+            </div>
         </div>
-
     );
 }
 

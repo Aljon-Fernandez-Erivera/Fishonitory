@@ -5,14 +5,14 @@ const userSchema = new mongoose.Schema(
   {
     businessName: {
       type: String,
-      required: [true, 'Business/Store name is required'],
+      required: function () { return this.role === 'Owner'; },
       trim: true,
       minlength: [3, 'Business name must be at least 3 characters'],
       maxlength: [100, 'Business name cannot exceed 100 characters']
     },
     ownerName: {
       type: String,
-      required: [true, 'Owner name is required'],
+      required: function () { return this.role === 'Owner'; },
       trim: true,
       minlength: [2, 'Owner name must be at least 2 characters']
     },
@@ -31,26 +31,48 @@ const userSchema = new mongoose.Schema(
     },
     businessAddress: {
       type: String,
-      required: [true, 'Business address is required'],
+      required: function () { return this.role === 'Owner'; },
       trim: true,
       maxlength: [255, 'Business address cannot exceed 255 characters']
     },
     phoneNumber: {
-      type: String, // Kept as String so leading zero (09...) and + symbols aren't stripped
+      type: String, // Stored as digits with the selected international country code
       required: [true, 'Phone number is required'],
       trim: true,
       match: [
-        /^(09|\+639)\d{9}$/,
-        'Please enter a valid Philippine mobile number (e.g., 09123456789 or +639123456789)'
+        /^\d{7,15}$/,
+        'Please enter a valid international phone number containing 7 to 15 digits'
       ]
     },
     otp: {
       type: Number,
       required: [true, 'OTP verification is required']
     },
+    staffName: {
+      type: String,
+      trim: true,
+      minlength: 2,
+      required: function () { return this.role === 'Staff'; }
+    },
+    staffPosition: {
+      type: String,
+      trim: true,
+      minlength: 2,
+      required: function () { return this.role === 'Staff'; }
+    },
+    ownerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: function () { return this.role === 'Staff'; }
+    },
+    accountStatus: {
+      type: String,
+      enum: ['Active', 'Disabled'],
+      default: 'Active'
+    },
     role: {
       type: String,
-      enum: ['Owner'], // Registration restricted strictly to store owners
+      enum: ['Owner', 'Staff'],
       default: 'Owner'
     }
   },

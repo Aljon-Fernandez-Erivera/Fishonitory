@@ -1,7 +1,8 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const nodemailer = require('nodemailer');
-const User = require('../models/User'); // REQUIRED IMPORT
+const User = require('../models/User');
+const Attendance = require('../models/Attendance');
 const config = require('../config/config');
 
 // In-memory OTP storage
@@ -10,9 +11,7 @@ const pendingOTPs = new Map();
 // Helper function to create Nodemailer transporter
 const createTransporter = () => {
   return nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true,
+    service: 'gmail',
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS
@@ -20,16 +19,18 @@ const createTransporter = () => {
   });
 };
 
-// 1. Step 1: Send OTP
+// Send OTP muna
 exports.sendOtp = async (req, res) => {
   try {
     const rawEmail = req.body.email;
 
+//check kung may email sa request
     if (!rawEmail) {
       return res.status(400).json({ message: 'Email is required.' });
     }
     const email = rawEmail.trim().toLowerCase();
 
+    //check kung email ay gamit na ng iba
     const existingUser = await User.findOne({ email }).exec();
     if (existingUser) {
       return res.status(400).json({ message: 'Email is already registered.' });
@@ -38,7 +39,7 @@ exports.sendOtp = async (req, res) => {
     // Generate 6-digit integer OTP
     const generatedOTP = Math.floor(100000 + Math.random() * 900000);
 
-    // Save in memory (expires in 5 mins)
+    // Save in memory tas mag expire ng 5 mins 
     pendingOTPs.set(email, {
       otp: generatedOTP,
       expiresAt: Date.now() + 5 * 60 * 1000
@@ -58,10 +59,17 @@ exports.sendOtp = async (req, res) => {
         text: `Your 6-digit verification code is: ${generatedOTP}. This code will expire in 5 minutes.`
       });
     } catch (emailErr) {
-      console.warn('Nodemailer failed to send email. Check EMAIL_USER/EMAIL_PASS in .env. OTP is logged in console.');
+      console.error('Nodemailer failed to send the OTP email.');
+      console.error('Email error:', emailErr.message || emailErr);
+      console.error('Check EMAIL_USER / EMAIL_PASS, and make sure Gmail App Passwords are being used.');
+      return res.status(500).json({
+        message: 'OTP was generated, but the email could not be sent. Check the backend console for the mail error.'
+      });
     }
+//message confirmation once successful na generate and send ng OTP at nasend sa email
+    res.json({ message: 'OTP has been sent to your email address. Please check your inbox or spam folder.' });
+//nasa RegisterBusinessPage.jsx yung error handling kung may error sa backend.
 
-    res.json({ message: 'OTP successfully generated.' });
   } catch (err) {
     console.error('--- DB / OTP ERROR DETAILS ---');
     console.error(err);
@@ -74,7 +82,7 @@ exports.sendOtp = async (req, res) => {
   }
 };
 
-// 2. Step 2: Verify OTP and Register
+// Verify OTP and Register
 exports.verifyAndRegister = async (req, res) => {
   try {
     const { businessName, ownerName, password, businessAddress, phoneNumber, otp } = req.body;
@@ -117,7 +125,7 @@ exports.verifyAndRegister = async (req, res) => {
   }
 };
 
-// 3. Step 3: Login
+// Login
 exports.login = async (req, res) => {
   try {
     const { password } = req.body;
@@ -132,10 +140,30 @@ exports.login = async (req, res) => {
     if (!user) {
       return res.status(400).json({ message: 'Invalid credentials.' });
     }
+    if (user.accountStatus === 'Disabled') {
+      return res.status(403).json({ message: 'This account has been disabled.' });
+    }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(400).json({ message: 'Invalid credentials.' });
+    }
+
+    if (user.role === 'Staff') {
+      // Record the first successful staff login for the current day.
+      const dateKey = new Date().toISOString().slice(0, 10);
+      await Attendance.findOneAndUpdate(
+        { userId: user._id, dateKey },
+        {
+          $setOnInsert: {
+            userId: user._id,
+            dateKey,
+            status: 'Present',
+            checkIn: new Date()
+          }
+        },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+      );
     }
 
     const token = jwt.sign(
@@ -162,7 +190,7 @@ exports.login = async (req, res) => {
   }
 };
 
-// 4. Get the authenticated user's saved profile
+// Get the authenticated user's saved profile
 exports.getCurrentUser = async (req, res) => {
   try {
     const user = await User.findById(req.user.userId)

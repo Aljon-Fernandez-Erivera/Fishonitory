@@ -1,8 +1,10 @@
 const path = require('path');
 const dotenv = require('dotenv');
 
-// Keep backend configuration in the backend's own environment file.
+// Load backend env files explicitly.
+// The root .env is allowed to override the server .env so edits in either file are picked up.
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
+dotenv.config({ path: path.resolve(__dirname, '../../.env'), override: true });
 
 const config = {
   port: process.env.PORT || 3000,

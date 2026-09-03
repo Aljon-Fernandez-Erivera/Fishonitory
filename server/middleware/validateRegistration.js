@@ -46,9 +46,9 @@ const validateRegistration = (req, res, next) => {
 
   // 6. phoneNumber (only if provided)
   if (phoneNumber) {
-    const phoneAllowedSymbolsRegex = /^\+?[0-9\-]+$/;
-    if (!phoneAllowedSymbolsRegex.test(phoneNumber)) {
-      return res.status(400).json({ message: 'Phone number contains invalid symbols. Only digits, +, and - are allowed.' });
+    const phoneNumberRegex = /^\d{7,15}$/;
+    if (!phoneNumberRegex.test(phoneNumber)) {
+      return res.status(400).json({ message: 'Phone number must contain 7 to 15 digits.' });
     }
   }
 
