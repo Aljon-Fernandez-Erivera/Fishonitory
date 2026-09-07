@@ -1,14 +1,28 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const tankSchema = new mongoose.Schema(
   {
-    ownerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    ownerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    updatedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
     name: { type: String, required: true, trim: true },
-    status: { type: String, required: true, trim: true, default: 'Needs Cleaning' },
+    status: {
+      type: String,
+      required: true,
+      trim: true,
+      default: "Needs Cleaning",
+    },
     nextMaintenance: { type: Date, default: null },
-    notes: { type: String, trim: true, default: '' }
+    notes: { type: String, trim: true, default: "" },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
-module.exports = mongoose.model('Tank', tankSchema);
+module.exports = mongoose.model("Tank", tankSchema);

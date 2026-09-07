@@ -1,37 +1,42 @@
-import { useEffect, useState } from 'react';
-import { getCountries, getCountryCallingCode } from 'libphonenumber-js';
+import { useEffect, useState } from "react";
+import {
+  getCountries,
+  getCountryCallingCode,
+  isValidPhoneNumber,
+} from "libphonenumber-js";
+import { API_URL } from "../config.js";
 
-const countryNameFormatter = new Intl.DisplayNames(['en'], { type: 'region' });
+const countryNameFormatter = new Intl.DisplayNames(["en"], { type: "region" });
 const countryOptions = getCountries()
   .map((country) => ({
     country,
     name: countryNameFormatter.of(country) || country,
-    callingCode: getCountryCallingCode(country)
+    callingCode: getCountryCallingCode(country),
   }))
   .sort((first, second) => first.name.localeCompare(second.name));
 
 function RegisterBusinessPage() {
   const [formData, setFormData] = useState({
-    businessName: '',
-    ownerName: '',
-    email: '',
-    password: '',
-    businessAddress: '',
-    phoneNumber: '',
-    otp: ''
+    businessName: "",
+    ownerName: "",
+    email: "",
+    password: "",
+    businessAddress: "",
+    phoneNumber: "",
+    otp: "",
   });
 
   const [step, setStep] = useState(1); // 1 = Details, 2 = OTP Verification
   const [errors, setErrors] = useState({});
-  const [serverMessage, setServerMessage] = useState('');
+  const [serverMessage, setServerMessage] = useState("");
   const [loading, setLoading] = useState(false);
-  const [dialogMessage, setDialogMessage] = useState('');
+  const [dialogMessage, setDialogMessage] = useState("");
   const [otpSeconds, setOtpSeconds] = useState(0);
-  const [countryIso, setCountryIso] = useState('PH');
+  const [countryIso, setCountryIso] = useState("PH");
 
   useEffect(() => {
     if (step !== 2 || otpSeconds <= 0) return undefined;
-// Start the countdown timer for OTP expiration once napindot ang continue
+    // Start the countdown timer for OTP expiration once napindot ang continue
     const timer = setTimeout(() => {
       setOtpSeconds((seconds) => Math.max(seconds - 1, 0));
     }, 1000);
@@ -44,31 +49,31 @@ function RegisterBusinessPage() {
     let sanitizedValue = value;
 
     switch (name) {
-      case 'businessName':
-      case 'ownerName':
-        sanitizedValue = value.replace(/[^a-zA-Z0-9\s]/g, '');
+      case "businessName":
+      case "ownerName":
+        sanitizedValue = value.replace(/[^a-zA-Z0-9\s]/g, "");
         break;
-      case 'email':
-        sanitizedValue = value.replace(/[^a-zA-Z0-9@._%+-]/g, '');
+      case "email":
+        sanitizedValue = value.replace(/[^a-zA-Z0-9@._%+-]/g, "");
         break;
-      case 'password':
-        sanitizedValue = value.replace(/[^a-zA-Z0-9@#$!]/g, '');
+      case "password":
+        sanitizedValue = value.replace(/[^a-zA-Z0-9@#$!]/g, "");
         break;
-      case 'businessAddress':
-        sanitizedValue = value.replace(/[^a-zA-Z0-9\s\-,.#]/g, '');
+      case "businessAddress":
+        sanitizedValue = value.replace(/[^a-zA-Z0-9\s\-,.#]/g, "");
         break;
-      case 'phoneNumber':
-        sanitizedValue = value.replace(/\D/g, '');
+      case "phoneNumber":
+        sanitizedValue = value.replace(/\D/g, "");
         break;
-      case 'otp':
-        sanitizedValue = value.replace(/\D/g, '').slice(0, 6);
+      case "otp":
+        sanitizedValue = value.replace(/\D/g, "").slice(0, 6);
         break;
       default:
         break;
     }
 
     setFormData((prev) => ({ ...prev, [name]: sanitizedValue }));
-    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: '' }));
+    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
   const validateDetails = () => {
@@ -76,22 +81,26 @@ function RegisterBusinessPage() {
     const fullPhoneNumber = `${getCountryCallingCode(countryIso)}${formData.phoneNumber}`;
 
     if (formData.businessName.length < 3) {
-      newErrors.businessName = 'Business Name must be at least 3 characters.';
+      newErrors.businessName = "Business Name must be at least 3 characters.";
     }
     if (formData.ownerName.length < 2) {
-      newErrors.ownerName = 'Owner Name must be at least 2 characters.';
+      newErrors.ownerName = "Owner Name must be at least 2 characters.";
     }
     if (!/^\S+@\S+\.\S+$/.test(formData.email)) {
-      newErrors.email = 'Please provide a valid email address.';
+      newErrors.email = "Please provide a valid email address.";
     }
     if (formData.password.length < 8) {
-      newErrors.password = 'Password must be at least 8 characters.';
+      newErrors.password = "Password must be at least 8 characters.";
     }
     if (!formData.businessAddress) {
-      newErrors.businessAddress = 'Business Address is required.';
+      newErrors.businessAddress = "Business Address is required.";
     }
-    if (!/^\d{4,14}$/.test(formData.phoneNumber) || fullPhoneNumber.length > 15) {
-      newErrors.phoneNumber = 'Enter a valid phone number using digits only.';
+    if (
+      !/^\d{4,14}$/.test(formData.phoneNumber) ||
+      fullPhoneNumber.length > 15 ||
+      !isValidPhoneNumber(formData.phoneNumber, countryIso)
+    ) {
+      newErrors.phoneNumber = "Enter a valid phone number using digits only.";
     }
 
     setErrors(newErrors);
@@ -101,26 +110,26 @@ function RegisterBusinessPage() {
   // Step 1: Send OTP to email
   const handleSendOTP = async (e) => {
     e.preventDefault();
-    setServerMessage('');
+    setServerMessage("");
 
     if (!validateDetails()) return;
 
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:3000/api/auth/send-otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch(`${API_URL}/auth/send-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...formData,
-          phoneNumber: `${getCountryCallingCode(countryIso)}${formData.phoneNumber}`
-        })
+          phoneNumber: `${getCountryCallingCode(countryIso)}${formData.phoneNumber}`,
+        }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || 'Failed to send OTP.');
+        throw new Error(data.message || "Failed to send OTP.");
       }
 
       setOtpSeconds(0);
@@ -133,46 +142,49 @@ function RegisterBusinessPage() {
   };
 
   const closeOtpDialog = () => {
-    setDialogMessage('');
-    setOtpSeconds(5 * 60); 
+    setDialogMessage("");
+    setOtpSeconds(5 * 60);
     setStep(2);
   };
 
   // Verify OTP & Create Account
   const handleVerifyAndRegister = async (e) => {
     e.preventDefault();
-    setServerMessage('');
+    setServerMessage("");
 
     if (otpSeconds === 0) {
-      setErrors({ otp: 'The OTP has expired. Please request a new OTP.' });
+      setErrors({ otp: "The OTP has expired. Please request a new OTP." });
       return;
     }
 
     if (formData.otp.length !== 6) {
-      setErrors({ otp: 'Please enter a valid 6-digit OTP code.' });
+      setErrors({ otp: "Please enter a valid 6-digit OTP code." });
       return;
     }
 
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:3000/api/auth/verify-and-register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...formData,
-          phoneNumber: `${getCountryCallingCode(countryIso)}${formData.phoneNumber}`
-        })
-      });
+      const response = await fetch(
+        `${API_URL}/auth/verify-and-register`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...formData,
+            phoneNumber: `${getCountryCallingCode(countryIso)}${formData.phoneNumber}`,
+          }),
+        },
+      );
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || 'Verification failed.');
+        throw new Error(data.message || "Verification failed.");
       }
 
-      window.alert('Account created successfully! You can now log in.');
-      window.location.href = '/';
+      window.alert("Account created successfully! You can now log in.");
+      window.location.href = "/";
     } catch (err) {
       setServerMessage(err.message);
     } finally {
@@ -188,14 +200,17 @@ function RegisterBusinessPage() {
         <a href="/">Back to Home</a>
 
         {/* OTP Dialog */}
-        <dialog open={Boolean(dialogMessage)} aria-labelledby="otp-dialog-title">
+        <dialog
+          open={Boolean(dialogMessage)}
+          aria-labelledby="otp-dialog-title"
+        >
           <h2 id="otp-dialog-title">OTP Sent</h2>
           <p>{dialogMessage}</p>
           <button type="button" onClick={closeOtpDialog}>
             Continue
           </button>
         </dialog>
-        
+
         {serverMessage && <p className="alert">{serverMessage}</p>}
 
         {step === 1 ? (
@@ -212,7 +227,9 @@ function RegisterBusinessPage() {
                 placeholder="e.g. AquaRealm Fish Shop"
                 required
               />
-              {errors.businessName && <span className="error">{errors.businessName}</span>}
+              {errors.businessName && (
+                <span className="error">{errors.businessName}</span>
+              )}
             </div>
 
             <div className="input-group">
@@ -225,7 +242,9 @@ function RegisterBusinessPage() {
                 placeholder="e.g. Juan Cruz"
                 required
               />
-              {errors.ownerName && <span className="error">{errors.ownerName}</span>}
+              {errors.ownerName && (
+                <span className="error">{errors.ownerName}</span>
+              )}
             </div>
 
             <div className="input-group">
@@ -251,7 +270,9 @@ function RegisterBusinessPage() {
                 placeholder="At least 8 characters"
                 required
               />
-              {errors.password && <span className="error">{errors.password}</span>}
+              {errors.password && (
+                <span className="error">{errors.password}</span>
+              )}
             </div>
 
             <div className="input-group">
@@ -265,7 +286,9 @@ function RegisterBusinessPage() {
                 placeholder="e.g. 123 Aqua St., Fishville, PH"
                 required
               />
-              {errors.businessAddress && <span className="error">{errors.businessAddress}</span>}
+              {errors.businessAddress && (
+                <span className="error">{errors.businessAddress}</span>
+              )}
             </div>
 
             <div className="input-group">
@@ -294,11 +317,13 @@ function RegisterBusinessPage() {
                   required
                 />
               </div>
-              {errors.phoneNumber && <span className="error">{errors.phoneNumber}</span>}
+              {errors.phoneNumber && (
+                <span className="error">{errors.phoneNumber}</span>
+              )}
             </div>
 
             <button type="submit" disabled={loading}>
-              {loading ? 'Sending OTP...' : 'Get OTP'}
+              {loading ? "Sending OTP..." : "Get OTP"}
             </button>
           </form>
         ) : (
@@ -307,8 +332,9 @@ function RegisterBusinessPage() {
             <div className="input-group">
               <label>Enter 6-Digit OTP sent to {formData.email}</label>
               <p>
-                OTP expires in {String(Math.floor(otpSeconds / 60)).padStart(2, '0')}:
-                {String(otpSeconds % 60).padStart(2, '0')}
+                OTP expires in{" "}
+                {String(Math.floor(otpSeconds / 60)).padStart(2, "0")}:
+                {String(otpSeconds % 60).padStart(2, "0")}
               </p>
               <input
                 type="number"
@@ -323,9 +349,13 @@ function RegisterBusinessPage() {
             </div>
 
             <button type="submit" disabled={loading || otpSeconds === 0}>
-              {loading ? 'Verifying...' : 'Verify OTP & Create Account'}
+              {loading ? "Verifying..." : "Verify OTP & Create Account"}
             </button>
-            <button type="button" onClick={() => setStep(1)} style={{ marginTop: '0.5rem' }}>
+            <button
+              type="button"
+              onClick={() => setStep(1)}
+              style={{ marginTop: "0.5rem" }}
+            >
               Back to Details
             </button>
           </form>

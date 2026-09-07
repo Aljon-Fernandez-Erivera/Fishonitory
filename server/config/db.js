@@ -1,13 +1,13 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const connectDB = async (mongoURI) => {
   try {
     // Disable buffering so queries throw an error immediately if disconnected
-    mongoose.set('bufferCommands', false);
+    mongoose.set("bufferCommands", false);
 
     // Connect to MongoDB Atlas
     const conn = await mongoose.connect(mongoURI, {
-      dbName: 'fishonitory',
+      dbName: "fishonitory",
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 45000,
     });
