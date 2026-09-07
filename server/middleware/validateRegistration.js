@@ -1,63 +1,30 @@
-const validateRegistration = (req, res, next) => {
-  const { businessName, ownerName, email, password, businessAddress, phoneNumber, otp } = req.body;
+const { email, password, phone, string, validate } = require("./validateInput");
 
-  // 1. businessName (only if provided)
-  if (businessName) {
-    const noSymbolsRegex = /^[a-zA-Z0-9\s]+$/;
-    if (!noSymbolsRegex.test(businessName)) {
-      return res.status(400).json({ message: 'Business name must not contain special symbols.' });
-    }
+module.exports = validate((req) => {
+  const body = req.body || {};
+  const route = req.path;
+
+  if (route === "/send-otp") {
+    email(body.email);
+    return;
   }
 
-  // 2. ownerName (only if provided)
-  if (ownerName) {
-    const noSymbolsRegex = /^[a-zA-Z0-9\s]+$/;
-    if (!noSymbolsRegex.test(ownerName)) {
-      return res.status(400).json({ message: 'Owner name must not contain special symbols.' });
-    }
+  if (route === "/login") {
+    email(body.email);
+    string(body.password, "Password", { min: 1, max: 128 });
+    return;
   }
 
-  // 3. email (required for both routes)
-  if (email) {
-    const emailSymbolRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-    if (!emailSymbolRegex.test(email)) {
-      return res.status(400).json({ message: 'Email contains invalid symbols or format.' });
-    }
+  email(body.email);
+  string(body.businessName, "Business name", { min: 3, max: 100 });
+  string(body.ownerName, "Owner name", { min: 2, max: 100 });
+  password(body.password);
+  string(body.businessAddress, "Business address", { min: 5, max: 255 });
+  phone(body.phoneNumber);
+
+  if (!/^\d{6}$/.test(String(body.otp || ""))) {
+    throw Object.assign(new Error("OTP must be a 6-digit number."), {
+      statusCode: 400,
+    });
   }
-
-  // 4. password (only if provided)
-  if (password) {
-    const passwordAllowedSymbolsRegex = /^[a-zA-Z0-9@#$!]+$/;
-    if (!passwordAllowedSymbolsRegex.test(password)) {
-      return res.status(400).json({ message: 'Password contains illegal symbols. Only @, #, $, and ! are allowed.' });
-    }
-    if (password.length < 8) {
-      return res.status(400).json({ message: 'Password must be at least 8 characters.' });
-    }
-  }
-
-  // 5. businessAddress (only if provided)
-  if (businessAddress) {
-    const addressAllowedSymbolsRegex = /^[a-zA-Z0-9\s\-,.#]+$/;
-    if (!addressAllowedSymbolsRegex.test(businessAddress)) {
-      return res.status(400).json({ message: 'Business address contains invalid symbols. Only -, comma, period, and # are allowed.' });
-    }
-  }
-
-  // 6. phoneNumber (only if provided)
-  if (phoneNumber) {
-    const phoneNumberRegex = /^\d{7,15}$/;
-    if (!phoneNumberRegex.test(phoneNumber)) {
-      return res.status(400).json({ message: 'Phone number must contain 7 to 15 digits.' });
-    }
-  }
-
-  // 7. OTP validation (if provided)
-  if (otp && (!/^\d{6}$/.test(String(otp)))) {
-    return res.status(400).json({ message: 'OTP must be a 6-digit integer.' });
-  }
-
-  next();
-};
-
-module.exports = validateRegistration;
+});

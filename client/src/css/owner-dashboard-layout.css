@@ -41,12 +41,28 @@
   gap: 8px;
 }
 
+.operations-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.operations-grid h3 { grid-column: 1 / -1; margin: 0; }
+
+@media (max-width: 800px) {
+  .operations-grid { grid-template-columns: 1fr; }
+}
+
 .nav-button {
   width: 100%;
   padding: 10px 12px;
   border: 1px solid transparent;
   border-radius: 6px;
   background: transparent;
+  color: var(--text-h);
+  font: inherit;
+  font-size: 16px;
+  line-height: 1.35;
   text-align: left;
   cursor: pointer;
 }
@@ -126,15 +142,228 @@
 .dashboard-form textarea {
   width: 100%;
   box-sizing: border-box;
+  min-height: 42px;
+  padding: 9px 11px;
+  border: 1px solid #cfd6df;
+  border-radius: 6px;
+  background: #fff;
+  color: #172033;
+  font: inherit;
+  font-size: 16px;
+  line-height: 1.35;
+}
+
+.dashboard-form input:focus,
+.dashboard-form select:focus,
+.dashboard-form textarea:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-color: var(--accent);
+}
+
+.dashboard-form label {
+  display: grid;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.dashboard-form label input,
+.dashboard-form label select {
+  font-weight: 400;
 }
 
 .dashboard-form textarea {
   min-height: 90px;
   grid-column: 1 / -1;
+  resize: vertical;
 }
 
 .feedback {
   margin: 0 0 16px;
+}
+
+.notes-panel {
+  background: linear-gradient(135deg, #fffdf5, #f7fbf8);
+}
+
+.notes-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.notes-heading h3,
+.notes-heading p {
+  margin-top: 0;
+}
+
+.notes-heading > span {
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: #e3efe7;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.notes-form {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.notes-form label {
+  display: grid;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.notes-form textarea {
+  min-height: 58px;
+  resize: vertical;
+}
+
+.notes-list {
+  display: grid;
+  gap: 10px;
+  padding: 0;
+  list-style: none;
+}
+
+.category-tabs {
+  display: flex;
+  gap: 8px;
+}
+
+.category-tabs button.active {
+  background: var(--social-bg);
+  outline: 2px solid currentColor;
+}
+
+.inventory-table-wrap,
+.sales-table-wrap {
+  overflow-x: auto;
+}
+
+.inventory-table,
+.sales-table {
+  width: 100%;
+  min-width: 620px;
+  border-collapse: collapse;
+}
+
+.inventory-table th,
+.inventory-table td,
+.sales-table th,
+.sales-table td {
+  padding: 11px 10px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.sales-heading {
+  align-items: end;
+}
+
+.sales-date-range {
+  display: flex;
+  align-items: end;
+  gap: 10px;
+}
+
+.sales-date-range > span {
+  padding-bottom: 11px;
+  color: var(--muted, #667085);
+  font-weight: 700;
+}
+
+.sales-date-filter {
+  display: grid;
+  gap: 6px;
+  color: var(--muted, #667085);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.sales-date-filter input {
+  cursor: pointer;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid #d7dee8;
+  border-radius: 10px;
+  background: #fff;
+  color: #172033;
+  font: inherit;
+}
+
+.sales-summary {
+  grid-template-columns: minmax(180px, 260px);
+}
+
+.sales-chart-card {
+  overflow-x: auto;
+}
+
+.sales-chart {
+  display: flex;
+  align-items: end;
+  gap: 8px;
+  min-width: 720px;
+  height: 220px;
+  padding: 20px 12px 0;
+  border-bottom: 1px solid #d7dee8;
+}
+
+.sales-chart-column {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: end;
+  gap: 8px;
+  height: 100%;
+  min-width: 20px;
+}
+
+.sales-chart-bar {
+  display: block;
+  width: 100%;
+  min-height: 3px;
+  border-radius: 6px 6px 0 0;
+  background: linear-gradient(180deg, #1b8f8a, #0d5f68);
+}
+
+.sales-chart-column small {
+  color: var(--muted, #667085);
+  font-size: 0.72rem;
+}
+
+@media (max-width: 640px) {
+  .sales-heading,
+  .sales-date-range {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .sales-date-range > span {
+    padding: 0;
+  }
+}
+
+.note-item {
+  display: grid;
+  gap: 5px;
+  padding: 12px 14px;
+  border-left: 4px solid #78aa88;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.note-item small {
+  color: #66736a;
 }
 
 .calendar-card,
@@ -248,10 +477,21 @@
   font-weight: 700;
 }
 
-.status-present { background: #c8efd8; }
-.status-absent { background: #f5caca; }
-.status-leave { background: #f7e3ae; }
-.status-dayoff { background: #d7d7e9; }
+.status-present {
+  background: #c8efd8;
+}
+.status-late {
+  background: #f4c58b;
+}
+.status-absent {
+  background: #f5caca;
+}
+.status-leave {
+  background: #f7e3ae;
+}
+.status-dayoff {
+  background: #d7d7e9;
+}
 
 .selected-day-panel ul {
   display: grid;
