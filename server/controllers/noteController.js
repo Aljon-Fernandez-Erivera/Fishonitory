@@ -1,28 +1,111 @@
 const Note = require("../models/Note");
 const getOwnerId = require("../utils/ownerScope");
+const { writeAudit } = require("../utils/audit");
 
-exports.listNotes = async (req, res) => {
-  if (!['Owner', 'masterStaff'].includes(req.user.role)) {
-    return res.status(403).json({ message: 'This account cannot view notes.' });
+const NOTE_ROLES = ["Owner", "masterStaff", "Staff"];
+const AUTHOR_FIELDS = "ownerName staffName staffPosition role";
+
+const canModerate = (role) => role === "Owner" || role === "masterStaff";
+
+/** authorId may be populated (object) or a raw ObjectId. */
+const idOf = (value) =>
+  value && value._id ? String(value._id) : String(value ?? "");
+
+const resolveScope = async (req, res) => {
+  if (!NOTE_ROLES.includes(req.user.role)) {
+    res.status(403).json({ message: "This account cannot access notes." });
+    return null;
   }
   const ownerId = await getOwnerId(req);
-  if (!ownerId)
-    return res.status(404).json({ message: "Owner account not found." });
+  if (!ownerId) {
+    res.status(404).json({ message: "Owner account not found." });
+    return null;
+  }
+  return ownerId;
+};
+
+exports.listNotes = async (req, res) => {
+  const ownerId = await resolveScope(req, res);
+  if (!ownerId) return undefined;
+
   const notes = await Note.find({ ownerId })
-    .populate("authorId", "ownerName staffName staffPosition role")
-    .sort({ createdAt: -1 });
-  return res.json({ notes });
+    .populate("authorId", AUTHOR_FIELDS)
+    .sort({ pinned: -1, createdAt: -1 })
+    .lean();
+
+  return res.json({
+    notes,
+    permissions: {
+      canModerate: canModerate(req.user.role),
+      userId: String(req.user.userId),
+    },
+  });
 };
 
 exports.createNote = async (req, res) => {
-  if (!['Owner', 'masterStaff'].includes(req.user.role)) {
-    return res.status(403).json({ message: 'This account cannot create notes.' });
-  }
-  const ownerId = await getOwnerId(req);
-  const text = req.body.text?.trim();
-  if (!ownerId)
-    return res.status(404).json({ message: "Owner account not found." });
-  if (!text) return res.status(400).json({ message: "Note text is required." });
-  const note = await Note.create({ ownerId, authorId: req.user.userId, text });
-  return res.status(201).json({ message: "Note added successfully.", note });
+  const ownerId = await resolveScope(req, res);
+  if (!ownerId) return undefined;
+
+  const created = await Note.create({
+    ownerId,
+    authorId: req.user.userId,
+    text: req.validated.text,
+  });
+
+  const note = await Note.findById(created._id)
+    .populate("authorId", AUTHOR_FIELDS)
+    .lean();
+
+  await writeAudit(req, "CREATE", "Announcement", created._id, "Announcement board post created.");
+  return res.status(201).json({ message: "Announcement posted successfully.", note });
+};
+
+exports.updateNote = async (req, res) => {
+  const ownerId = await resolveScope(req, res);
+  if (!ownerId) return undefined;
+
+  const existing = await Note.findOne({ _id: req.params.id, ownerId });
+  if (!existing) return res.status(404).json({ message: "Note not found." });
+
+  const moderator = canModerate(req.user.role);
+  const isAuthor = idOf(existing.authorId) === String(req.user.userId);
+  const changes = req.validated;
+
+  if (changes.text !== undefined && !isAuthor && !moderator)
+    return res
+      .status(403)
+      .json({ message: "You can only edit notes you wrote." });
+
+  if (changes.pinned !== undefined && !moderator)
+    return res
+      .status(403)
+      .json({ message: "Only the owner or a master staff can pin notes." });
+
+  const note = await Note.findOneAndUpdate(
+    { _id: existing._id, ownerId },
+    { $set: changes },   // explicit whitelisted fields only, never req.body
+    { new: true, runValidators: true },
+  )
+    .populate("authorId", AUTHOR_FIELDS)
+    .lean();
+
+  await writeAudit(req, "UPDATE", "Announcement", note._id, "Announcement board post updated.");
+  return res.json({ message: "Announcement updated.", note });
+};
+
+exports.deleteNote = async (req, res) => {
+  const ownerId = await resolveScope(req, res);
+  if (!ownerId) return undefined;
+
+  const existing = await Note.findOne({ _id: req.params.id, ownerId }).lean();
+  if (!existing) return res.status(404).json({ message: "Note not found." });
+
+  if (idOf(existing.authorId) !== String(req.user.userId) && !canModerate(req.user.role))
+    return res
+      .status(403)
+      .json({ message: "You can only delete notes you wrote." });
+
+  await Note.deleteOne({ _id: existing._id, ownerId });
+  await writeAudit(req, "DELETE", "Announcement", existing._id, "Announcement board post deleted.");
+  return res.json({ message: "Note deleted." });
 };

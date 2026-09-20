@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import LoginPage from "./pages/LoginPage";
 import LandingPage from "./pages/LandingPage";
 import RegisterBusinessPage from "./pages/RegisterBusinessPage";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import OwnerDashboard from "./pages/owner/OwnerDashboard.jsx";
 import StaffDashboard from "./pages/staff/StaffDashboard.jsx";
 import AboutPage from "./pages/shared/AboutPage.jsx";
@@ -17,6 +18,7 @@ function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterBusinessPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/owner-dashboard" element={<OwnerDashboard />} />
           <Route path="/staff-dashboard" element={<StaffDashboard />} />
           <Route path="/about" element={<AboutPage />} />

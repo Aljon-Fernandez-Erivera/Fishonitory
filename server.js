@@ -1,9 +1,34 @@
 const express = require("express");
 const cors = require("cors");
+const mongoose = require("mongoose");
 const config = require("./server/config/config");
 const connectDB = require("./server/config/db");
 
 const app = express();
+const DB_RETRY_DELAY_MS = 10_000;
+let reconnectTimer = null;
+let connectionAttemptInProgress = false;
+
+if (config.nodeEnv === "production") {
+  const required = ["EMAIL_USER", "EMAIL_PASS", "CLIENT_URL"];
+  const missing = required.filter((name) => !process.env[name]);
+  if (missing.length) throw new Error(`Missing required production environment variables: ${missing.join(", ")}`);
+}
+
+// TLS is terminated by the deployment proxy in production. These headers keep
+// browser traffic HTTPS-only and prevent confidential API responses from being
+// retained in intermediary caches.
+app.set("trust proxy", 1);
+app.use((req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader("Cache-Control", "no-store");
+  if (config.nodeEnv === "production") {
+    res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  }
+  next();
+});
 
 const allowedOrigins = (process.env.CLIENT_URL || "http://localhost:5173")
   .split(",")
@@ -17,40 +42,99 @@ app.use(
   }),
 );
 
-// Keep JSON requests bounded so oversized payloads cannot exhaust server memory.
 app.use(express.json({ limit: "2mb" }));
 
-console.log("Connecting to MongoDB Atlas...");
+// Monitor Mongoose connection events globally
+mongoose.connection.on("connected", () => {
+  console.log(">>> Mongoose event: Connected to MongoDB Atlas <<<");
+});
 
-connectDB(config.mongoURI)
-  .then(() => {
-    // Mount routes ONLY after DB handshake completes
-    const authRoutes = require("./server/routes/authRoutes");
-    const attendanceRoutes = require("./server/routes/attendanceRoutes");
-    const ownerRoutes = require("./server/routes/ownerRoutes");
-    const fishRoutes = require("./server/routes/fishRoutes");
-    const storeRoutes = require("./server/routes/storeRoutes");
-    const noteRoutes = require("./server/routes/noteRoutes");
-    const salesRoutes = require("./server/routes/salesRoutes");
-    const operationsRoutes = require("./server/routes/operationsRoutes");
-    app.use("/api/auth", authRoutes);
-    app.use("/api/attendance", attendanceRoutes);
-    app.use("/api/owner", ownerRoutes);
-    app.use("/api/fish", fishRoutes);
-    app.use("/api/store", storeRoutes);
-    app.use("/api/notes", noteRoutes);
-    app.use("/api/sales", salesRoutes);
-    app.use("/api/operations", operationsRoutes);
+mongoose.connection.on("error", (err) => {
+  console.error(">>> Mongoose event: Connection error:", err.message);
+});
 
-    app.get("/", (req, res) => {
-      res.send("Fishonitory Backend API is Running");
-    });
+mongoose.connection.on("disconnected", () => {
+  console.warn(">>> Mongoose event: Disconnected from MongoDB Atlas <<<");
+  scheduleDatabaseReconnect();
+});
 
-    app.listen(config.port, () => {
-      console.log(`Server running on http://localhost:${config.port}`);
-    });
-  })
-  .catch((err) => {
-    console.error("MongoDB Connection Error:", err.message);
-    process.exit(1);
+function scheduleDatabaseReconnect() {
+  if (reconnectTimer || connectionAttemptInProgress || mongoose.connection.readyState === 1) {
+    return;
+  }
+
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    connectToDatabase();
+  }, DB_RETRY_DELAY_MS);
+}
+
+async function connectToDatabase() {
+  if (connectionAttemptInProgress || mongoose.connection.readyState === 1) {
+    return;
+  }
+
+  connectionAttemptInProgress = true;
+  let connectionFailed = false;
+  try {
+    await connectDB(config.mongoURI);
+  } catch (err) {
+    connectionFailed = true;
+    console.error("MongoDB connection attempt failed:", err.message);
+  } finally {
+    connectionAttemptInProgress = false;
+    if (connectionFailed) {
+      scheduleDatabaseReconnect();
+    }
+  }
+}
+
+// Robust Health check endpoint
+app.get("/health", (req, res) => {
+  const state = mongoose.connection.readyState;
+  // readyState values: 0 = disconnected, 1 = connected, 2 = connecting, 3 = disconnecting
+
+  const statusMap = {
+    0: { code: 503, status: "degraded", database: "disconnected" },
+    1: { code: 200, status: "healthy", database: "connected" },
+    2: { code: 503, status: "bootstrapping", database: "connecting" },
+    3: { code: 503, status: "degraded", database: "disconnecting" },
+  };
+
+  const response = statusMap[state] || { code: 503, status: "degraded", database: "unknown" };
+
+  res.status(response.code).json({
+    status: response.status,
+    database: response.database,
+    readyState: state,
+    timestamp: new Date(),
   });
+});
+
+app.get("/", (req, res) => {
+  res.send("Fishonitory Backend API is Running");
+});
+
+// Mount routes
+app.use("/api/auth", require("./server/routes/authRoutes"));
+app.use("/api/attendance", require("./server/routes/attendanceRoutes"));
+app.use("/api/owner", require("./server/routes/ownerRoutes"));
+app.use("/api/fish", require("./server/routes/fishRoutes"));
+app.use("/api/store", require("./server/routes/storeRoutes"));
+app.use("/api/notes", require("./server/routes/noteRoutes"));
+app.use("/api/sales", require("./server/routes/salesRoutes"));
+app.use("/api/operations", require("./server/routes/operationsRoutes"));
+app.use("/api/payroll", require("./server/routes/payrollRoutes"));
+
+app.use((error, req, res, next) => {
+  console.error("Unhandled API error:", error.message);
+  if (res.headersSent) return next(error);
+  return res.status(error.statusCode || 500).json({ message: error.statusCode ? error.message : "An unexpected server error occurred." });
+});
+
+// Start the HTTP server immediately so deployment probes can read /health.
+app.listen(config.port, () => {
+  console.log(`Server running on http://localhost:${config.port}`);
+  console.log("Connecting to MongoDB Atlas...");
+  connectToDatabase();
+});

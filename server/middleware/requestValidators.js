@@ -1,3 +1,5 @@
+
+const mongoose = require("mongoose");
 const {
   dateKey,
   email,
@@ -41,6 +43,13 @@ const validateStaffOtp = validate((req) => {
     });
   }
 });
+const validateDeletionOtp = validate((req) => {
+  if (!/^\d{6}$/.test(String(req.body?.otp || ""))) {
+    throw Object.assign(new Error("Deletion verification code must be a 6-digit number."), {
+      statusCode: 400,
+    });
+  }
+});
 
 const validateFish = validate((req) => {
   const body = req.body || {};
@@ -51,7 +60,10 @@ const validateFish = validate((req) => {
   number(body.costPrice ?? 0, "Cost price", { min: 0, max: 10000000 });
   number(body.quantity, "Quantity", { integer: true, min: 0, max: 10000000 });
   string(body.description, "Description", { required: false, max: 1000 });
-  string(body.photoUrl, "Photo", { required: false, max: 1500000 });
+  string(body.photoUrl, "Photo", { required: false, max: 2048 });
+  if (body.photoUrl && !/^https:\/\/res\.cloudinary\.com\/[^/]+\/image\/upload\//.test(body.photoUrl)) {
+    throw Object.assign(new Error("Photo must be a Cloudinary image URL."), { statusCode: 400 });
+  }
   if (body.tankId) objectId(body.tankId, "Tank ID");
 });
 
@@ -74,9 +86,85 @@ const validateTank = validate((req) => {
     string(body.notes, "Maintenance notes", { required: false, max: 1000 });
 });
 
-const validateNote = validate((req) => {
-  string(req.body?.text, "Note", { min: 1, max: 1000 });
-});
+const MAX_NOTE_LENGTH = 1000;
+
+// Strip control characters BUT keep \n (newline) and \t (tab).
+const CONTROL_CHARS = /[\u0000-\u0008\u000B-\u001F\u007F]/g;
+
+/**
+ * Only a real primitive string survives. Anything else — an object like
+ * { $ne: null }, an array, a number — is rejected outright. This is what
+ * stops operator injection, not a character whitelist.
+ */
+const cleanNoteText = (raw) => {
+  if (typeof raw !== "string") return null;
+  return raw
+    .replace(/\r\n?/g, "\n")        // normalise Windows / old Mac line endings
+    .replace(CONTROL_CHARS, "")     // \n and \t deliberately excluded above
+    .replace(/\n{4,}/g, "\n\n\n")   // cap runaway blank lines, don't forbid them
+    .trim();
+};
+
+const validateNoteCreate = (req, res, next) => {
+  const text = cleanNoteText(req.body?.text);
+
+  if (text === null)
+    return res.status(400).json({ message: "Note text must be a string." });
+  if (!text)
+    return res.status(400).json({ message: "Note text is required." });
+  if (text.length > MAX_NOTE_LENGTH)
+    return res
+      .status(400)
+      .json({ message: `Note cannot exceed ${MAX_NOTE_LENGTH} characters.` });
+
+  req.validated = { text };
+  return next();
+};
+
+const validateNoteUpdate = (req, res, next) => {
+  const changes = {};
+  const { text, resolved, pinned } = req.body ?? {};
+
+  if (text !== undefined) {
+    const cleaned = cleanNoteText(text);
+    if (cleaned === null)
+      return res.status(400).json({ message: "Note text must be a string." });
+    if (!cleaned)
+      return res.status(400).json({ message: "Note text cannot be empty." });
+    if (cleaned.length > MAX_NOTE_LENGTH)
+      return res
+        .status(400)
+        .json({ message: `Note cannot exceed ${MAX_NOTE_LENGTH} characters.` });
+    changes.text = cleaned;
+  }
+
+  if (resolved !== undefined) {
+    if (typeof resolved !== "boolean")
+      return res.status(400).json({ message: "'resolved' must be a boolean." });
+    changes.resolved = resolved;
+  }
+
+  if (pinned !== undefined) {
+    if (typeof pinned !== "boolean")
+      return res.status(400).json({ message: "'pinned' must be a boolean." });
+    changes.pinned = pinned;
+  }
+
+  if (!Object.keys(changes).length)
+    return res.status(400).json({ message: "No valid changes supplied." });
+
+  req.validated = changes;
+  return next();
+};
+
+/** Blocks { "_id": { "$gt": "" } } style params reaching the query. */
+const validateObjectIdParam = (paramName = "id") => (req, res, next) => {
+  const value = req.params[paramName];
+  if (typeof value !== "string" || !mongoose.Types.ObjectId.isValid(value))
+    return res.status(400).json({ message: "Invalid note id." });
+  return next();
+};
+
 
 const validateSale = validate((req) => {
   const body = req.body || {};
@@ -121,9 +209,12 @@ const validateId = (field) =>
 module.exports = {
   validateAccountStatus,
   validateAttendanceStatus,
+  validateDeletionOtp,
   validateFish,
   validateId,
-  validateNote,
+  validateNoteCreate,
+  validateNoteUpdate,
+  validateObjectIdParam,
   validateSale,
   validateStaff,
   validateStaffAttendance,

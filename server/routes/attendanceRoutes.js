@@ -9,10 +9,22 @@ const {
 
 const router = express.Router();
 
+router.post("/staff-time-clock", attendanceController.staffTimeClock);
+
 router.post(
   "/check-in",
   authMiddleware,
   attendanceController.recordStaffAttendance,
+);
+router.post(
+  "/clock-out",
+  authMiddleware,
+  attendanceController.clockOut,
+);
+router.get(
+  "/today",
+  authMiddleware,
+  attendanceController.getTodayStatus,
 );
 router.get("/", authMiddleware, attendanceController.listAttendance);
 router.patch(

@@ -16,8 +16,20 @@ router.post(
 
 // Step 3: Login
 router.post("/login", validateRegistration, authController.login);
+router.post("/totp/login", authController.verifyTotpLogin);
+router.post("/totp/reset/start", authController.startTotpReset);
+router.post("/totp/reset/confirm", authController.confirmTotpReset);
+router.post("/totp/enroll/start", authController.startRequiredTotpEnrollment);
+router.post("/totp/enroll/confirm", authController.confirmRequiredTotpEnrollment);
+router.post("/password-reset/request", validateRegistration, authController.requestPasswordReset);
+router.post("/password-reset/confirm", validateRegistration, authController.resetPassword);
 router.post("/logout", authController.logout);
 router.get("/session", authMiddleware, authController.getSession);
+router.get("/totp/status", authMiddleware, authController.getTotpStatus);
+router.post("/totp/setup", authMiddleware, authController.startTotpSetup);
+router.post("/totp/setup/cancel", authMiddleware, authController.cancelTotpSetup);
+router.post("/totp/confirm", authMiddleware, authController.confirmTotpSetup);
+router.post("/totp/disable", authMiddleware, authController.disableTotp);
 
 // Get the authenticated user's profile without exposing password or OTP
 router.get("/me", authMiddleware, authController.getCurrentUser);

@@ -1,6 +1,29 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 
+const businessFeaturesSchema = new mongoose.Schema(
+  {
+    staff: { type: Boolean, default: true },
+    attendance: { type: Boolean, default: true },
+    inventory: { type: Boolean, default: true },
+    tanks: { type: Boolean, default: true },
+    notes: { type: Boolean, default: true },
+    sales: { type: Boolean, default: true },
+    payroll: { type: Boolean, default: true },
+    operations: { type: Boolean, default: true },
+  },
+  { _id: false },
+);
+
+const attendancePolicySchema = new mongoose.Schema(
+  {
+    clockInTime: { type: String, default: "07:00" }, // "HH:mm", 24-hr
+    graceMinutes: { type: Number, default: 15 },      // minutes after clockInTime before "Late"
+    cutoffTime: { type: String, default: "18:00" },   // after this, no-shows become "Absent"
+  },
+  { _id: false },
+);
+
 const userSchema = new mongoose.Schema(
   {
     businessName: {
@@ -42,12 +65,12 @@ const userSchema = new mongoose.Schema(
       maxlength: [255, "Business address cannot exceed 255 characters"],
     },
     phoneNumber: {
-      type: String, // Stored as digits with the selected international country code
+      type: String, // Stored in E.164 format, e.g. +639171234567
       required: [true, "Phone number is required"],
       trim: true,
       match: [
-        /^\d{7,15}$/,
-        "Please enter a valid international phone number containing 7 to 15 digits",
+        /^\+[1-9]\d{6,14}$/,
+        "Please enter a valid international phone number in E.164 format",
       ],
     },
     otp: {
@@ -91,11 +114,24 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    totpEnabled: { type: Boolean, default: false },
+    totpSecretCiphertext: { type: String, default: "", select: false },
+    totpSetupCiphertext: { type: String, default: "", select: false },
+    totpSetupExpiresAt: { type: Date, default: null, select: false },
+    totpRecoveryCodeHashes: { type: [String], default: [], select: false },
+    totpLastUsedCounter: { type: Number, default: -1, select: false },
+    totpFailedAttempts: { type: Number, default: 0, select: false },
+    totpLockedUntil: { type: Date, default: null, select: false },
+    // Feature choices belong to the owner account. Turning one off never
+    // deletes its records; it only removes it from the owner workspace.
+    businessFeatures: { type: businessFeaturesSchema, default: () => ({}) },
+    workspaceSetupCompleted: { type: Boolean, default: false },
     role: {
       type: String,
       enum: ["Owner", "Staff", "masterStaff"],
       default: "Owner",
     },
+    attendancePolicy: { type: attendancePolicySchema, default: () => ({}) },
   },
   { timestamps: true },
 );

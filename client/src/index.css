@@ -1,6 +1,14 @@
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500;1,9..144,600&family=Poppins:wght@400;500;600&display=swap");
+
 /* Keep the existing Fishonitory browser styles while Tailwind utilities are added incrementally. */
 @import "tailwindcss/theme.css";
 @import "tailwindcss/utilities.css";
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
 
 :root {
   --text: #6b6375;
@@ -19,11 +27,11 @@
   --heading: system-ui, "Segoe UI", Roboto, sans-serif;
   --mono: ui-monospace, Consolas, monospace;
 
-  font: 18px/145% var(--sans);
+  font: 15px/1.5 var(--sans);
   letter-spacing: 0.18px;
   color-scheme: light dark;
   color: var(--text);
-  background: var(--bg);
+  background: #021a31;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -32,6 +40,31 @@
   @media (max-width: 1024px) {
     font-size: 16px;
   }
+}
+
+/* Shared control treatment keeps native selects, text fields, and modal forms
+   legible against the dark workspace without introducing bright cyan glare. */
+select, input, textarea {
+  font: inherit;
+}
+
+select {
+  color: #d9ecef;
+  background-color: #0a3650;
+  color-scheme: dark;
+}
+
+select option { background: #0a3650; color: #d9ecef; }
+
+/* A readable minimum for every text action. Individual utility classes may
+   make headings larger, but buttons should never shrink below 14px. */
+button {
+  font-size: 0.875rem !important;
+}
+
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 2px solid #6caeb3;
+  outline-offset: 2px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -56,19 +89,60 @@
 
 body {
   margin: 0;
+  overflow-x: clip;
+  height: 100vh;
+  min-height: 100vh;
+  background: #021a31;
+  overscroll-behavior: none;
+}
+
+html {
+  scroll-behavior: smooth;
+  background: #021a31;
+  height: 100vh;
+  min-height: 100vh;
+  overscroll-behavior: none;
 }
 
 #root {
-  width: 1126px;
+  width: 100%;
   max-width: 100%;
+  overflow-x: clip;
+  height: 100vh;
+  box-sizing: border-box;
   margin: 0 auto;
   text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
+  min-height: 100vh;
+  background: inherit;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
 }
+
+@keyframes landing-word-wave {
+
+  0%,
+  12%,
+  100% {
+    color: #e0f0f3;
+    text-shadow: 0 0 0 transparent;
+    transform: translateY(0);
+  }
+
+  22%,
+  31% {
+    color: #73c4ca;
+    text-shadow: 0 0 18px rgba(115, 196, 202, 0.3);
+    transform: translateY(-0.04em);
+  }
+
+  42% {
+    color: #b6dde0;
+    text-shadow: 0 0 0 transparent;
+    transform: translateY(0);
+  }
+}
+
 
 .info-page {
   width: min(720px, calc(100% - 40px));
@@ -78,8 +152,14 @@ body {
   border-radius: 12px;
 }
 
-.info-page dt { font-weight: 700; margin-top: 14px; }
-.info-page dd { margin: 4px 0 0; }
+.info-page dt {
+  font-weight: 700;
+  margin-top: 14px;
+}
+
+.info-page dd {
+  margin: 4px 0 0;
+}
 
 h1,
 h2 {
@@ -92,20 +172,24 @@ h1 {
   font-size: 56px;
   letter-spacing: -1.68px;
   margin: 32px 0;
+
   @media (max-width: 1024px) {
     font-size: 36px;
     margin: 20px 0;
   }
 }
+
 h2 {
   font-size: 24px;
   line-height: 118%;
   letter-spacing: -0.24px;
   margin: 0 0 8px;
+
   @media (max-width: 1024px) {
     font-size: 20px;
   }
 }
+
 p {
   margin: 0;
 }

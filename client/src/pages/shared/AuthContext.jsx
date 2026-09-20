@@ -8,8 +8,17 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     let active = true;
+    const pathname = window.location.pathname;
+    const sessionRole = pathname === "/owner-dashboard" || pathname === "/account"
+      ? "Owner"
+      : pathname === "/staff-dashboard"
+        ? "masterStaff"
+        : "";
 
-    fetch(`${API_URL}/auth/session`, { credentials: "include" })
+    fetch(`${API_URL}/auth/session`, {
+      credentials: "include",
+      headers: sessionRole ? { "X-Session-Role": sessionRole } : {},
+    })
       .then(async (response) => {
         if (!response.ok) return null;
         const data = await response.json();
@@ -51,12 +60,13 @@ export function AuthProvider({ children }) {
       await fetch(`${API_URL}/auth/logout`, {
         method: "POST",
         credentials: "include",
+        headers: user?.role ? { "X-Session-Role": user.role } : {},
       });
     } finally {
       sessionStorage.removeItem("role");
       setUser(null);
     }
-  }, []);
+  }, [user?.role]);
 
   return (
     <AuthContext.Provider value={{ user, authReady, login, logout }}>
