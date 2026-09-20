@@ -3,6 +3,7 @@ const authMiddleware = require("../middleware/authMiddleware");
 const ownerController = require("../controllers/ownerController");
 const {
   validateAccountStatus,
+  validateDeletionOtp,
   validateId,
   validateStaff,
   validateStaffOtp,
@@ -12,6 +13,8 @@ const {
 
 const router = express.Router();
 router.use(authMiddleware);
+router.get("/workspace-settings", ownerController.getWorkspaceSettings);
+router.put("/workspace-settings", ownerController.updateWorkspaceSettings);
 router.post("/staff/send-otp", validateStaff, ownerController.sendStaffOtp);
 router.post("/staff", validateStaffOtp, ownerController.createStaff);
 router.get("/staff", ownerController.listStaff);
@@ -27,6 +30,16 @@ router.patch(
   validateStaffUpdate,
   ownerController.updateStaff,
 );
-router.delete("/staff/:id", validateId("id"), ownerController.deleteStaff);
+router.post(
+  "/staff/:id/deletion-otp",
+  validateId("id"),
+  ownerController.sendStaffDeletionOtp,
+);
+router.delete(
+  "/staff/:id",
+  validateId("id"),
+  validateDeletionOtp,
+  ownerController.deleteStaff,
+);
 
 module.exports = router;

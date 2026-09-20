@@ -6,6 +6,15 @@ server/node_modules/
 # Environment Variables (private secrets)
 .env
 *.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Local database backup artifacts (contain application data, including password hashes)
+*.archive.gz
+*.archive.gz.gpg
+*.dump
+*.dump.gpg
 
 # Build outputs & cache
 client/dist/

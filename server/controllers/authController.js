@@ -6,15 +6,30 @@ const User = require("../models/User");
 const Attendance = require("../models/Attendance");
 const LoginAttempt = require("../models/LoginAttempt");
 const config = require("../config/config");
+const { cookieNameForRole } = require("../middleware/authMiddleware");
+const { writeAudit } = require("../utils/audit");
+const { getManilaDateKey } = require("../utils/dateKey");
+const {
+  buildOtpAuthUri,
+  createRecoveryCodes,
+  decryptSecret,
+  encryptSecret,
+  generateSecret,
+  verifyCode,
+} = require("../utils/totp");
 
 // In-memory OTP storage
 const pendingOTPs = new Map();
+const pendingPasswordResets = new Map();
+const pendingTotpResets = new Map();
 
 const ACCOUNT_ATTEMPT_LIMIT = 5;
 const ACCOUNT_LOCK_MS = 5 * 60 * 1000;
 const IP_ATTEMPT_LIMIT = 20;
 const IP_WINDOW_MS = 15 * 60 * 1000;
 const IP_LOCK_MS = 15 * 60 * 1000;
+const TOTP_ATTEMPT_LIMIT = 5;
+const TOTP_LOCK_MS = 5 * 60 * 1000;
 
 function getClientIp(req) {
   return req.ip || req.socket.remoteAddress || "unknown";
@@ -24,18 +39,22 @@ function secondsUntil(date) {
   return Math.max(1, Math.ceil((date.getTime() - Date.now()) / 1000));
 }
 
-function setAuthCookie(res, token) {
+function setAuthCookie(res, token, role) {
   const secure = config.nodeEnv === "production" ? "; Secure" : "";
   res.setHeader(
     "Set-Cookie",
-    `access_token=${encodeURIComponent(token)}; HttpOnly; Path=/; Max-Age=86400; SameSite=Lax${secure}`,
+    [
+      `${cookieNameForRole(role)}=${encodeURIComponent(token)}; HttpOnly; Path=/; Max-Age=86400; SameSite=Lax${secure}`,
+      "access_token=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax",
+    ],
   );
 }
 
-function clearAuthCookie(res) {
+function clearAuthCookie(res, role) {
+  const cookieName = cookieNameForRole(role) || "access_token";
   res.setHeader(
     "Set-Cookie",
-    "access_token=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax",
+    `${cookieName}=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax`,
   );
 }
 
@@ -94,6 +113,88 @@ async function recordAccountFailure(user) {
   return update.loginLockedUntil || null;
 }
 
+async function recordTotpFailure(user) {
+  const failedAttempts = (user.totpFailedAttempts || 0) + 1;
+  const update = { totpFailedAttempts: failedAttempts };
+  if (failedAttempts >= TOTP_ATTEMPT_LIMIT) {
+    update.totpLockedUntil = new Date(Date.now() + TOTP_LOCK_MS);
+  }
+  await User.updateOne({ _id: user._id }, { $set: update });
+  return update.totpLockedUntil || null;
+}
+
+function totpLockResponse(lockedUntil) {
+  return {
+    code: "TOTP_LOCKED",
+    message: "Too many authenticator-code attempts. Please try again later.",
+    retryAfterSeconds: secondsUntil(lockedUntil),
+  };
+}
+
+async function completeLogin(req, res, user, loginRole) {
+  const clientIp = getClientIp(req);
+  await Promise.all([
+    User.updateOne(
+      { _id: user._id },
+      {
+        $set: {
+          failedLoginAttempts: 0,
+          loginLockedUntil: null,
+          totpFailedAttempts: 0,
+          totpLockedUntil: null,
+        },
+      },
+    ),
+    LoginAttempt.updateOne(
+      { ip: clientIp },
+      { $set: { failedAttempts: 0, blockedUntil: null, windowStartedAt: new Date() } },
+    ),
+  ]);
+
+ let alreadyClockedIn = false;
+  if (loginRole === "Staff") {
+    const dateKey = getManilaDateKey();
+    const existingRecord = await Attendance.findOne({ userId: user._id, dateKey });
+    if (existingRecord) {
+      alreadyClockedIn = true;
+    } else {
+      await Attendance.create({
+        userId: user._id,
+        dateKey,
+        status: "Present",
+        checkIn: new Date(),
+      });
+    }
+  }
+
+  const token = jwt.sign({ userId: user._id, role: loginRole }, config.jwtSecret, { expiresIn: "1d" });
+  setAuthCookie(res, token, loginRole);
+  return res.json({
+    user: {
+      id: user._id,
+      businessName: user.businessName,
+      ownerName: user.ownerName,
+      email: user.email,
+      role: loginRole,
+    },
+    alreadyClockedIn,
+  });
+}
+
+async function verifyRecoveryCode(user, recoveryCode) {
+  const normalized = String(recoveryCode || "").trim().toUpperCase();
+  if (!/^[A-F0-9]{10}$/.test(normalized)) return false;
+  const hashes = user.totpRecoveryCodeHashes || [];
+  for (let index = 0; index < hashes.length; index += 1) {
+    if (await bcrypt.compare(normalized, hashes[index])) {
+      hashes.splice(index, 1);
+      user.totpRecoveryCodeHashes = hashes;
+      return true;
+    }
+  }
+  return false;
+}
+
 // Helper function to create Nodemailer transporter
 const createTransporter = () => {
   return nodemailer.createTransport({
@@ -148,7 +249,7 @@ exports.sendOtp = async (req, res) => {
       );
       return res.status(500).json({
         message:
-          "OTP was generated, but the email could not be sent. Check the backend console for the mail error.",
+          "We could not send the verification code right now. Please try again later.",
       });
     }
     //message confirmation once successful na generate and send ng OTP at nasend sa email
@@ -163,8 +264,7 @@ exports.sendOtp = async (req, res) => {
     console.error("------------------------------");
 
     res.status(500).json({
-      message: "Database query failed. Check the backend console for details.",
-      error: err.message,
+      message: "We could not process your registration request. Please try again later.",
     });
   }
 };
@@ -227,9 +327,70 @@ exports.verifyAndRegister = async (req, res) => {
     console.error("--- VERIFY / REGISTER ERROR DETAILS ---");
     console.error(err);
     console.error("----------------------------------------");
-    res
-      .status(500)
-      .json({ message: err.message || "Server error during registration." });
+    res.status(500).json({ message: "We could not create your account. Please try again later." });
+  }
+};
+
+// Send a password-reset code. The response is deliberately the same whether
+// or not an account exists, so email addresses cannot be discovered from this endpoint.
+exports.requestPasswordReset = async (req, res) => {
+  try {
+    const email = req.body.email.trim().toLowerCase();
+    const user = await User.findOne({ email }).select("_id accountStatus").exec();
+
+    if (user && user.accountStatus !== "Disabled") {
+      const otp = randomInt(100000, 1000000);
+      pendingPasswordResets.set(email, { otp, expiresAt: Date.now() + 5 * 60 * 1000 });
+      try {
+        await createTransporter().sendMail({
+          from: `"Fishonitory" <${process.env.EMAIL_USER}>`,
+          to: email,
+          subject: "Fishonitory - Password Reset Code",
+          text: `Your Fishonitory password reset code is: ${otp}. It expires in 5 minutes. If you did not request this, you can ignore this email.`,
+        });
+      } catch (mailError) {
+        pendingPasswordResets.delete(email);
+        console.error("Password-reset email could not be sent.", mailError.message);
+        return res.status(503).json({ message: "We could not send a reset code right now. Please try again later." });
+      }
+    }
+
+    return res.json({ message: "If that email belongs to an active account, a reset code has been sent." });
+  } catch (error) {
+    console.error("Password-reset request failed.", error);
+    return res.status(500).json({ message: "We could not process your request. Please try again later." });
+  }
+};
+
+exports.resetPassword = async (req, res) => {
+  try {
+    const email = req.body.email.trim().toLowerCase();
+    const code = String(req.body.otp || "");
+    const pending = pendingPasswordResets.get(email);
+    if (!pending || Date.now() > pending.expiresAt) {
+      pendingPasswordResets.delete(email);
+      return res.status(400).json({ message: "That reset code has expired. Please request a new one." });
+    }
+    if (code !== String(pending.otp)) {
+      return res.status(400).json({ message: "That reset code is not correct. Please try again." });
+    }
+
+    const user = await User.findOne({ email }).select("+totpLockedUntil");
+    if (!user || user.accountStatus === "Disabled") {
+      pendingPasswordResets.delete(email);
+      return res.status(400).json({ message: "This password cannot be reset right now. Please contact your business owner." });
+    }
+
+    user.password = req.body.password;
+    user.failedLoginAttempts = 0;
+    user.loginLockedUntil = null;
+    await user.save();
+    pendingPasswordResets.delete(email);
+    clearAuthCookie(res);
+    return res.json({ message: "Your password has been reset. You can now log in." });
+  } catch (error) {
+    console.error("Password reset failed.", error);
+    return res.status(500).json({ message: "We could not reset your password. Please try again later." });
   }
 };
 
@@ -287,7 +448,7 @@ exports.login = async (req, res) => {
     if (user.loginLockedUntil && user.loginLockedUntil <= new Date()) {
       user.loginLockedUntil = null;
       user.failedLoginAttempts = 0;
-      await user.save();
+      await user.save({ validateBeforeSave: false });
     }
 
     // Older accounts may still have role Staff while their position is Master Staff.
@@ -322,51 +483,31 @@ exports.login = async (req, res) => {
       return res.status(401).json({ message: "Invalid email or password." });
     }
 
-    await Promise.all([
-      User.updateOne(
-        { _id: user._id },
-        { $set: { failedLoginAttempts: 0, loginLockedUntil: null } },
-      ),
-      LoginAttempt.updateOne(
-        { ip: clientIp },
-        { $set: { failedAttempts: 0, blockedUntil: null, windowStartedAt: new Date() } },
-      ),
-    ]);
-
-    if (loginRole === "Staff") {
-      // Record the first successful staff login for the current day.
-      const dateKey = new Date().toISOString().slice(0, 10);
-      await Attendance.findOneAndUpdate(
-        { userId: user._id, dateKey },
-        {
-          $setOnInsert: {
-            userId: user._id,
-            dateKey,
-            status: "Present",
-            checkIn: new Date(),
-          },
-        },
-        { upsert: true, new: true, setDefaultsOnInsert: true },
+    // MFA is a required part of every session, regardless of the account role.
+    // Accounts created before MFA was introduced are enrolled here, after their
+    // password has been verified, rather than being granted a password-only session.
+    if (!user.totpEnabled) {
+      const enrollmentToken = jwt.sign(
+        { userId: user._id, role: loginRole, purpose: "totp-enroll" },
+        config.jwtSecret,
+        { expiresIn: "10m" },
       );
+      return res.json({ mfaEnrollmentRequired: true, enrollmentToken });
     }
 
-    const token = jwt.sign(
-      { userId: user._id, role: loginRole },
-      config.jwtSecret,
-      { expiresIn: "1d" },
-    );
+    if (user.totpEnabled) {
+      if (user.totpLockedUntil && user.totpLockedUntil > new Date()) {
+        return res.status(423).json(totpLockResponse(user.totpLockedUntil));
+      }
+      const challengeToken = jwt.sign(
+        { userId: user._id, role: loginRole, purpose: "totp-login" },
+        config.jwtSecret,
+        { expiresIn: "5m" },
+      );
+      return res.json({ totpRequired: true, challengeToken });
+    }
 
-    setAuthCookie(res, token);
-
-    res.json({
-      user: {
-        id: user._id,
-        businessName: user.businessName,
-        ownerName: user.ownerName,
-        email: user.email,
-        role: loginRole,
-      },
-    });
+    return completeLogin(req, res, user, loginRole);
   } catch (err) {
     console.error("--- LOGIN ERROR DETAILS ---");
     console.error(err);
@@ -375,18 +516,258 @@ exports.login = async (req, res) => {
   }
 };
 
+exports.verifyTotpLogin = async (req, res) => {
+  try {
+    const { challengeToken, code, recoveryCode } = req.body || {};
+    const challenge = jwt.verify(String(challengeToken || ""), config.jwtSecret);
+    if (challenge.purpose !== "totp-login") {
+      return res.status(401).json({ message: "Invalid login verification request." });
+    }
+
+    const user = await User.findById(challenge.userId).select(
+      "+totpSecretCiphertext +totpRecoveryCodeHashes +totpLastUsedCounter +totpFailedAttempts +totpLockedUntil",
+    );
+    if (!user || user.accountStatus === "Disabled" || !user.totpEnabled) {
+      return res.status(401).json({ message: "This TOTP login request is no longer valid." });
+    }
+    if (user.totpLockedUntil && user.totpLockedUntil > new Date()) {
+      return res.status(423).json(totpLockResponse(user.totpLockedUntil));
+    }
+
+    let verified = false;
+    if (code) {
+      const counter = verifyCode(decryptSecret(user.totpSecretCiphertext, config.totpEncryptionKey), code);
+      if (counter !== null && counter > user.totpLastUsedCounter) {
+        user.totpLastUsedCounter = counter;
+        verified = true;
+      }
+    } else if (recoveryCode) {
+      verified = await verifyRecoveryCode(user, recoveryCode);
+    }
+
+    if (!verified) {
+      const lockedUntil = await recordTotpFailure(user);
+      if (lockedUntil) return res.status(423).json(totpLockResponse(lockedUntil));
+      return res.status(401).json({ message: "Invalid or already used authenticator code." });
+    }
+
+    await user.save({ validateBeforeSave: false });
+    return completeLogin(req, res, user, challenge.role);
+  } catch (error) {
+    return res.status(401).json({ message: "The login verification expired. Please sign in again." });
+  }
+};
+
+// Losing an authenticator must not reduce MFA to password-only access. A
+// password-verified login challenge plus a short-lived code sent to the
+// account email is required before a new authenticator can be enrolled.
+exports.startTotpReset = async (req, res) => {
+  try {
+    const challenge = jwt.verify(String(req.body?.challengeToken || ""), config.jwtSecret);
+    if (challenge.purpose !== "totp-login") throw new Error("Invalid reset request.");
+    const user = await User.findById(challenge.userId).select("email accountStatus totpEnabled");
+    if (!user || user.accountStatus === "Disabled" || !user.totpEnabled) {
+      return res.status(401).json({ message: "This reset request is no longer valid." });
+    }
+    const code = randomInt(100000, 1000000);
+    pendingTotpResets.set(String(user._id), { code, expiresAt: Date.now() + 5 * 60 * 1000, role: challenge.role });
+    await createTransporter().sendMail({
+      from: `"Fishonitory" <${process.env.EMAIL_USER}>`,
+      to: user.email,
+      subject: "Fishonitory - Authenticator Reset Code",
+      text: `Your authenticator reset code is: ${code}. It expires in 5 minutes. If you did not request this, change your password immediately.`,
+    });
+    return res.json({ message: "A reset code was sent to your account email." });
+  } catch (error) {
+    console.error("MFA reset request failed:", error.message);
+    return res.status(400).json({ message: "We could not start authenticator reset. Please sign in again." });
+  }
+};
+
+exports.confirmTotpReset = async (req, res) => {
+  try {
+    const challenge = jwt.verify(String(req.body?.challengeToken || ""), config.jwtSecret);
+    if (challenge.purpose !== "totp-login") throw new Error("Invalid reset request.");
+    const pending = pendingTotpResets.get(String(challenge.userId));
+    if (!pending || pending.expiresAt <= Date.now() || String(req.body?.code || "") !== String(pending.code)) {
+      return res.status(400).json({ message: "That reset code is invalid or expired." });
+    }
+    pendingTotpResets.delete(String(challenge.userId));
+    await User.updateOne({ _id: challenge.userId }, {
+      $set: { totpEnabled: false, totpSecretCiphertext: "", totpSetupCiphertext: "", totpSetupExpiresAt: null, totpRecoveryCodeHashes: [], totpLastUsedCounter: -1, totpFailedAttempts: 0, totpLockedUntil: null },
+    });
+    const enrollmentToken = jwt.sign({ userId: challenge.userId, role: challenge.role, purpose: "totp-enroll" }, config.jwtSecret, { expiresIn: "10m" });
+    return res.json({ mfaEnrollmentRequired: true, enrollmentToken });
+  } catch (error) {
+    return res.status(400).json({ message: "We could not reset your authenticator. Please sign in again." });
+  }
+};
+
+exports.getTotpStatus = async (req, res) => {
+  const user = await User.findById(req.user.userId).select("totpEnabled");
+  return res.json({ enabled: Boolean(user?.totpEnabled) });
+};
+
+exports.cancelTotpSetup = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId).select("+totpSetupCiphertext +totpSetupExpiresAt totpEnabled");
+    if (!user) return res.status(404).json({ message: "Account not found." });
+    if (user.totpEnabled) return res.status(400).json({ message: "MFA is already enabled and cannot be cancelled." });
+    user.totpSetupCiphertext = "";
+    user.totpSetupExpiresAt = null;
+    await user.save({ validateBeforeSave: false });
+    return res.json({ message: "Authenticator setup cancelled." });
+  } catch (error) {
+    return res.status(500).json({ message: "We could not cancel authenticator setup. Please try again." });
+  }
+};
+
+// These endpoints complete the first-time MFA enrollment initiated after a
+// successful password check. They deliberately accept only a short-lived,
+// purpose-bound token and never create an authenticated browser session until
+// the authenticator code is verified.
+exports.startRequiredTotpEnrollment = async (req, res) => {
+  try {
+    const challenge = jwt.verify(String(req.body?.enrollmentToken || ""), config.jwtSecret);
+    if (challenge.purpose !== "totp-enroll") throw new Error("Invalid enrollment request.");
+    const user = await User.findById(challenge.userId).select("+totpSetupCiphertext +totpSetupExpiresAt");
+    if (!user || user.accountStatus === "Disabled") return res.status(401).json({ message: "This enrollment request is no longer valid." });
+    if (!user.totpEnabled) {
+      const secret = generateSecret();
+      user.totpSetupCiphertext = encryptSecret(secret, config.totpEncryptionKey);
+      user.totpSetupExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+      // Do not block MFA enrollment on unrelated legacy profile data.
+      await user.save({ validateBeforeSave: false });
+    }
+    const secret = decryptSecret(user.totpSetupCiphertext, config.totpEncryptionKey);
+    const label = `${user.businessName || user.staffName || "Fishonitory"}:${user.email}`;
+    return res.json({ otpauthUri: buildOtpAuthUri(secret, label), manualKey: secret, expiresInSeconds: 600 });
+  } catch (error) {
+    return res.status(401).json({ message: "The MFA enrollment request expired. Please sign in again." });
+  }
+};
+
+exports.confirmRequiredTotpEnrollment = async (req, res) => {
+  try {
+    const challenge = jwt.verify(String(req.body?.enrollmentToken || ""), config.jwtSecret);
+    if (challenge.purpose !== "totp-enroll") throw new Error("Invalid enrollment request.");
+    const user = await User.findById(challenge.userId).select("+totpSetupCiphertext +totpSetupExpiresAt +totpRecoveryCodeHashes");
+    if (!user?.totpSetupCiphertext || !user.totpSetupExpiresAt || user.totpSetupExpiresAt <= new Date()) {
+      return res.status(400).json({ message: "Your MFA setup has expired. Please sign in again." });
+    }
+    const secret = decryptSecret(user.totpSetupCiphertext, config.totpEncryptionKey);
+    const counter = verifyCode(secret, req.body?.code, 1);
+    if (counter === null) return res.status(400).json({ message: "Enter the current 6-digit authenticator code." });
+    const recoveryCodes = createRecoveryCodes();
+    user.totpEnabled = true;
+    user.totpSecretCiphertext = encryptSecret(secret, config.totpEncryptionKey);
+    user.totpSetupCiphertext = "";
+    user.totpSetupExpiresAt = null;
+    user.totpLastUsedCounter = counter;
+    user.totpRecoveryCodeHashes = await Promise.all(recoveryCodes.map((value) => bcrypt.hash(value, 10)));
+    await user.save({ validateBeforeSave: false });
+    // This endpoint is intentionally unauthenticated until MFA succeeds, so
+    // supply the verified challenge identity to the audit helper explicitly.
+    const auditRequest = Object.create(req);
+    auditRequest.user = { userId: user._id, role: challenge.role };
+    await writeAudit(auditRequest, "ENABLE", "TOTP", user._id, "MFA enrollment completed.");
+    return completeLogin(req, res, user, challenge.role);
+  } catch (error) {
+    console.error("MFA enrollment confirmation failed:", error.message);
+    return res.status(401).json({ message: "MFA enrollment could not be completed. Please sign in again and try a new current code." });
+  }
+};
+
+exports.startTotpSetup = async (req, res) => {
+  try {
+    if (req.user.role !== "Owner") return res.status(403).json({ message: "TOTP is available to owner accounts only." });
+    const user = await User.findById(req.user.userId).select("+totpSetupCiphertext +totpSetupExpiresAt");
+    if (!user || user.totpEnabled) return res.status(400).json({ message: "TOTP is already enabled for this account." });
+
+    const secret = generateSecret();
+    user.totpSetupCiphertext = encryptSecret(secret, config.totpEncryptionKey);
+    user.totpSetupExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    await user.save();
+    const label = `${user.businessName || "Fishonitory"}:${user.email}`;
+    return res.json({ otpauthUri: buildOtpAuthUri(secret, label), manualKey: secret, expiresInSeconds: 600 });
+  } catch (error) {
+    console.error("TOTP setup could not be started.", error.message);
+    return res.status(500).json({ message: "We could not start TOTP setup. Please try again." });
+  }
+};
+
+exports.confirmTotpSetup = async (req, res) => {
+  try {
+    if (req.user.role !== "Owner") return res.status(403).json({ message: "TOTP is available to owner accounts only." });
+    const user = await User.findById(req.user.userId).select("+totpSetupCiphertext +totpSetupExpiresAt +totpRecoveryCodeHashes");
+    if (!user?.totpSetupCiphertext || !user.totpSetupExpiresAt || user.totpSetupExpiresAt <= new Date()) {
+      return res.status(400).json({ message: "This TOTP setup has expired. Start setup again." });
+    }
+    const secret = decryptSecret(user.totpSetupCiphertext, config.totpEncryptionKey);
+    const counter = verifyCode(secret, req.body?.code, 1);
+    if (counter === null) return res.status(400).json({ message: "Enter the current 6-digit authenticator code." });
+
+    const recoveryCodes = createRecoveryCodes();
+    user.totpEnabled = true;
+    user.totpSecretCiphertext = encryptSecret(secret, config.totpEncryptionKey);
+    user.totpSetupCiphertext = "";
+    user.totpSetupExpiresAt = null;
+    user.totpLastUsedCounter = counter;
+    user.totpRecoveryCodeHashes = await Promise.all(recoveryCodes.map((value) => bcrypt.hash(value, 10)));
+    await user.save();
+    await writeAudit(req, "ENABLE", "TOTP", user._id, "Owner enabled TOTP authentication.");
+    return res.json({ message: "Authenticator app verified. Save your recovery codes now.", recoveryCodes });
+  } catch (error) {
+    console.error("TOTP setup confirmation failed.", error.message);
+    return res.status(500).json({ message: "We could not confirm TOTP setup. Please try again." });
+  }
+};
+
+exports.disableTotp = async (req, res) => {
+  try {
+    return res.status(403).json({ message: "MFA is required for all accounts and cannot be disabled." });
+    if (req.user.role !== "Owner") return res.status(403).json({ message: "TOTP is available to owner accounts only." });
+    const user = await User.findById(req.user.userId).select("+totpSecretCiphertext +totpRecoveryCodeHashes +totpLastUsedCounter");
+    if (!user?.totpEnabled) return res.status(400).json({ message: "TOTP is not enabled for this account." });
+    if (!(await bcrypt.compare(String(req.body?.password || ""), user.password))) {
+      return res.status(401).json({ message: "Your password is not correct." });
+    }
+
+    const counter = verifyCode(decryptSecret(user.totpSecretCiphertext, config.totpEncryptionKey), req.body?.code, 1);
+    const verified = counter !== null && counter > user.totpLastUsedCounter
+      ? ((user.totpLastUsedCounter = counter), true)
+      : await verifyRecoveryCode(user, req.body?.recoveryCode);
+    if (!verified) return res.status(401).json({ message: "Enter a current authenticator or recovery code." });
+
+    user.totpEnabled = false;
+    user.totpSecretCiphertext = "";
+    user.totpSetupCiphertext = "";
+    user.totpSetupExpiresAt = null;
+    user.totpRecoveryCodeHashes = [];
+    user.totpLastUsedCounter = -1;
+    user.totpFailedAttempts = 0;
+    user.totpLockedUntil = null;
+    await user.save();
+    await writeAudit(req, "DISABLE", "TOTP", user._id, "Owner disabled TOTP authentication.");
+    return res.json({ message: "TOTP has been disabled." });
+  } catch (error) {
+    console.error("TOTP disable failed.", error.message);
+    return res.status(500).json({ message: "We could not disable TOTP. Please try again." });
+  }
+};
+
 exports.logout = (req, res) => {
-  clearAuthCookie(res);
+  clearAuthCookie(res, req.headers["x-session-role"]);
   return res.json({ message: "Logged out successfully." });
 };
 
 exports.getSession = async (req, res) => {
   const user = await User.findById(req.user.userId).select(
-    "businessName ownerName email role staffName staffPosition accountStatus",
+    "businessName ownerName businessAddress phoneNumber email role staffName staffPosition accountStatus",
   );
 
   if (!user || user.accountStatus === "Disabled") {
-    clearAuthCookie(res);
+    clearAuthCookie(res, req.headers["x-session-role"]);
     return res.status(401).json({ message: "Session is no longer valid." });
   }
 
@@ -395,7 +776,11 @@ exports.getSession = async (req, res) => {
       id: user._id,
       businessName: user.businessName,
       ownerName: user.ownerName,
+      businessAddress: user.businessAddress,
+      phoneNumber: user.phoneNumber,
       email: user.email,
+      staffName: user.staffName,
+      staffPosition: user.staffPosition,
       role:
         user.role === "masterStaff" || user.staffPosition === "Master Staff"
           ? "masterStaff"

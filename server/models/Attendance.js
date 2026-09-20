@@ -7,16 +7,24 @@ const attendanceSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    
     dateKey: {
       type: String,
       required: true,
     },
+    
     status: {
       type: String,
       enum: ["Present", "Late", "Absent", "Leave", "DayOff"],
       default: "Present",
     },
+   
     checkIn: {
+      type: Date,
+      default: null,
+    },
+
+    checkOut: {
       type: Date,
       default: null,
     },

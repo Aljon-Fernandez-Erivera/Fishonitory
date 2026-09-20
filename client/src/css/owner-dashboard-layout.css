@@ -84,6 +84,14 @@
   box-sizing: border-box;
 }
 
+/* Keep every owner page aligned with the content header.  Some newer pages
+   use Tailwind's mx-auto utility, which otherwise creates a wide left gap on
+   large displays. */
+.owner-workspace > section {
+  margin-left: 0;
+  margin-right: 0;
+}
+
 .content-header,
 .page-heading {
   display: flex;
@@ -151,6 +159,24 @@
   font: inherit;
   font-size: 16px;
   line-height: 1.35;
+}
+
+/* Keep form actions out of the two-column field grid. */
+.dashboard-form label:has(textarea),
+.dashboard-form .form-actions {
+  grid-column: 1 / -1;
+}
+
+.dashboard-form .form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.dashboard-form .form-actions button {
+  min-width: 140px;
 }
 
 .dashboard-form input:focus,
@@ -493,6 +519,422 @@
   background: #d7d7e9;
 }
 
+/* Owner workspace visual system: applied to the older functional pages so
+   Attendance, Staff, Inventory and Sales match the newer teal workspace. */
+.owner-workspace .dashboard-page {
+  width: 100%;
+  max-width: 1240px;
+  gap: 24px;
+  color: #b7d2d7;
+}
+
+.owner-workspace .page-heading {
+  align-items: flex-end;
+  padding-bottom: 20px;
+  border-bottom: 1px solid rgba(225, 248, 250, 0.1);
+}
+
+.owner-workspace .page-heading h2 {
+  margin: 0;
+  color: #d9ecef;
+  font-family: "Fraunces", Georgia, serif;
+  font-size: clamp(2rem, 4vw, 3.15rem);
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.owner-workspace .page-heading p {
+  margin-top: 10px;
+  color: #92b8c1;
+  font-family: "Poppins", sans-serif;
+  font-size: 0.86rem;
+}
+
+.owner-workspace .dashboard-page > .page-heading > button,
+.owner-workspace .dashboard-page > button,
+.owner-workspace .dashboard-form .form-actions button[type="submit"],
+.owner-workspace .attendance-dialog > form > button:last-child {
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: #75bec4;
+  color: #052d45;
+  font-family: "Poppins", sans-serif;
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 0.72rem 1.05rem;
+  cursor: pointer;
+  transition: transform 160ms ease, background 160ms ease, box-shadow 160ms ease;
+}
+
+.owner-workspace .dashboard-page > .page-heading > button:hover,
+.owner-workspace .dashboard-page > button:hover,
+.owner-workspace .dashboard-form .form-actions button[type="submit"]:hover {
+  background: #91d2d5;
+  box-shadow: 0 8px 20px rgba(70, 167, 175, 0.2);
+  transform: translateY(-1px);
+}
+
+.owner-workspace .report-card,
+.owner-workspace .calendar-card {
+  overflow: hidden;
+  padding: 20px;
+  border: 1px solid rgba(220, 244, 247, 0.1);
+  border-radius: 18px;
+  background: rgba(6, 45, 72, 0.82);
+  box-shadow: 0 14px 35px rgba(0, 12, 31, 0.14);
+}
+
+.owner-workspace .dashboard-page > ul {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.owner-workspace .dashboard-page > ul > li {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 9px;
+  padding: 14px 16px;
+  border: 1px solid rgba(220, 244, 247, 0.08);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.035);
+  color: #b7d2d7;
+  font-family: "Poppins", sans-serif;
+  font-size: 0.82rem;
+}
+
+.owner-workspace .dashboard-page > ul button,
+.owner-workspace .inventory-table button,
+.owner-workspace .attendance-dialog button[type="button"] {
+  border: 1px solid rgba(186, 224, 227, 0.14);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.045);
+  color: #b7e0e2;
+  font: 500 0.72rem "Poppins", sans-serif;
+  padding: 0.45rem 0.65rem;
+  cursor: pointer;
+}
+
+.owner-workspace .dashboard-form {
+  width: min(100%, 820px);
+  max-width: none;
+  padding: 20px;
+  border: 1px solid rgba(220, 244, 247, 0.1);
+  border-radius: 18px;
+  background: rgba(6, 45, 72, 0.9);
+  box-shadow: 0 20px 45px rgba(0, 12, 31, 0.2);
+}
+
+.owner-workspace .dashboard-form label {
+  color: #a9c8cf;
+  font-family: "Poppins", sans-serif;
+  font-size: 0.76rem;
+  font-weight: 500;
+}
+
+.owner-workspace .dashboard-form input,
+.owner-workspace .dashboard-form select,
+.owner-workspace .dashboard-form textarea,
+.owner-workspace .sales-date-filter input {
+  border-color: rgba(220, 244, 247, 0.12);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #d9ecef;
+  font-family: "Poppins", sans-serif;
+  font-size: 0.82rem;
+}
+
+.owner-workspace .dashboard-form input:focus,
+.owner-workspace .dashboard-form select:focus,
+.owner-workspace .dashboard-form textarea:focus,
+.owner-workspace .sales-date-filter input:focus {
+  outline: 2px solid rgba(115, 196, 202, 0.45);
+  outline-offset: 1px;
+  border-color: #73c4ca;
+}
+
+.owner-workspace .dashboard-form .form-actions button[type="button"] {
+  border: 1px solid rgba(220, 244, 247, 0.15);
+  border-radius: 999px;
+  background: transparent;
+  color: #c9e1e5;
+  font: 500 0.8rem "Poppins", sans-serif;
+  padding: 0.72rem 1.05rem;
+  cursor: pointer;
+}
+
+.owner-workspace dialog {
+  width: min(890px, calc(100% - 2rem));
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+  border: 1px solid rgba(220, 244, 247, 0.15);
+  border-radius: 20px;
+  background: #062d48;
+  color: #c9e1e5;
+  padding: 18px;
+  box-shadow: 0 24px 60px rgba(0, 12, 31, 0.45);
+}
+
+.owner-workspace dialog::backdrop { background: rgba(2, 26, 49, 0.78); backdrop-filter: blur(3px); }
+.owner-workspace dialog h3 { margin: 0 0 8px; color: #d9ecef; font: 500 1.7rem "Fraunces", Georgia, serif; }
+.owner-workspace dialog > p { color: #9bbec7; font: 0.82rem "Poppins", sans-serif; }
+
+.owner-workspace .staff-toast,
+.owner-workspace .dashboard-toast {
+  position: fixed;
+  z-index: 20;
+  right: 20px;
+  bottom: 20px;
+  width: min(360px, calc(100vw - 32px));
+  border: 1px solid rgba(117, 190, 196, 0.38);
+  border-radius: 14px;
+  background: #063d58;
+  box-shadow: 0 16px 35px rgba(0, 12, 31, 0.32);
+  color: #d9f1f1;
+  font: 500 0.82rem "Poppins", sans-serif;
+  padding: 13px 16px;
+}
+
+.owner-workspace .staff-otp-loading-dialog[open] {
+  width: min(390px, calc(100% - 2rem));
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px;
+}
+
+.owner-workspace .staff-otp-loading-dialog h3 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.owner-workspace .staff-otp-loading-dialog p {
+  margin: 4px 0 0;
+}
+
+.owner-workspace .staff-otp-spinner {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  border: 3px solid rgba(117, 190, 196, 0.22);
+  border-top-color: #75bec4;
+  border-radius: 50%;
+  animation: staff-otp-spin 700ms linear infinite;
+}
+
+@keyframes staff-otp-spin {
+  to { transform: rotate(360deg); }
+}
+
+.owner-workspace .category-tabs { gap: 10px; }
+.owner-workspace .category-tabs button {
+  border: 1px solid rgba(220, 244, 247, 0.12);
+  border-radius: 999px;
+  background: transparent;
+  color: #91b5bf;
+  font: 500 0.78rem "Poppins", sans-serif;
+  padding: 0.58rem 1rem;
+  cursor: pointer;
+}
+.owner-workspace .category-tabs button.active { outline: 0; border-color: transparent; background: #75bec4; color: #052d45; }
+
+.owner-workspace .inventory-table,
+.owner-workspace .sales-table { color: #b7d2d7; font-family: "Poppins", sans-serif; font-size: 0.8rem; }
+.owner-workspace .inventory-table th,
+.owner-workspace .sales-table th { border-color: rgba(220, 244, 247, 0.1); color: #8fb7be; font-size: 0.68rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+.owner-workspace .inventory-table td,
+.owner-workspace .sales-table td { border-color: rgba(220, 244, 247, 0.07); }
+.owner-workspace .inventory-table tbody tr:hover,
+.owner-workspace .sales-table tbody tr:hover { background: rgba(255, 255, 255, 0.025); }
+
+.owner-workspace .calendar-toolbar { margin-bottom: 20px; }
+.owner-workspace .calendar-toolbar h3 { color: #d9ecef; font: 500 1.45rem "Fraunces", Georgia, serif; }
+.owner-workspace .calendar-toolbar button { border: 1px solid rgba(220, 244, 247, 0.12); border-radius: 9px; background: rgba(255,255,255,0.05); color: #bce9e9; cursor: pointer; }
+.owner-workspace .calendar-weekdays strong { color: #80aab4; font: 600 0.66rem "Poppins", sans-serif; letter-spacing: 0.08em; text-transform: uppercase; }
+.owner-workspace .calendar-day { border-color: rgba(220, 244, 247, 0.1); border-radius: 10px; background: rgba(255,255,255,0.025); color: #c9e1e5; font-family: "Poppins", sans-serif; }
+.owner-workspace .calendar-day:hover { border-color: rgba(115, 196, 202, 0.55); outline: 0; background: rgba(115, 196, 202, 0.09); }
+.owner-workspace .calendar-day.selected { border-color: #73c4ca; outline: 0; background: rgba(115, 196, 202, 0.16); }
+.owner-workspace .calendar-day small { color: #84aeb7; }
+.owner-workspace .status-present { background: #6ebc9d; color: #043429; }
+.owner-workspace .status-late { background: #e2b774; color: #493000; }
+.owner-workspace .status-absent { background: #d8878a; color: #4d151a; }
+.owner-workspace .status-leave { background: #b8a6d5; color: #2f2046; }
+.owner-workspace .status-dayoff { background: #91b5bf; color: #173d48; }
+
+/* Staff workspace: uses the owner visual system while keeping staff actions
+   compact and easy to scan during a shift. */
+.staff-workspace .content-header {
+  align-items: flex-start;
+  padding-bottom: 24px;
+  border-bottom: 1px solid rgba(220, 244, 247, 0.1);
+}
+
+.staff-workspace .content-header h1 {
+  margin: 8px 0 0;
+  color: #d9ecef;
+  font-family: "Fraunces", Georgia, serif;
+  font-size: clamp(2rem, 4vw, 3.15rem);
+  font-weight: 500;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.staff-workspace .staff-header-copy {
+  margin-top: 12px;
+  color: #92b8c1;
+  font: 0.84rem "Poppins", sans-serif;
+}
+
+.staff-workspace .status-dot {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(117, 190, 196, 0.24);
+  border-radius: 999px;
+  background: rgba(117, 190, 196, 0.08);
+  color: #b7e0e2;
+  font: 500 0.72rem "Poppins", sans-serif;
+  padding: 0.55rem 0.8rem;
+}
+
+.staff-workspace .status-dot::before {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #75bec4;
+  box-shadow: 0 0 0 4px rgba(117, 190, 196, 0.12);
+  content: "";
+}
+
+.staff-workspace .stats-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.staff-workspace .stat-card {
+  min-height: 132px;
+  border-color: rgba(220, 244, 247, 0.1);
+  border-radius: 18px;
+  background: rgba(6, 45, 72, 0.82);
+  box-shadow: 0 14px 35px rgba(0, 12, 31, 0.14);
+  color: #b7d2d7;
+  font-family: "Poppins", sans-serif;
+}
+
+.staff-workspace .stat-card span {
+  color: #8fb7be;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.staff-workspace .stat-card strong {
+  margin: 14px 0 8px;
+  color: #d9ecef;
+  font: 500 clamp(1.75rem, 3vw, 2.35rem) "Fraunces", Georgia, serif;
+}
+
+.staff-workspace .stat-card small { color: #8eb1ba; font-size: 0.76rem; }
+
+.staff-workspace .report-card > h2,
+.staff-workspace .report-card > h3 {
+  margin: 0 0 14px;
+  color: #d9ecef;
+  font-family: "Fraunces", Georgia, serif;
+  font-weight: 500;
+}
+
+.staff-workspace .report-card > h2:not(:first-child),
+.staff-workspace .report-card > h3:not(:first-child) { margin-top: 28px; }
+
+.staff-workspace .report-card > ul,
+.staff-workspace dialog ul {
+  display: grid;
+  gap: 9px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.staff-workspace .report-card > ul + h2 { margin-top: 28px; }
+
+.staff-workspace .report-card > ul > li,
+.staff-workspace dialog ul > li {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid rgba(220, 244, 247, 0.08);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.035);
+  color: #b7d2d7;
+  font: 0.82rem "Poppins", sans-serif;
+}
+
+.staff-workspace .report-card button,
+.staff-workspace dialog button {
+  border: 1px solid rgba(186, 224, 227, 0.16);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #b7e0e2;
+  font: 500 0.74rem "Poppins", sans-serif;
+  padding: 0.5rem 0.72rem;
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+
+.staff-workspace .report-card button:hover:not(:disabled),
+.staff-workspace dialog button:hover { background: rgba(117, 190, 196, 0.14); border-color: rgba(117, 190, 196, 0.52); transform: translateY(-1px); }
+.staff-workspace .report-card button:disabled { cursor: not-allowed; opacity: 0.45; }
+.staff-workspace .report-card > button,
+.staff-workspace .report-card button[type="submit"],
+.staff-workspace dialog button:first-of-type { border-color: transparent; background: #75bec4; color: #052d45; }
+
+.staff-workspace .report-card select,
+.staff-workspace .report-card input {
+  min-height: 38px;
+  border: 1px solid rgba(220, 244, 247, 0.12);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #d9ecef;
+  font: 0.8rem "Poppins", sans-serif;
+  padding: 0.35rem 0.55rem;
+}
+
+.staff-workspace .report-card option { background: #062d48; }
+.staff-workspace .report-card > p { margin: 14px 0; color: #9bbec7; font: 0.84rem "Poppins", sans-serif; }
+
+@media (max-width: 1100px) {
+  .staff-workspace .stats-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 700px) {
+  .staff-workspace .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* Keep each workspace page as calm and compact as the Overview page. */
+.owner-workspace > section > div:first-child > h2,
+.owner-workspace .page-heading h2 {
+  margin-top: 0.45rem !important;
+  color: #d9ecef;
+  font-family: "Poppins", sans-serif !important;
+  font-size: 1.22rem !important;
+  font-weight: 500 !important;
+  letter-spacing: -0.02em !important;
+  line-height: 1.25 !important;
+}
+
+.owner-workspace > section > div:first-child > h2 + p {
+  margin-top: 0.55rem !important;
+}
+
 .selected-day-panel ul {
   display: grid;
   gap: 12px;
@@ -588,4 +1030,237 @@
   .dashboard-form textarea {
     grid-column: auto;
   }
+
+  .dashboard-form label:has(textarea),
+  .dashboard-form .form-actions {
+    grid-column: auto;
+  }
+
+  .dashboard-form .form-actions {
+    justify-content: stretch;
+  }
+
+  .dashboard-form .form-actions button {
+    width: 100%;
+  }
 }
+
+/* =========================================================
+   LIGHT MODE DESIGN SYSTEM FOR OWNER & STAFF DASHBOARDS
+   ========================================================= */
+
+[data-theme="light"] {
+  color-scheme: light;
+}
+
+[data-theme="light"] body {
+  background: #f1f5f9;
+  color: #1e293b;
+}
+
+/* Base Headings & Typography */
+[data-theme="light"] h1,
+[data-theme="light"] h2,
+[data-theme="light"] h3,
+[data-theme="light"] h4,
+[data-theme="light"] h5 {
+  color: #0f172a !important;
+}
+
+[data-theme="light"] strong.text-\[\#d9ecef\],
+[data-theme="light"] strong.text-\[\#cde4e6\],
+[data-theme="light"] .text-\[\#d9ecef\],
+[data-theme="light"] .text-\[\#cde4e6\],
+[data-theme="light"] .text-\[\#d8f1f1\] {
+  color: #0f172a !important;
+}
+
+[data-theme="light"] p.text-\[\#9bbec7\],
+[data-theme="light"] p.text-\[\#9abcc5\],
+[data-theme="light"] p.text-\[\#89afb9\],
+[data-theme="light"] p.text-\[\#7fa7ae\],
+[data-theme="light"] p.text-\[\#759faa\],
+[data-theme="light"] small.text-\[\#719ba8\],
+[data-theme="light"] small.text-\[\#6f9ca5\],
+[data-theme="light"] span.text-\[\#91b5bf\],
+[data-theme="light"] span.text-\[\#89afb9\],
+[data-theme="light"] .text-\[\#9bbec7\],
+[data-theme="light"] .text-\[\#9abcc5\],
+[data-theme="light"] .text-\[\#8fb7be\],
+[data-theme="light"] .text-\[\#7fa7ae\],
+[data-theme="light"] .text-\[\#759faa\],
+[data-theme="light"] .text-\[\#719ba8\],
+[data-theme="light"] .text-\[\#6f9ca5\],
+[data-theme="light"] .text-\[\#91b5bf\] {
+  color: #64748b !important;
+}
+
+[data-theme="light"] p.text-\[\#c9e1e5\],
+[data-theme="light"] div.text-\[\#c9e1e5\],
+[data-theme="light"] span.text-\[\#c9e1e5\],
+[data-theme="light"] li.text-\[\#b7d2d7\],
+[data-theme="light"] .text-\[\#c9e1e5\],
+[data-theme="light"] .text-\[\#c9e8e9\],
+[data-theme="light"] .text-\[\#b7d2d7\] {
+  color: #334155 !important;
+}
+
+[data-theme="light"] .text-\[\#73c4ca\],
+[data-theme="light"] .text-\[\#75bec4\] {
+  color: #0d9488 !important;
+}
+
+[data-theme="light"] .text-\[\#bce9e9\],
+[data-theme="light"] .text-\[\#b8d8dd\] {
+  color: #0f766e !important;
+}
+
+/* All Cards, Panels, and Containers */
+[data-theme="light"] .owner-workspace > section article,
+[data-theme="light"] .owner-workspace article.rounded-2xl,
+[data-theme="light"] .owner-workspace div.rounded-2xl,
+[data-theme="light"] .owner-workspace form.rounded-2xl,
+[data-theme="light"] .owner-workspace section.rounded-2xl,
+[data-theme="light"] .stat-card,
+[data-theme="light"] .report-card {
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.02) !important;
+  color: #1e293b !important;
+}
+
+/* Inner List Items, Rows, and Small Cards */
+[data-theme="light"] .owner-workspace div.rounded-xl,
+[data-theme="light"] .owner-workspace li.rounded-xl,
+[data-theme="light"] .owner-workspace tr.border-t,
+[data-theme="light"] .owner-workspace details.rounded-xl {
+  background: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+  color: #334155 !important;
+}
+
+/* Borders */
+[data-theme="light"] .border-sky-100\/10,
+[data-theme="light"] .border-sky-100\/15,
+[data-theme="light"] .border-sky-100\/20,
+[data-theme="light"] .border-sky-100\/\[\.08\],
+[data-theme="light"] .border-sky-100\/\[\.07\],
+[data-theme="light"] .border-cyan-100\/10,
+[data-theme="light"] .border-cyan-100\/\[\.08\] {
+  border-color: #e2e8f0 !important;
+}
+
+/* Inputs, Selects, and Textareas */
+[data-theme="light"] input,
+[data-theme="light"] select,
+[data-theme="light"] textarea {
+  background: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+[data-theme="light"] input:focus,
+[data-theme="light"] select:focus,
+[data-theme="light"] textarea:focus {
+  border-color: #0d9488 !important;
+  outline: 2px solid rgba(13, 148, 136, 0.2) !important;
+  background: #ffffff !important;
+}
+
+/* Action Buttons */
+[data-theme="light"] button.bg-\[\#75bec4\],
+[data-theme="light"] button.bg-\[\#65c9c9\] {
+  background: #0d9488 !important;
+  color: #ffffff !important;
+}
+
+[data-theme="light"] button.bg-\[\#75bec4\]:hover,
+[data-theme="light"] button.bg-\[\#65c9c9\]:hover {
+  background: #0f766e !important;
+}
+
+[data-theme="light"] button.border-sky-100\/15,
+[data-theme="light"] button.border-sky-100\/20 {
+  background: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #334155 !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+}
+
+[data-theme="light"] button.border-sky-100\/15:hover,
+[data-theme="light"] button.border-sky-100\/20:hover {
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+/* Tables */
+[data-theme="light"] table {
+  color: #334155 !important;
+}
+
+[data-theme="light"] thead,
+[data-theme="light"] th {
+  background: #f8fafc !important;
+  color: #475569 !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+[data-theme="light"] td {
+  border-bottom: 1px solid #e2e8f0 !important;
+  color: #334155 !important;
+}
+
+[data-theme="light"] tbody tr:hover {
+  background: #f8fafc !important;
+}
+
+/* Badges and Indicators */
+[data-theme="light"] .bg-\[\#75bec4\]\/10,
+[data-theme="light"] .bg-\[\#75bec4\]\/15,
+[data-theme="light"] .bg-\[\#75bec4\]\/20 {
+  background: rgba(13, 148, 136, 0.1) !important;
+  color: #0f766e !important;
+  border-color: rgba(13, 148, 136, 0.25) !important;
+}
+
+[data-theme="light"] .bg-white\/\[\.02\],
+[data-theme="light"] .bg-white\/\[\.025\],
+[data-theme="light"] .bg-white\/\[\.03\],
+[data-theme="light"] .bg-white\/\[\.035\],
+[data-theme="light"] .bg-white\/\[\.04\],
+[data-theme="light"] .bg-white\/\[\.05\],
+[data-theme="light"] .bg-white\/\[\.06\],
+[data-theme="light"] .bg-white\/\[\.07\] {
+  background: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* Modal Dialogs */
+[data-theme="light"] dialog,
+[data-theme="light"] .fixed.inset-0 .bg-\[\#062d48\] {
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Feedback Alerts */
+[data-theme="light"] .border-\[\#75bec4\]\/30.bg-\[\#75bec4\]\/10 {
+  background: #f0fdfa !important;
+  border-color: #99f6e4 !important;
+  color: #0f766e !important;
+}
+
+[data-theme="light"] .border-red-200\/25.bg-red-200\/10 {
+  background: #fef2f2 !important;
+  border-color: #fecaca !important;
+  color: #991b1b !important;
+}
+
+[data-theme="light"] .border-amber-300\/30.bg-amber-400\/10,
+[data-theme="light"] .border-amber-200\/25.bg-amber-100\/\[\.07\] {
+  background: #fffbeb !important;
+  border-color: #fde68a !important;
+  color: #92400e !important;
+}
+

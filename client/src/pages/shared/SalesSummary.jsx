@@ -1,6 +1,13 @@
 import { useMemo } from "react";
 import { formatPeso, getDatesInRange, getSalesForRange } from "./salesUtils.js";
 
+const formatRangeLabel = (start, end) => {
+  const options = { month: "short", day: "numeric" };
+  const startLabel = new Date(`${start}T00:00:00`).toLocaleDateString("en-PH", options);
+  const endLabel = new Date(`${end}T00:00:00`).toLocaleDateString("en-PH", options);
+  return start === end ? startLabel : `${startLabel} – ${endLabel}`;
+};
+
 function SalesSummary({ sales = [], startDate, endDate, onDateChange }) {
   const rangeSales = useMemo(
     () => getSalesForRange(sales, startDate, endDate),
@@ -44,27 +51,29 @@ function SalesSummary({ sales = [], startDate, endDate, onDateChange }) {
   };
 
   return (
-    <div className="sales-overview">
-      <div className="page-heading sales-heading">
+    <section className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-5 shadow-[0_14px_35px_rgba(0,12,31,.14)] sm:p-6">
+      <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
         <div>
-          <h3>Sales Overview</h3>
-          <p>Choose a date range to review sales performance.</p>
+          <p className="font-['Poppins'] text-xs font-semibold uppercase tracking-[0.14em] text-[#73c4ca]">Sales overview</p>
+          <h3 className="m-0 mt-2 font-['Fraunces'] text-2xl font-medium text-[#d9ecef]">Sales performance</h3>
         </div>
 
-        <div className="sales-date-range">
-          <label className="sales-date-filter">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+          <label className="grid gap-1.5 font-['Poppins'] text-xs font-medium text-[#a9c8cf]">
             From
             <input
+              className="box-border min-h-10 rounded-xl border border-sky-100/10 bg-white/[.06] px-3 font-['Poppins'] text-sm text-[#d9ecef] outline-none [color-scheme:dark] focus:border-[#73c4ca]"
               type="date"
               value={startDate}
               max={endDate}
               onChange={(event) => updateDate("startDate", event.target.value)}
             />
           </label>
-          <span aria-hidden="true">to</span>
-          <label className="sales-date-filter">
+          <span aria-hidden="true" className="hidden pb-2 font-['Poppins'] text-sm text-[#719ba8] sm:block">to</span>
+          <label className="grid gap-1.5 font-['Poppins'] text-xs font-medium text-[#a9c8cf]">
             To
             <input
+              className="box-border min-h-10 rounded-xl border border-sky-100/10 bg-white/[.06] px-3 font-['Poppins'] text-sm text-[#d9ecef] outline-none [color-scheme:dark] focus:border-[#73c4ca]"
               type="date"
               value={endDate}
               min={startDate}
@@ -74,47 +83,47 @@ function SalesSummary({ sales = [], startDate, endDate, onDateChange }) {
         </div>
       </div>
 
-      <div className="stats-grid sales-summary">
-        <article className="stat-card">
-          <span>Sales Total</span>
-          <strong>{formatPeso(dailyTotal)}</strong>
-          <small>{rangeSales.length} transaction(s) in selected range</small>
+      <div className="mt-6 grid gap-3 sm:grid-cols-2">
+        <article className="rounded-xl border border-sky-100/[.08] bg-white/[.035] p-4">
+          <span className="font-['Poppins'] text-xs font-medium uppercase tracking-[0.12em] text-[#91b5bf]">Sales Total</span>
+          <strong className="mt-2 block font-['Fraunces'] text-3xl font-medium text-[#d9ecef]">{formatPeso(dailyTotal)}</strong>
+          <small className="mt-1.5 block font-['Poppins'] text-xs text-[#719ba8]">{rangeSales.length} transaction(s) in {formatRangeLabel(startDate, endDate)}</small>
         </article>
-        <article className="stat-card">
-          <span>Estimated Profit</span>
-          <strong>{formatPeso(profit)}</strong>
-          <small>Sales less recorded item costs</small>
+        <article className="rounded-xl border border-sky-100/[.08] bg-white/[.035] p-4">
+          <span className="font-['Poppins'] text-xs font-medium uppercase tracking-[0.12em] text-[#91b5bf]">Estimated Profit</span>
+          <strong className="mt-2 block font-['Fraunces'] text-3xl font-medium text-[#d9ecef]">{formatPeso(profit)}</strong>
+          <small className="mt-1.5 block font-['Poppins'] text-xs text-[#719ba8]">In {rangeSales.length} transaction(s) for {formatRangeLabel(startDate, endDate)}</small>
         </article>
       </div>
 
-      <div className="report-card sales-chart-card">
-        <div className="page-heading">
+      <div className="mt-6 overflow-x-auto rounded-xl border border-sky-100/[.08] bg-white/[.025] p-4">
+        <div>
           <div>
-            <h4>Daily Sales</h4>
-            <p>Sales Summary</p>
+            <h4 className="m-0 font-['Fraunces'] text-xl font-medium text-[#d9ecef]">Daily Sales</h4>
+            <p className="mt-1 font-['Poppins'] text-xs text-[#719ba8]">Sales Summary</p>
           </div>
         </div>
 
         <div
-          className="sales-chart"
+          className="mt-5 flex h-52 min-w-[560px] items-end gap-2 border-b border-sky-100/10 px-2 pt-4"
           role="img"
           aria-label="Daily sales bar chart"
         >
           {dailySales.map(({ date, total }) => (
-            <div className="sales-chart-column" key={date}>
+            <div className="flex h-full min-w-5 flex-1 flex-col items-center justify-end gap-2" key={date}>
               <span
-                className="sales-chart-bar"
+                className="block w-full min-h-[3px] rounded-t-md bg-[linear-gradient(180deg,#73c4ca,#276f87)]"
                 style={{
                   height: `${(total / chartMaximum) * 100}%`,
                 }}
                 title={`${date}: ${formatPeso(total)}`}
               />
-              <small>{date.slice(5)}</small>
+              <small className="font-['Poppins'] text-[0.65rem] text-[#719ba8]">{date.slice(5)}</small>
             </div>
           ))}
         </div>
       </div>
-    </div>
+    </section>
   );
 }
 

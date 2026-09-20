@@ -20,6 +20,7 @@ const tankSchema = new mongoose.Schema(
       default: "Needs Cleaning",
     },
     nextMaintenance: { type: Date, default: null },
+    cleaningFrequencyDays: { type: Number, default: null },
     notes: { type: String, trim: true, default: "" },
   },
   { timestamps: true },

@@ -15,6 +15,20 @@ module.exports = validate((req) => {
     return;
   }
 
+  if (route === "/password-reset/request") {
+    email(body.email);
+    return;
+  }
+
+  if (route === "/password-reset/confirm") {
+    email(body.email);
+    password(body.password);
+    if (!/^\d{6}$/.test(String(body.otp || ""))) {
+      throw Object.assign(new Error("Please enter the 6-digit reset code."), { statusCode: 400 });
+    }
+    return;
+  }
+
   email(body.email);
   string(body.businessName, "Business name", { min: 3, max: 100 });
   string(body.ownerName, "Owner name", { min: 2, max: 100 });

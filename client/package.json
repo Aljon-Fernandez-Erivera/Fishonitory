@@ -13,9 +13,11 @@
     "axios": "^1.19.0",
     "jspdf": "^4.2.1",
     "libphonenumber-js": "^1.13.12",
+    "qrcode": "^1.5.4",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "react-router-dom": "^7.18.3"
+    "react-router-dom": "^7.18.3",
+    "sweetalert2": "^11.26.25"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

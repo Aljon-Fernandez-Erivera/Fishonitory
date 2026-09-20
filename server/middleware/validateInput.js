@@ -36,8 +36,8 @@ function password(value, field = "Password") {
 }
 
 function phone(value, field = "Phone number") {
-  const text = string(value, field, { min: 7, max: 15 });
-  if (!/^\d{7,15}$/.test(text)) fail(`${field} must contain 7 to 15 digits.`);
+  const text = string(value, field, { min: 8, max: 16 });
+  if (!/^\+[1-9]\d{6,14}$/.test(text)) fail(`${field} must use international E.164 format, for example +639171234567.`);
   return text;
 }
 

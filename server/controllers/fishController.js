@@ -1,6 +1,38 @@
 const Fish = require("../models/Fish");
 const getOwnerId = require("../utils/ownerScope");
 const { writeAudit } = require("../utils/audit");
+const cloudinary = require("cloudinary").v2;
+const config = require("../config/config");
+
+const jpegSignature = Buffer.from([0xff, 0xd8, 0xff]);
+const pngSignature = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+const hasValidImageSignature = (file) => {
+  const expected = file.mimetype === "image/jpeg" ? jpegSignature : pngSignature;
+  return file.buffer?.subarray(0, expected.length).equals(expected);
+};
+
+cloudinary.config({
+  cloud_name: config.cloudinaryCloudName,
+  api_key: config.cloudinaryApiKey,
+  api_secret: config.cloudinaryApiSecret,
+  secure: true,
+});
+
+
+exports.uploadPhoto = async (req, res) => {
+  if (req.user.role !== "Owner") return res.status(403).json({ message: "Only owners can upload inventory photos." });
+  if (!req.file || !hasValidImageSignature(req.file)) return res.status(400).json({ message: "Upload a valid JPEG or PNG image." });
+  if (!config.cloudinaryCloudName || !config.cloudinaryApiKey || !config.cloudinaryApiSecret) return res.status(503).json({ message: "Image uploads are not configured." });
+  try {
+    const result = await new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream({ folder: "fishonitory/inventory", resource_type: "image", allowed_formats: ["jpg", "png"], format: "webp", transformation: [{ width: 1200, height: 1200, crop: "limit" }] }, (error, uploadResult) => error ? reject(error) : resolve(uploadResult));
+      stream.end(req.file.buffer);
+    });
+    return res.status(201).json({ photoUrl: result.secure_url });
+  } catch {
+    return res.status(502).json({ message: "Image upload failed. Please try again." });
+  }
+};
 
 exports.listFish = async (req, res) => {
   if (!['Owner', 'masterStaff'].includes(req.user.role)) {
@@ -110,6 +142,9 @@ exports.updateFish = async (req, res) => {
 };
 
 exports.deleteFish = async (req, res) => {
+  if (req.user.role !== "Owner") {
+    return res.status(403).json({ message: "Only owners can delete inventory." });
+  }
   const fish = await Fish.findOneAndDelete({
     _id: req.params.id,
     ownerId: req.user.userId,

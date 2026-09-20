@@ -5,7 +5,8 @@ import SalesSummary from "../shared/SalesSummary.jsx";
 import { formatPeso, getDefaultSalesRange } from "../shared/salesUtils.js";
 import { API_URL } from "../../config.js";
 import "../../css/owner-dashboard-layout.css";
-
+import Swal from "sweetalert2";
+import NotificationBell from "../shared/NotificationBell.jsx";
 
 // Choices para sa mga fish tank statuses na pwedeng i-update ng staff sa dashboard.
 const tankStatuses = [
@@ -17,12 +18,22 @@ const tankStatuses = [
   "Available",
 ];
 
+const escapeHtml = (value) =>
+  String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+
+
 // Function to make API requests with authentication headers
 async function apiRequest(path, options = {}) {
   const response = await fetch(`${API_URL}${path}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",
+      "X-Session-Role": "masterStaff",
       ...(options.headers || {}),
     },
     credentials: "include",
@@ -39,7 +50,7 @@ async function apiRequest(path, options = {}) {
   return data;
 }
 
-// Staffdashboard things
+// Staff dashboard component
 function StaffDashboard() {
   const { user, authReady, logout } = useAuth();
 
@@ -63,6 +74,45 @@ function StaffDashboard() {
 
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [timeClock, setTimeClock] = useState({ email: "", password: "" });
+  const [timeClockBusy, setTimeClockBusy] = useState(false);
+
+  const [currentTime, setCurrentTime] = useState(() => new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!message) return undefined;
+    Swal.fire({
+      toast: true,
+      position: "top-end",
+      icon: "success",
+      title: message,
+      showConfirmButton: false,
+      timer: 5000,
+      timerProgressBar: true,
+    });
+    const timer = window.setTimeout(() => setMessage(""), 5000);
+    return () => window.clearTimeout(timer);
+  }, [message]);
+
+  useEffect(() => {
+    if (!error) return undefined;
+    Swal.fire({
+      toast: true,
+      position: "top-end",
+      icon: "error",
+      title: error,
+      showConfirmButton: false,
+      timer: 5000,
+      timerProgressBar: true,
+    });
+    const timer = window.setTimeout(() => setError(""), 5000);
+    return () => window.clearTimeout(timer);
+  }, [error]);
 
   const fishInventory = fish.filter(
     (item) => (item.category || "Fish") !== "Fish Food",
@@ -99,6 +149,31 @@ function StaffDashboard() {
     }
   };
 
+  const submitTimeClock = async (action) => {
+    if (!timeClock.email || !timeClock.password)
+      return setError(
+        "Enter the staff email and password to record attendance.",
+      );
+    setTimeClockBusy(true);
+    setError("");
+    try {
+      const response = await fetch(`${API_URL}/attendance/staff-time-clock`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...timeClock, action }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok)
+        throw new Error(data.message || "Could not record attendance.");
+      setMessage(data.message);
+      setTimeClock({ email: "", password: "" });
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setTimeClockBusy(false);
+    }
+  };
+
   // Use effect to check user role and load data on component mount
   useEffect(() => {
     if (!authReady) return undefined;
@@ -110,6 +185,12 @@ function StaffDashboard() {
     const loadTimer = setTimeout(loadData, 0);
     return () => clearTimeout(loadTimer);
   }, [authReady, user]);
+
+  useEffect(() => {
+    if (!authReady || user?.role !== "masterStaff") return undefined;
+    const timer = window.setInterval(loadData, 10000);
+    return () => window.clearInterval(timer);
+  }, [authReady, user?.role]);
 
   const addToCart = (item) => {
     setCart((previous) => {
@@ -152,7 +233,7 @@ function StaffDashboard() {
 
   // Calculate subtotal, discount amount, and total for the cart
   const subtotal = cart.reduce(
-    (total, item) => total + item.price * item.quantity,
+    (totalValue, item) => totalValue + item.price * item.quantity,
     0,
   );
 
@@ -170,7 +251,7 @@ function StaffDashboard() {
       });
 
       setNote("");
-      setMessage("Your note has been successfully added.");
+      setMessage("Your announcement has been posted.");
       await loadData();
     } catch (requestError) {
       setError(requestError.message);
@@ -229,44 +310,44 @@ function StaffDashboard() {
     const receiptItems = receipt.items
       .map(
         (item) => `
-                    <tr>
-                        <td>${item.name} x${item.quantity}</td>
-                        <td>${formatPeso(item.total)}</td>
-                    </tr>
-                `,
+          <tr>
+            <td>${escapeHtml(item.name)} x${escapeHtml(item.quantity)}</td>
+            <td>${formatPeso(item.total)}</td>
+          </tr>
+        `,
       )
       .join("");
 
     // Writing receipt content para sa printing.
     printWindow.document.write(`
-            <html>
-                <head>
-                    <title>Fishonitory Receipt</title>
-                    <style>
-                        body { font-family: Arial; padding: 24px; }
-                        h1 { text-align: center; }
-                        table { width: 100%; border-collapse: collapse; }
-                        td { padding: 6px 0; border-bottom: 1px solid #ddd; }
-                        .total { font-size: 18px; font-weight: bold; }
-                    </style>
-                </head>
-                <body>
-                    <h1>Fishonitory Receipt</h1>
-                    <p>
-                        Cashier: ${user?.role || "Staff"}<br />
-                        Date: ${new Date(receipt.createdAt).toLocaleString()}
-                    </p>
-                    <table>${receiptItems}</table>
-                    <p>
-                        Subtotal: ${formatPeso(receipt.subtotal)}<br />
-                        Discount: ${formatPeso(receipt.discount)}<br />
-                        <span class="total">
-                            TOTAL: ${formatPeso(receipt.total)}
-                        </span>
-                    </p>
-                </body>
-            </html>
-        `);
+      <html>
+        <head>
+          <title>Fishonitory Receipt</title>
+          <style>
+            body { font-family: Arial; padding: 24px; color: #111; }
+            h1 { text-align: center; margin-bottom: 8px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+            td { padding: 8px 0; border-bottom: 1px solid #ddd; }
+            .total { font-size: 18px; font-weight: bold; }
+          </style>
+        </head>
+        <body>
+          <h1>Fishonitory Receipt</h1>
+          <p>
+            Cashier: ${escapeHtml(user?.staffName || user?.role || "Staff")}<br />
+            Date: ${new Date(receipt.createdAt).toLocaleString()}
+          </p>
+          <table>${receiptItems}</table>
+          <p style="margin-top: 16px;">
+            Subtotal: ${formatPeso(receipt.subtotal)}<br />
+            Discount: ${formatPeso(receipt.discount)}<br />
+            <span class="total">
+              TOTAL: ${formatPeso(receipt.total)}
+            </span>
+          </p>
+        </body>
+      </html>
+    `);
 
     printWindow.document.close();
     printWindow.focus();
@@ -277,331 +358,798 @@ function StaffDashboard() {
     return null;
   }
 
-  const dashboardPages = [
-    "overview",
-    "inventory",
-    "tanks",
-    "calculator",
-    "sales",
-    "leave-note",
-    "announcements",
-  ];
+  const navButtonClass = (page) =>
+    `shrink-0 rounded-md border-0 bg-clip-padding px-3 py-2 text-left font-['Poppins'] text-[0.78rem] leading-tight outline-none transition [-webkit-appearance:none] [appearance:none] [box-shadow:none] focus:outline-none focus:ring-0 focus-visible:outline-none cursor-pointer ${
+      activePage === page
+        ? "bg-[#65c9c9] font-medium text-[#073047] hover:bg-[#75cccc]"
+        : "bg-transparent text-[#8fb7be] hover:text-[#d9ecef]"
+    }`;
 
-  // Render the staff dashboard with navigation, content sections, and modals for inventory and checkout
   return (
-    <main className="owner-dashboard">
-      <aside className="owner-sidebar">
-        <div className="sidebar-brand">
-          <span className="brand-mark">F</span>
+    <main className="box-border flex h-[100dvh] min-h-0 w-full flex-col overflow-hidden bg-[radial-gradient(circle_at_88%_12%,#0a5267_0%,#08465d_42%,#021a31_100%)] text-[#c9e1e5] md:flex-row">
+      {/* SIDEBAR */}
+      <aside className="box-border flex w-full shrink-0 flex-col overflow-hidden border-b border-cyan-100/[.08] bg-[#062f43] px-4 py-3 md:h-full md:w-56 md:border-b-0 md:border-r md:px-3 md:pt-4 md:pb-4">
+        {/* Brand */}
+        <div className="flex shrink-0 items-center gap-2.5 px-1">
+          <img
+            src="/LOGO.svg"
+            alt="Fishonitory"
+            className="h-10 w-10 object-contain"
+          />
           <div>
-            <strong>Fishonitory</strong>
-            <small>Staff workspace</small>
+            <strong className="block font-['Poppins'] text-[0.9rem] font-medium text-[#cde4e6]">
+              Fishonitory
+            </strong>
+            <small className="block font-['Poppins'] text-[0.58rem] text-[#7fa7ae]">
+              Staff workspace
+            </small>
           </div>
         </div>
 
-        {/*Side navigation bar*/}
-        <nav className="sidebar-nav" aria-label="Staff dashboard navigation">
-          {dashboardPages.map((page) => (
-            <button
-              key={page}
-              className={
-                activePage === page ? "nav-button active" : "nav-button"
-              }
-              type="button"
-              onClick={() => setActivePage(page)}
-            >
-              {page === "leave-note"
-                ? "Leave Note"
-                : page.charAt(0).toUpperCase() + page.slice(1)}
-            </button>
-          ))}
+        {/* Navigation list with independent scroll */}
+        <nav
+          className="mt-4 flex min-w-0 gap-0.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:mt-6 md:min-h-0 md:flex-1 md:flex-col md:overflow-y-auto md:overflow-x-hidden md:pr-1 [scrollbar-width:thin]"
+          aria-label="Staff dashboard navigation"
+        >
+          <button
+            className={navButtonClass("overview")}
+            type="button"
+            onClick={() => setActivePage("overview")}
+          >
+            Overview
+          </button>
+          <button
+            className={navButtonClass("time-clock")}
+            type="button"
+            onClick={() => setActivePage("time-clock")}
+          >
+            Staff Time Clock
+          </button>
+          <button
+            className={navButtonClass("inventory")}
+            type="button"
+            onClick={() => setActivePage("inventory")}
+          >
+            Fish & Feed Inventory
+          </button>
+          <button
+            className={navButtonClass("tanks")}
+            type="button"
+            onClick={() => setActivePage("tanks")}
+          >
+            Tank Updates
+          </button>
+          <button
+            className={navButtonClass("calculator")}
+            type="button"
+            onClick={() => setActivePage("calculator")}
+          >
+            Point of Sale (POS)
+          </button>
+          <button
+            className={navButtonClass("sales")}
+            type="button"
+            onClick={() => setActivePage("sales")}
+          >
+            Sales
+          </button>
+          <button
+            className={navButtonClass("leave-note")}
+            type="button"
+            onClick={() => setActivePage("leave-note")}
+          >
+            Post to Board
+          </button>
+          <button
+            className={navButtonClass("announcements")}
+            type="button"
+            onClick={() => setActivePage("announcements")}
+          >
+            Announcements
+          </button>
+          <button
+            className={navButtonClass("settings")}
+            type="button"
+            onClick={() => setActivePage("settings")}
+          >
+            Settings
+          </button>
         </nav>
 
-        <button
-          className="nav-button logout-button"
-          type="button"
-          onClick={async () => {
-            await logout();
-            window.location.replace("/login");
-          }}
-        >
-          Logout
-        </button>
+        {/* Pinned Bottom Footer */}
+        <div className="mt-auto shrink-0 border-t border-cyan-100/[.08] pt-2.5 pb-0.5 md:pt-3 md:pb-1">
+          <div
+            className="flex cursor-pointer items-center gap-2.5 rounded-lg p-1.5 transition hover:bg-white/[.04]"
+            onClick={() => setActivePage("settings")}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ")
+                setActivePage("settings");
+            }}
+          >
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#75bec4]/20 font-['Poppins'] text-sm font-semibold text-[#bce9e9]">
+              {(user?.staffName || user?.email || "S")
+                .trim()
+                .charAt(0)
+                .toUpperCase()}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-['Poppins'] text-[0.78rem] font-medium text-[#cde4e6]">
+                {user?.staffName || user?.email || "Master Staff"}
+              </p>
+              <p className="truncate font-['Poppins'] text-[0.62rem] text-[#6f9ca5]">
+                {user?.staffPosition || "Operations Staff"}
+              </p>
+            </div>
+          </div>
+          <button
+            className="mt-2.5 w-full rounded-lg border border-cyan-100/10 bg-white/[.05] px-3 py-2 text-center font-['Poppins'] text-[0.75rem] font-medium text-[#b8d8dd] outline-none transition hover:border-red-200/25 hover:bg-red-200/10 hover:text-red-100 focus:outline-none focus:ring-2 focus:ring-[#73c4ca]/50 cursor-pointer"
+            type="button"
+            onClick={async () => {
+              const result = await Swal.fire({
+                title: "Log out?",
+                text: "You will need to sign in again to continue.",
+                icon: "question",
+                showCancelButton: true,
+                confirmButtonText: "Log out",
+                cancelButtonText: "Stay signed in",
+                background: "#062d48",
+                color: "#d9ecef",
+                confirmButtonColor: "#4f9fa5",
+              });
+              if (result.isConfirmed) {
+                await logout();
+                window.location.replace("/login");
+              }
+            }}
+          >
+            Logout
+          </button>
+        </div>
       </aside>
 
-      <div className="owner-content">
-        <header className="content-header">
+      {/* MAIN WORKSPACE AREA */}
+      <div className="owner-workspace min-h-0 min-w-0 flex-1 overflow-y-auto px-4 py-6 sm:px-5 lg:px-5 lg:py-8">
+        {/* Header bar */}
+        <header className="mb-7 flex w-full max-w-7xl items-start justify-between gap-4 border-b border-sky-100/10 pb-5">
           <div>
-            <p className="eyebrow">STAFF WORKSPACE</p>
+            <p className="font-['Poppins'] text-[0.65rem] font-medium tracking-[0.16em] text-[#73c4ca]">
+              OPERATIONS CONTROL CENTER
+            </p>
+            <p className="mt-1 font-['Poppins'] text-xs text-[#759faa]">
+              {currentTime.toLocaleDateString("en-PH", {
+                weekday: "long",
+                month: "long",
+                day: "numeric",
+                year: "numeric",
+              })}
+            </p>
           </div>
-          <span className="status-dot">System online</span>
+          <div className="flex shrink-0 items-center gap-2">
+            <span className="inline-flex items-center gap-2 rounded-full border border-sky-100/10 bg-white/[.04] px-3 py-1.5 font-['Poppins'] text-xs text-[#a8c9d0]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#73c4ca] shadow-[0_0_10px_#73c4ca]" />
+              System online ·{" "}
+              {currentTime.toLocaleTimeString("en-PH", {
+                hour: "numeric",
+                minute: "2-digit",
+                second: "2-digit",
+              })}
+            </span>
+            <NotificationBell
+              notes={notes}
+              fish={fish}
+              tanks={tanks}
+              onNavigate={setActivePage}
+              announcementPage="announcements"
+              viewerRole="masterStaff"
+              viewerId={user?.id}
+            />
+          </div>
         </header>
-        {/**/}
-        {message && (
-          <p className="feedback success" role="status">
-            {message}
-          </p>
-        )}
 
-        {error && (
-          <p className="feedback error" role="alert">
-            {error}
-          </p>
-        )}
-
-        <section className="dashboard-page">
+        {/* DASHBOARD PAGE CONTENT */}
+        <section className="mx-auto grid w-full max-w-7xl gap-6">
+          {/* 1. OVERVIEW */}
           {activePage === "overview" && (
-            <div className="stats-grid">
-              <article className="stat-card">
-                <span>Fish Species</span>
-                <strong>{fishTypesCount}</strong>
-                <small>Unique fish listed</small>
-              </article>
+            <div className="space-y-6">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                <article className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-5 shadow-[0_14px_35px_rgba(0,12,31,.14)]">
+                  <span className="font-['Poppins'] text-xs font-medium uppercase tracking-[0.12em] text-[#91b5bf]">
+                    Fish Species
+                  </span>
+                  <strong className="mt-1 block font-['Fraunces'] text-4xl font-bold text-[#d9ecef]">
+                    {fishTypesCount}
+                  </strong>
+                  <small className="font-['Poppins'] text-[11px] text-[#6f9ca5]">
+                    Unique fish listed
+                  </small>
+                </article>
 
-              <article className="stat-card">
-                <span>Total Fish Stock</span>
-                <strong>
-                  {fishInventory.reduce((sum, item) => sum + item.quantity, 0)}
-                </strong>
-                <small>Available live units</small>
-              </article>
-
-              <article className="stat-card">
-                <span>Food Supplies</span>
-                <strong>
-                  {food.reduce((sum, item) => sum + item.quantity, 0)}
-                </strong>
-                <small>Feed inventory units</small>
-              </article>
-
-              <article className="stat-card">
-                <span>Total Tanks</span>
-                <strong>{tanks.length}</strong>
-                <small>Active store tanks</small>
-              </article>
-
-              <article className="stat-card">
-                <span>Cart Total</span>
-                <strong>{formatPeso(total)}</strong>
-                <small>Current transaction total</small>
-              </article>
-            </div>
-          )}
-
-          {activePage === "inventory" && (
-            <div className="report-card">
-              <h2>Fish Inventory</h2>
-              <ul>
-                {fishInventory.map((item) => (
-                  <li key={item._id}>
-                    {item.name} ({item.category || "Fish"}) - {item.quantity}{" "}
-                    available - {formatPeso(item.price)}{" "}
-                    <button type="button" onClick={() => addToCart(item)}>
-                      Add to Cart
-                    </button>
-                  </li>
-                ))}
-              </ul>
-              <h2>Food Inventory</h2>
-              <ul>
-                {food.map((item) => (
-                  <li key={item._id}>
-                    {item.name} - {item.quantity} available -{" "}
-                    {formatPeso(item.price)}{" "}
-                    <button type="button" onClick={() => addToCart(item)}>
-                      Add to Cart
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {activePage === "tanks" && (
-            <div className="report-card">
-              <h2>Tank Updates</h2>
-              <ul>
-                {tanks.map((tank) => (
-                  <li key={tank._id}>
-                    <strong>{tank.name}</strong>{" "}
-                    <select
-                      value={tank.status}
-                      onChange={(event) =>
-                        updateTank(tank._id, event.target.value)
-                      }
-                    >
-                      {tankStatuses.map((status) => (
-                        <option key={status}>{status}</option>
-                      ))}
-                    </select>
-                    {tank.nextMaintenance && (
-                      <small>
-                        {" "}
-                        Maintenance:{" "}
-                        {new Date(tank.nextMaintenance).toLocaleDateString()}
-                      </small>
+                <article className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-5 shadow-[0_14px_35px_rgba(0,12,31,.14)]">
+                  <span className="font-['Poppins'] text-xs font-medium uppercase tracking-[0.12em] text-[#91b5bf]">
+                    Total Fish Stock
+                  </span>
+                  <strong className="mt-1 block font-['Fraunces'] text-4xl font-bold text-[#d9ecef]">
+                    {fishInventory.reduce(
+                      (sum, item) => sum + item.quantity,
+                      0,
                     )}
-                  </li>
-                ))}
-              </ul>
+                  </strong>
+                  <small className="font-['Poppins'] text-[11px] text-[#6f9ca5]">
+                    Available live units
+                  </small>
+                </article>
+
+                <article  className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-5 shadow-[0_14px_35px_rgba(0,12,31,.14)]">
+                  <span className="font-['Poppins'] text-xs font-medium uppercase tracking-[0.12em] text-[#91b5bf]">
+                    Food Supplies
+                  </span>
+                  <strong className="mt-1 block font-['Fraunces'] text-4xl font-bold text-[#d9ecef]">
+                    {food.reduce((sum, item) => sum + item.quantity, 0)}
+                  </strong>
+                  <small className="font-['Poppins'] text-[11px] text-[#6f9ca5]">
+                    Feed inventory units
+                  </small>
+                </article>
+
+                <article className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-5 shadow-[0_14px_35px_rgba(0,12,31,.14)]">
+                  <span className="font-['Poppins'] text-xs font-medium uppercase tracking-[0.12em] text-[#91b5bf]">
+                    Total Tanks
+                  </span>
+                  <strong className="mt-1 block font-['Fraunces'] text-4xl font-bold text-[#d9ecef]">
+                    {tanks.length}
+                  </strong>
+                  <small className="font-['Poppins'] text-[11px] text-[#6f9ca5]">
+                    Active store tanks
+                  </small>
+                </article>
+
+                <article className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-5 shadow-[0_14px_35px_rgba(0,12,31,.14)]">
+                  <span className="font-['Poppins'] text-xs text-[#89afb9]">
+                    Cart Total
+                  </span>
+                  <strong className="mt-1 block font-['Fraunces'] text-4xl font-bold text-[#73c4ca]">
+                    {formatPeso(total)}
+                  </strong>
+                  <small className="font-['Poppins'] text-[11px] text-[#6f9ca5]">
+                    Current transaction total
+                  </small>
+                </article>
+              </div>
+
+              <div>
+                <SalesSummary
+                  sales={sales}
+                  startDate={salesRange.startDate}
+                  endDate={salesRange.endDate}
+                  onDateChange={(field, value) =>
+                    setSalesRange((previous) => ({
+                      ...previous,
+                      [field]: value,
+                    }))
+                  }
+                />
+              </div>
             </div>
           )}
 
-          {activePage === "calculator" && (
-            <div className="report-card">
-              <h2>Cart</h2>
+          {/* 2. INVENTORY */}
+          {activePage === "inventory" && (
+            <div className="space-y-6">
+              {/* Fish Livestock */}
+              <div className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-6 shadow-[0_14px_35px_rgba(0,12,31,.14)]">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-sky-100/10 pb-4">
+                  <div>
+                    <h3 className="font-['Fraunces'] text-xl font-medium text-[#d9ecef]">
+                      Fish Livestock
+                    </h3>
+                    <p className="mt-0.5 font-['Poppins'] text-xs text-[#9bbec7]">
+                      Live ornamental fish currently listed in store stock.
+                    </p>
+                  </div>
+                  <span className="rounded-full border border-sky-100/15 bg-white/[.04] px-3 py-1 font-['Poppins'] text-xs text-[#73c4ca]">
+                    {fishInventory.length} Species
+                  </span>
+                </div>
 
-              <button type="button" onClick={() => setInventoryOpen(true)}>
-                Open Inventory
-              </button>
-
-              <dialog
-                open={inventoryOpen}
-                aria-labelledby="cart-inventory-title"
-              >
-                <h3 id="cart-inventory-title">Select Inventory</h3>
-
-                <ul>
-                  {inventory.map((item) => (
-                    <li key={item._id}>
-                      {item.name} ({item.category || "Fish"}) -{" "}
-                      {formatPeso(item.price)}{" "}
+                <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  {fishInventory.map((item) => (
+                    <div
+                      key={item._id}
+                      className="flex flex-col justify-between rounded-xl border border-sky-100/[.08] bg-white/[.03] p-4 transition hover:border-sky-100/20"
+                    >
+                      <div className="flex gap-3">
+                        {item.photoUrl ? (
+                          <img
+                            src={item.photoUrl}
+                            alt={item.name}
+                            className="h-14 w-14 shrink-0 rounded-lg object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-[#0a4261] text-xl">
+                            🐟
+                          </div>
+                        )}
+                        <div>
+                          <div className="flex items-start justify-between gap-2">
+                            <strong className="font-['Poppins'] text-sm font-medium text-[#d9ecef]">
+                              {item.name}
+                            </strong>
+                            <span className="rounded-md bg-[#75bec4]/15 px-2 py-0.5 font-['Poppins'] text-[10px] font-medium text-[#bce9e9]">
+                              {item.category || "Fish"}
+                            </span>
+                          </div>
+                          <p className="mt-1 font-['Poppins'] text-xs text-[#89afb9]">
+                            Available:{" "}
+                            <span className="font-semibold text-[#d9ecef]">
+                              {item.quantity}
+                            </span>{" "}
+                            units
+                          </p>
+                          <p className="mt-1 font-['Fraunces'] text-base font-bold text-[#73c4ca]">
+                            {formatPeso(item.price)}
+                          </p>
+                        </div>
+                      </div>
                       <button
                         type="button"
-                        onClick={() => adjustQuantity(item, -1)}
+                        onClick={() => addToCart(item)}
+                        className="mt-3 w-full rounded-lg bg-[#75bec4] py-2 text-center font-['Poppins'] text-xs font-semibold text-[#052d45] transition hover:bg-[#86d0d6] cursor-pointer"
                       >
-                        -
-                      </button>{" "}
-                      <strong>
-                        {cart.find((cartItem) => cartItem._id === item._id)
-                          ?.quantity || 0}
-                      </strong>{" "}
-                      <button
-                        type="button"
-                        onClick={() => adjustQuantity(item, 1)}
-                      >
-                        +
+                        Add to Cart
                       </button>
-                    </li>
+                    </div>
                   ))}
-                </ul>
+                </div>
+              </div>
 
-                <button type="button" onClick={() => setInventoryOpen(false)}>
-                  Done
-                </button>
-              </dialog>
+              {/* Food Supplies */}
+              <div className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-6 shadow-[0_14px_35px_rgba(0,12,31,.14)]">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-sky-100/10 pb-4">
+                  <div>
+                    <h3 className="font-['Fraunces'] text-xl font-medium text-[#d9ecef]">
+                      Food Supplies
+                    </h3>
+                    <p className="mt-0.5 font-['Poppins'] text-xs text-[#9bbec7]">
+                      Fish food pellets, supplements, and aquatic supplies.
+                    </p>
+                  </div>
+                  <span className="rounded-full border border-sky-100/15 bg-white/[.04] px-3 py-1 font-['Poppins'] text-xs text-[#73c4ca]">
+                    {food.length} Products
+                  </span>
+                </div>
 
-              <h3>Items in Cart</h3>
-              <ul>
-                {cart.map((item) => (
-                  <li key={item._id}>
-                    {item.name}{" "}
-                    <button
-                      type="button"
-                      onClick={() => adjustQuantity(item, -1)}
+                <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  {food.map((item) => (
+                    <div
+                      key={item._id}
+                      className="flex flex-col justify-between rounded-xl border border-sky-100/[.08] bg-white/[.03] p-4 transition hover:border-sky-100/20"
                     >
-                      -
-                    </button>{" "}
-                    <strong>{item.quantity}</strong>{" "}
-                    <button
-                      type="button"
-                      onClick={() => adjustQuantity(item, 1)}
-                    >
-                      +
-                    </button>{" "}
-                    x {formatPeso(item.price)} ={" "}
-                    {formatPeso(item.price * item.quantity)}
-                  </li>
+                      <div className="flex gap-3">
+                        {item.photoUrl ? (
+                          <img
+                            src={item.photoUrl}
+                            alt={item.name}
+                            className="h-14 w-14 shrink-0 rounded-lg object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-[#0a4261] text-xl">
+                            🐟
+                          </div>
+                        )}
+                        <div>
+                          <strong className="font-['Poppins'] text-sm font-medium text-[#d9ecef]">
+                            {item.name}
+                          </strong>
+                          <p className="mt-1 font-['Poppins'] text-xs text-[#89afb9]">
+                            Available:{" "}
+                            <span className="font-semibold text-[#d9ecef]">
+                              {item.quantity}
+                            </span>{" "}
+                            units
+                          </p>
+                          <p className="mt-1 font-['Fraunces'] text-base font-bold text-[#73c4ca]">
+                            {formatPeso(item.price)}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => addToCart(item)}
+                        className="mt-3 w-full rounded-lg bg-[#75bec4] py-2 text-center font-['Poppins'] text-xs font-semibold text-[#052d45] transition hover:bg-[#86d0d6] cursor-pointer"
+                      >
+                        Add to Cart
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 3. TANKS */}
+          {activePage === "tanks" && (
+            <div className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-6 shadow-[0_14px_35px_rgba(0,12,31,.14)]">
+              <div className="border-b border-sky-100/10 pb-4">
+                <h3 className="font-['Fraunces'] text-xl font-medium text-[#d9ecef]">
+                  Tank Updates
+                </h3>
+                <p className="mt-0.5 font-['Poppins'] text-xs text-[#9bbec7]">
+                  Monitor and update sanitation and equipment condition for
+                  active tanks.
+                </p>
+              </div>
+
+              <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                {tanks.map((tank) => (
+                  <div
+                    key={tank._id}
+                    className="rounded-xl border border-sky-100/[.08] bg-white/[.03] p-4"
+                  >
+                    <div className="flex items-center justify-between">
+                      <strong className="font-['Poppins'] text-base font-medium text-[#d9ecef]">
+                        {tank.name}
+                      </strong>
+                      <span className="rounded-md bg-white/[.06] px-2 py-0.5 font-['Poppins'] text-[10px] text-[#73c4ca]">
+                        Tank #{tank._id.slice(-4)}
+                      </span>
+                    </div>
+
+                    <div className="mt-3">
+                      <label className="block font-['Poppins'] text-[10px] font-semibold uppercase tracking-wider text-[#89afb9]">
+                        Condition Status
+                      </label>
+                      <select
+                        value={tank.status}
+                        onChange={(event) =>
+                          updateTank(tank._id, event.target.value)
+                        }
+                        className="mt-1 w-full rounded-xl border border-sky-100/15 bg-[#062d48] px-3 py-2 font-['Poppins'] text-xs text-[#d9ecef] outline-none transition focus:border-[#73c4ca] cursor-pointer"
+                      >
+                        {tankStatuses.map((status) => (
+                          <option
+                            key={status}
+                            value={status}
+                            className="bg-[#062d48] text-[#d9ecef]"
+                          >
+                            {status}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {tank.nextMaintenance && (
+                      <p className="mt-3 font-['Poppins'] text-[11px] text-[#7fa7ae]">
+                        📅 Next maintenance:{" "}
+                        <span className="font-medium text-[#bce9e9]">
+                          {new Date(tank.nextMaintenance).toLocaleDateString()}
+                        </span>
+                      </p>
+                    )}
+                  </div>
                 ))}
-              </ul>
+              </div>
+            </div>
+          )}
 
-              <p>Subtotal: {formatPeso(subtotal)}</p>
+          {/* 4. CALCULATOR / POS */}
+          {activePage === "calculator" && (
+            <div className="grid gap-6 lg:grid-cols-3">
+              {/* Items in Cart */}
+              <div className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-6 shadow-[0_14px_35px_rgba(0,12,31,.14)] lg:col-span-2">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-sky-100/10 pb-4">
+                  <div>
+                    <h3 className="font-['Fraunces'] text-xl font-medium text-[#d9ecef]">
+                      Active Sale Cart
+                    </h3>
+                    <p className="mt-0.5 font-['Poppins'] text-xs text-[#9bbec7]">
+                      Add products and adjust quantities for retail purchase.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setInventoryOpen(true)}
+                    className="rounded-full bg-[#75bec4] px-4 py-2 font-['Poppins'] text-xs font-semibold text-[#052d45] transition hover:bg-[#86d0d6] cursor-pointer"
+                  >
+                    + Open Inventory Selector
+                  </button>
+                </div>
 
-              <label>
-                Discount
-                <input
-                  type="number"
-                  min="0"
-                  value={discount}
-                  onChange={(event) => setDiscount(event.target.value)}
-                />
-              </label>
-
-              <h3>Total: {formatPeso(total)}</h3>
-
-              <button
-                type="button"
-                onClick={() => setCheckoutOpen(true)}
-                disabled={!cart.length}
-              >
-                Confirm Checkout
-              </button>
-
-              <dialog open={checkoutOpen} aria-labelledby="checkout-title">
-                <h3 id="checkout-title">Confirm Checkout</h3>
-                <p>Confirm this sale for {formatPeso(total)}?</p>
-                <button type="button" onClick={checkout}>
-                  Confirm and Show Receipt
-                </button>
-                <button type="button" onClick={() => setCheckoutOpen(false)}>
-                  Cancel
-                </button>
-              </dialog>
-
-              {receipt && (
-                <dialog
-                  open={Boolean(receipt) && !checkoutOpen}
-                  aria-labelledby="receipt-title"
-                >
-                  <h3 id="receipt-title">Fishonitory Receipt</h3>
-                  <p>
-                    Cashier:{" "}
-                    {receipt.soldBy?.staffName || user?.role || "Staff"}
-                    <br />
-                    {new Date(receipt.createdAt).toLocaleString()}
-                  </p>
-
-                  <ul>
-                    {receipt.items.map((item) => (
-                      <li key={item.itemId}>
-                        {item.name} x{item.quantity} - {formatPeso(item.total)}
-                      </li>
+                {cart.length === 0 ? (
+                  <div className="py-12 text-center">
+                    <p className="font-['Poppins'] text-sm text-[#7fa7ae]">
+                      The cart is currently empty.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setInventoryOpen(true)}
+                      className="mt-3 rounded-full border border-sky-100/20 bg-white/[.04] px-4 py-2 font-['Poppins'] text-xs text-[#73c4ca] hover:bg-white/[.08] cursor-pointer"
+                    >
+                      Browse Available Products
+                    </button>
+                  </div>
+                ) : (
+                  <div className="mt-4 space-y-2">
+                    {cart.map((item) => (
+                      <div
+                        key={item._id}
+                        className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-sky-100/[.07] bg-white/[.03] p-3.5"
+                      >
+                        <div>
+                          <strong className="block font-['Poppins'] text-sm text-[#d9ecef]">
+                            {item.name}
+                          </strong>
+                          <span className="font-['Poppins'] text-xs text-[#7fa7ae]">
+                            {formatPeso(item.price)} each
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center rounded-lg border border-sky-100/15 bg-white/[.05]">
+                            <button
+                              type="button"
+                              onClick={() => adjustQuantity(item, -1)}
+                              className="px-2.5 py-1 text-sm font-bold text-[#bce9e9] hover:bg-white/[.08] cursor-pointer"
+                            >
+                              -
+                            </button>
+                            <span className="px-3 font-['Poppins'] text-xs font-semibold text-[#d9ecef]">
+                              {item.quantity}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => adjustQuantity(item, 1)}
+                              className="px-2.5 py-1 text-sm font-bold text-[#bce9e9] hover:bg-white/[.08] cursor-pointer"
+                            >
+                              +
+                            </button>
+                          </div>
+                          <span className="w-24 text-right font-['Fraunces'] text-sm font-bold text-[#73c4ca]">
+                            {formatPeso(item.price * item.quantity)}
+                          </span>
+                        </div>
+                      </div>
                     ))}
-                  </ul>
+                  </div>
+                )}
+              </div>
 
-                  <p>
-                    Subtotal: {formatPeso(receipt.subtotal)}
-                    <br />
-                    Discount: {formatPeso(receipt.discount)}
-                    <br />
-                    <strong>Total: {formatPeso(receipt.total)}</strong>
-                  </p>
+              {/* Order Summary & Checkout Card */}
+              <div className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-6 shadow-[0_14px_35px_rgba(0,12,31,.14)] lg:col-span-1">
+                <h3 className="font-['Fraunces'] text-xl font-medium text-[#d9ecef]">
+                  Order Total
+                </h3>
 
-                  <button type="button" onClick={printReceipt}>
-                    Print Receipt
-                  </button>
-                  <button type="button" onClick={() => setReceipt(null)}>
-                    Close
-                  </button>
-                </dialog>
+                <div className="mt-5 space-y-3 font-['Poppins'] text-xs text-[#9bbec7]">
+                  <div className="flex justify-between">
+                    <span>Subtotal</span>
+                    <span className="font-medium text-[#d9ecef]">
+                      {formatPeso(subtotal)}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <label className="text-[#89afb9]">Discount (₱)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={discount}
+                      onChange={(event) => setDiscount(event.target.value)}
+                      className="w-24 rounded-lg border border-sky-100/15 bg-white/[.07] px-2.5 py-1 text-right font-['Poppins'] text-xs text-[#d9ecef] outline-none focus:border-[#73c4ca]"
+                    />
+                  </div>
+
+                  {discountAmount > 0 && (
+                    <div className="flex justify-between text-emerald-300">
+                      <span>Discount Applied</span>
+                      <span>-{formatPeso(discountAmount)}</span>
+                    </div>
+                  )}
+
+                  <div className="flex justify-between border-t border-sky-100/10 pt-3 text-sm font-semibold">
+                    <span className="text-[#d9ecef]">Total Due</span>
+                    <span className="font-['Fraunces'] text-xl font-bold text-[#73c4ca]">
+                      {formatPeso(total)}
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  disabled={!cart.length}
+                  onClick={() => setCheckoutOpen(true)}
+                  className="mt-6 w-full rounded-xl bg-[#75bec4] py-3 text-center font-['Poppins'] text-sm font-semibold text-[#052d45] transition hover:bg-[#86d0d6] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  Confirm Checkout
+                </button>
+              </div>
+
+              {/* MODAL 1: Select from Inventory */}
+              {inventoryOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
+                  <div className="box-border flex max-h-[85vh] w-full max-w-xl flex-col rounded-2xl border border-sky-100/15 bg-[#062d48] p-6 shadow-2xl">
+                    <div className="flex items-center justify-between border-b border-sky-100/10 pb-4">
+                      <h3 className="font-['Fraunces'] text-xl font-medium text-[#d9ecef]">
+                        Select Inventory Items
+                      </h3>
+                      <button
+                        type="button"
+                        onClick={() => setInventoryOpen(false)}
+                        className="cursor-pointer bg-transparent border-0 text-lg text-[#89afb9] hover:text-[#d9ecef]"
+                      >
+                        ✕
+                      </button>
+                    </div>
+
+                    <div className="mt-4 flex-1 space-y-2 overflow-y-auto pr-1">
+                      {inventory.map((item) => (
+                        <div
+                          key={item._id}
+                          className="flex items-center justify-between rounded-xl border border-sky-100/[.08] bg-white/[.03] p-3 text-xs"
+                        >
+                          <div className="flex items-center gap-3">
+                            {item.photoUrl ? (
+                              <img
+                                src={item.photoUrl}
+                                alt=""
+                                className="h-10 w-10 rounded-lg object-cover"
+                              />
+                            ) : (
+                              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#0a4261]">
+                                🐟
+                              </div>
+                            )}
+                            <div>
+                              <strong className="block font-['Poppins'] text-sm text-[#d9ecef]">
+                                {item.name}
+                              </strong>
+                              <span className="font-['Poppins'] text-[11px] text-[#7fa7ae]">
+                                {formatPeso(item.price)} (
+                                {item.category || "Fish"})
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex items-center rounded-lg border border-sky-100/15 bg-white/[.05]">
+                            <button
+                              type="button"
+                              onClick={() => adjustQuantity(item, -1)}
+                              className="px-2.5 py-1 text-sm font-bold text-[#bce9e9] hover:bg-white/[.08] cursor-pointer"
+                            >
+                              -
+                            </button>
+                            <span className="px-3 font-['Poppins'] text-xs font-semibold text-[#d9ecef]">
+                              {cart.find(
+                                (cartItem) => cartItem._id === item._id,
+                              )?.quantity || 0}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => adjustQuantity(item, 1)}
+                              className="px-2.5 py-1 text-sm font-bold text-[#bce9e9] hover:bg-white/[.08] cursor-pointer"
+                            >
+                              +
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="mt-5 border-t border-sky-100/10 pt-4 text-right">
+                      <button
+                        type="button"
+                        onClick={() => setInventoryOpen(false)}
+                        className="rounded-full bg-[#75bec4] px-5 py-2 font-['Poppins'] text-xs font-semibold text-[#052d45] hover:bg-[#86d0d6] cursor-pointer"
+                      >
+                        Done
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* MODAL 2: Checkout Confirmation */}
+              {checkoutOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
+                  <div className="w-full max-w-md rounded-2xl border border-sky-100/15 bg-[#062d48] p-6 shadow-2xl">
+                    <h3 className="font-['Fraunces'] text-xl font-medium text-[#d9ecef]">
+                      Confirm Checkout
+                    </h3>
+                    <p className="mt-2 font-['Poppins'] text-sm text-[#9bbec7]">
+                      Confirm this sale transaction for{" "}
+                      <strong className="font-semibold text-[#73c4ca]">
+                        {formatPeso(total)}
+                      </strong>
+                      ?
+                    </p>
+                    <div className="mt-6 flex justify-end gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setCheckoutOpen(false)}
+                        className="rounded-full border border-sky-100/15 px-4 py-2 font-['Poppins'] text-xs text-[#89afb9] hover:text-[#d9ecef] cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={checkout}
+                        className="rounded-full bg-[#75bec4] px-5 py-2 font-['Poppins'] text-xs font-semibold text-[#052d45] transition hover:bg-[#86d0d6] cursor-pointer"
+                      >
+                        Confirm and Show Receipt
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* MODAL 3: Receipt Dialog */}
+              {receipt && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
+                  <div className="w-full max-w-md rounded-2xl border border-sky-100/15 bg-[#062d48] p-6 shadow-2xl">
+                    <h3 className="font-['Fraunces'] text-xl font-medium text-[#d9ecef]">
+                      Transaction Receipt
+                    </h3>
+                    <p className="mt-1 font-['Poppins'] text-xs text-[#89afb9]">
+                      Cashier:{" "}
+                      {receipt.soldBy?.staffName || user?.role || "Staff"} ·{" "}
+                      {new Date(receipt.createdAt).toLocaleString()}
+                    </p>
+
+                    <div className="mt-4 max-h-56 space-y-2 overflow-y-auto border-t border-b border-sky-100/10 py-3">
+                      {receipt.items.map((item) => (
+                        <div
+                          key={item.itemId}
+                          className="flex justify-between font-['Poppins'] text-xs text-[#d9ecef]"
+                        >
+                          <span>
+                            {item.name} x{item.quantity}
+                          </span>
+                          <span className="font-medium text-[#73c4ca]">
+                            {formatPeso(item.total)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="mt-3 space-y-1 font-['Poppins'] text-xs text-[#9bbec7]">
+                      <div className="flex justify-between">
+                        <span>Subtotal</span>
+                        <span>{formatPeso(receipt.subtotal)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Discount</span>
+                        <span>{formatPeso(receipt.discount)}</span>
+                      </div>
+                      <div className="flex justify-between font-semibold text-[#d9ecef]">
+                        <span>Total Paid</span>
+                        <span className="font-['Fraunces'] text-base font-bold text-[#73c4ca]">
+                          {formatPeso(receipt.total)}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="mt-6 flex justify-end gap-3">
+                      <button
+                        type="button"
+                        onClick={printReceipt}
+                        className="rounded-full bg-[#75bec4] px-5 py-2 font-['Poppins'] text-xs font-semibold text-[#052d45] transition hover:bg-[#86d0d6] cursor-pointer"
+                      >
+                        Print Receipt
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setReceipt(null)}
+                        className="rounded-full border border-sky-100/15 px-4 py-2 font-['Poppins'] text-xs text-[#89afb9] hover:text-[#d9ecef] cursor-pointer"
+                      >
+                        Close
+                      </button>
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
           )}
 
-          {activePage === "overview" && (
-            <SalesSummary
-              sales={sales}
-              startDate={salesRange.startDate}
-              endDate={salesRange.endDate}
-              onDateChange={(field, value) =>
-                setSalesRange((previous) => ({
-                  ...previous,
-                  [field]: value,
-                }))
-              }
-            />
-          )}
-
+          {/* 5. SALES */}
           {activePage === "sales" && (
             <Sales
               sales={sales}
@@ -616,51 +1164,253 @@ function StaffDashboard() {
             />
           )}
 
+          {/* 6. LEAVE NOTE */}
           {activePage === "leave-note" && (
-            <div className="report-card">
-              <h2>Leave Note for Next Shift</h2>
+            <div className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-6 shadow-[0_14px_35px_rgba(0,12,31,.14)]">
+              <h3 className="font-['Fraunces'] text-xl font-medium text-[#d9ecef]">
+                Leave Note for Next Shift
+              </h3>
+              <p className="mt-0.5 font-['Poppins'] text-xs text-[#9bbec7]">
+                Communicate shift events, feeding instructions, and tasks with
+                co-workers.
+              </p>
 
-              <form className="dashboard-form" onSubmit={addNote}>
-                <label>
-                  Note
+              <form className="mt-5 space-y-4" onSubmit={addNote}>
+                <div>
+                  <label className="block font-['Poppins'] text-[10px] font-semibold uppercase tracking-wider text-[#89afb9]">
+                    Note Description
+                  </label>
                   <textarea
                     value={note}
                     onChange={(event) => setNote(event.target.value)}
                     required
+                    rows={4}
+                    placeholder="Post an update for the next shift or owner..."
+                    className="mt-1 w-full rounded-xl border border-sky-100/15 bg-white/[.06] p-3.5 font-['Poppins'] text-sm text-[#d9ecef] outline-none transition focus:border-[#73c4ca]"
                   />
-                </label>
-                <button type="submit">Add Note</button>
+                </div>
+
+                <div className="flex justify-end">
+                  <button
+                    type="submit"
+                    className="rounded-full bg-[#75bec4] px-5 py-2.5 font-['Poppins'] text-xs font-semibold text-[#052d45] transition hover:bg-[#86d0d6] cursor-pointer"
+                  >
+                    Add Note
+                  </button>
+                </div>
               </form>
 
-              <ul>
-                {notes.map((item) => (
-                  <li key={item._id}>{item.text}</li>
-                ))}
-              </ul>
+              <div className="mt-8 border-t border-sky-100/10 pt-5">
+                <h4 className="font-['Poppins'] text-xs font-semibold uppercase tracking-wider text-[#73c4ca]">
+                  Announcement Board
+                </h4>
+                <div className="mt-3 space-y-2">
+                  {notes.length === 0 ? (
+                    <p className="font-['Poppins'] text-xs text-[#7fa7ae]">
+                      No announcements have been posted.
+                    </p>
+                  ) : (
+                    notes.map((item) => (
+                      <div
+                        key={item._id}
+                        className="rounded-xl border border-sky-100/[.08] bg-white/[.03] p-3.5 font-['Poppins'] text-xs text-[#c9e1e5]"
+                      >
+                        {item.text}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
             </div>
           )}
 
+          {/* 7. ANNOUNCEMENTS */}
           {activePage === "announcements" && (
-            <div className="report-card">
-              <h2>Announcements</h2>
-              <p>Owner notes and tank maintenance announcements appear here.</p>
+            <div className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-6 shadow-[0_14px_35px_rgba(0,12,31,.14)]">
+              <h3 className="font-['Fraunces'] text-xl font-medium text-[#d9ecef]">
+                Announcements
+              </h3>
+              <p className="mt-0.5 font-['Poppins'] text-xs text-[#9bbec7]">
+                Bulletins from management and scheduled tank maintenance.
+              </p>
 
-              <ul>
+              <div className="mt-5 space-y-3">
                 {notes.map((item) => (
-                  <li key={item._id}>{item.text}</li>
+                  <div
+                    key={item._id}
+                    className="rounded-xl border border-cyan-400/20 bg-cyan-400/10 p-4 font-['Poppins'] text-xs text-[#d9ecef]"
+                  >
+                    <span className="font-semibold text-[#73c4ca]">
+                      {item.authorId?.staffName ||
+                        item.authorId?.ownerName ||
+                        "Unknown sender"}{" "}
+                      |{" "}
+                      {item.authorId?.role === "Owner"
+                        ? "Owner"
+                        : item.authorId?.staffPosition || "Staff"}
+                      :
+                    </span>{" "}
+                    {item.text}
+                  </div>
                 ))}
 
                 {tanks
                   .filter((tank) => tank.nextMaintenance)
                   .map((tank) => (
-                    <li key={`maintenance-${tank._id}`}>
+                    <div
+                      key={`maintenance-${tank._id}`}
+                      className="rounded-xl border border-amber-300/20 bg-amber-400/10 p-4 font-['Poppins'] text-xs text-[#d9ecef]"
+                    >
+                      <span className="font-semibold text-amber-200">
+                        Scheduled maintenance:
+                      </span>{" "}
                       {tank.name} maintenance scheduled for{" "}
-                      {new Date(tank.nextMaintenance).toLocaleDateString()}
-                    </li>
+                      <span className="font-bold text-amber-100">
+                        {new Date(tank.nextMaintenance).toLocaleDateString()}
+                      </span>
+                    </div>
                   ))}
-              </ul>
+
+                {notes.length === 0 &&
+                  tanks.filter((t) => t.nextMaintenance).length === 0 && (
+                    <p className="font-['Poppins'] text-xs text-[#7fa7ae]">
+                      No active bulletins or upcoming maintenance schedules.
+                    </p>
+                  )}
+              </div>
             </div>
           )}
+
+          {activePage === "settings" && (
+            <div className="grid gap-5 lg:grid-cols-2">
+              <div className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-6 shadow-[0_14px_35px_rgba(0,12,31,.14)]">
+                <p className="font-['Poppins'] text-xs font-semibold uppercase tracking-[0.16em] text-[#73c4ca]">
+                  Staff account
+                </p>
+                <h3 className="mt-2 font-['Fraunces'] text-2xl font-medium text-[#d9ecef]">
+                  Your workspace settings
+                </h3>
+                <div className="mt-5 space-y-3 font-['Poppins'] text-sm">
+                  <p className="rounded-xl bg-white/[.04] p-3 text-[#c9e1e5]">
+                    <span className="text-[#7fa7ae]">Name: </span>
+                    {user?.staffName || "Staff member"}
+                  </p>
+                  <p className="rounded-xl bg-white/[.04] p-3 text-[#c9e1e5]">
+                    <span className="text-[#7fa7ae]">Email: </span>
+                    {user?.email || "Not available"}
+                  </p>
+                  <p className="rounded-xl bg-white/[.04] p-3 text-[#c9e1e5]">
+                    <span className="text-[#7fa7ae]">Role: </span>
+                    {user?.staffPosition || "Master Staff"}
+                  </p>
+                </div>
+              </div>
+              <div className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-6 shadow-[0_14px_35px_rgba(0,12,31,.14)]">
+                <h3 className="font-['Fraunces'] text-xl font-medium text-[#d9ecef]">
+                  Help & tutorial
+                </h3>
+                <p className="mt-2 font-['Poppins'] text-sm leading-relaxed text-[#9bbec7]">
+                  The owner controls business tools and account security. Your
+                  settings are focused on your role, guidance, and safe access
+                  to daily work.
+                </p>
+              </div>
+            </div>
+          )}
+{activePage === "time-clock" && (
+  <div className="mx-auto w-full max-w-2xl rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-6 shadow-[0_14px_35px_rgba(0,12,31,.14)]">
+    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-sky-100/10 pb-4">
+      <div>
+        <p className="font-['Poppins'] text-xs font-semibold uppercase tracking-[.16em] text-[#73c4ca]">
+          Staff attendance
+        </p>
+        <h3 className="mt-1 font-['Fraunces'] text-xl font-medium text-[#d9ecef]">
+          Staff Time Clock
+        </h3>
+      </div>
+      <span className="rounded-full border border-sky-100/15 bg-white/[.04] px-3 py-1 font-['Poppins'] text-xs text-[#73c4ca]">
+        {currentTime.toLocaleTimeString("en-PH", {
+          hour: "numeric",
+          minute: "2-digit",
+        })}
+      </span>
+      {/* Side info panel */}
+      <div className="flex flex-col justify-between rounded-xl border border-sky-100/[.08] bg-white/[.03] p-5">
+        <div>
+          <h4 className="mt-4 font-['Fraunces'] text-lg font-medium text-[#d9ecef]">
+            {currentTime.toLocaleDateString("en-PH", {
+              weekday: "long",
+              month: "long",
+              day: "numeric",
+            })}
+          </h4>
+          <p className="mt-2 font-['Poppins'] text-xs leading-relaxed text-[#9bbec7]">
+            Use your own staff email and password to clock in when your shift
+            starts, and clock out when it ends. This keeps attendance records
+            accurate for payroll and scheduling.
+          </p>
+        </div>
+        <p className="mt-4 font-['Poppins'] text-[11px] text-[#6f9ca5]">
+          Having trouble logging your time? Let the owner or your shift lead know.
+        </p>
+      </div>
+    </div>
+
+    <div className="mt-6 grid gap-6 lg:grid-cols-[1.1fr,0.9fr]">
+      {/* Form */}
+      <div className="rounded-xl border border-sky-100/[.08] bg-white/[.03] p-5">
+        <div className="grid gap-4">
+          <label className="block font-['Poppins'] text-[10px] font-semibold uppercase tracking-wider text-[#89afb9]">
+            Staff email
+            <input
+              type="email"
+              autoComplete="email"
+              placeholder="you@fishonitory.com"
+              value={timeClock.email}
+              onChange={(event) =>
+                setTimeClock((value) => ({ ...value, email: event.target.value }))
+              }
+              className="mt-1.5 w-full rounded-xl border border-sky-100/15 bg-white/[.06] px-3.5 py-3 font-['Poppins'] text-sm font-normal normal-case text-[#d9ecef] outline-none transition-colors placeholder:text-[#6d8b92] focus:border-[#73c4ca] focus:bg-white/[.09] focus:ring-2 focus:ring-[#73c4ca]/25"
+            />
+          </label>
+
+          <label className="block font-['Poppins'] text-[10px] font-semibold uppercase tracking-wider text-[#89afb9]">
+            Password
+            <input
+              type="password"
+              autoComplete="current-password"
+              placeholder="••••••••"
+              value={timeClock.password}
+              onChange={(event) =>
+                setTimeClock((value) => ({ ...value, password: event.target.value }))
+              }
+              className="mt-1.5 w-full rounded-xl border border-sky-100/15 bg-white/[.06] px-3.5 py-3 font-['Poppins'] text-sm font-normal normal-case text-[#d9ecef] outline-none transition-colors placeholder:text-[#6d8b92] focus:border-[#73c4ca] focus:bg-white/[.09] focus:ring-2 focus:ring-[#73c4ca]/25"
+            />
+          </label>
+
+          <div className="mt-2 flex gap-3">
+            <button
+              type="button"
+              disabled={timeClockBusy}
+              onClick={() => submitTimeClock("clock-in")}
+              className="flex-1 rounded-xl bg-[#75bec4] py-3.5 text-center font-['Poppins'] text-sm font-semibold text-[#052d45] transition hover:bg-[#86d0d6] disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
+            >
+              {timeClockBusy ? "Clocking in…" : "Clock In"}
+            </button>
+            <button
+              type="button"
+              disabled={timeClockBusy}
+              onClick={() => submitTimeClock("clock-out")}
+              className="flex-1 rounded-xl border border-sky-100/15 bg-white/[.04] py-3.5 text-center font-['Poppins'] text-sm font-semibold text-[#d9ecef] transition hover:border-[#73c4ca]/40 hover:bg-white/[.08] disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
+            >
+              {timeClockBusy ? "Clocking out…" : "Clock Out"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
         </section>
       </div>
     </main>

@@ -10,6 +10,10 @@ const config = {
   port: process.env.PORT || 3000,
   mongoURI: process.env.MONGODB_URI,
   jwtSecret: process.env.JWT_SECRET,
+  totpEncryptionKey: process.env.TOTP_ENCRYPTION_KEY,
+  cloudinaryCloudName: process.env.CLOUDINARY_CLOUD_NAME,
+  cloudinaryApiKey: process.env.CLOUDINARY_API_KEY,
+  cloudinaryApiSecret: process.env.CLOUDINARY_API_SECRET,
   nodeEnv: process.env.NODE_ENV || "development",
 };
 
@@ -30,6 +34,16 @@ if (!config.jwtSecret) {
 
   config.jwtSecret = "development-only-fishonitory-secret";
   console.warn("Warning: using the development JWT secret.");
+}
+
+if (!config.totpEncryptionKey) {
+  if (config.nodeEnv === "production") {
+    console.error("FATAL: TOTP_ENCRYPTION_KEY must be configured in production.");
+    process.exit(1);
+  }
+
+  config.totpEncryptionKey = `${config.jwtSecret}:local-totp-encryption`;
+  console.warn("Warning: using a development-only TOTP encryption key.");
 }
 
 module.exports = config;
