@@ -5,15 +5,17 @@ import { AuthContext } from "./authContext.js";
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [authReady, setAuthReady] = useState(false);
+  const [setToastMessage] = useState("");
 
   useEffect(() => {
     let active = true;
     const pathname = window.location.pathname;
-    const sessionRole = pathname === "/owner-dashboard" || pathname === "/account"
-      ? "Owner"
-      : pathname === "/staff-dashboard"
-        ? "masterStaff"
-        : "";
+    const sessionRole =
+      pathname === "/owner-dashboard" || pathname === "/account"
+        ? "Owner"
+        : pathname === "/staff-dashboard"
+          ? "masterStaff"
+          : "";
 
     fetch(`${API_URL}/auth/session`, {
       credentials: "include",
@@ -50,8 +52,29 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
-  const login = useCallback((_token, role) => {
+  const login = useCallback(async (_token, role) => {
     sessionStorage.setItem("role", role);
+    try {
+      const response = await fetch(`${API_URL}/auth/session`, {
+        credentials: "include",
+        headers: { "X-Session-Role": role },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.user) {
+          setUser(data.user);
+          return;
+        }
+      }
+    } catch (error) {
+      // Para sa developer/debugging lang
+      console.error("Session check failed:", error);
+
+      // Friendly at secure message para sa user (walang sensitive technical details)
+      setToastMessage(
+        "Oops! Nagka-porsyento lang sa koneksyon. Proceeding in offline mode...",
+      );
+    }
     setUser({ role });
   }, []);
 
