@@ -17,7 +17,7 @@ async function ownerRequest(path, options = {}) {
   return data;
 }
 
-function OwnerSettings({ user, onLogout, features, onEditWorkspace }) {
+function OwnerSettings({ user, features, onEditWorkspace }) {
   const [activeTab, setActiveTab] = useState("profile");
 
   // TOTP / Security state
@@ -110,10 +110,7 @@ function OwnerSettings({ user, onLogout, features, onEditWorkspace }) {
       {/* Header */}
       <div className="flex flex-col justify-between gap-3 border-b border-sky-100/10 pb-4 sm:flex-row sm:items-end">
         <div>
-          <p className="font-['Poppins'] text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-[#73c4ca]">
-            PREFERENCES & MANAGEMENT
-          </p>
-          <h2 className="mt-1 font-['Fraunces'] text-2xl sm:text-3xl font-medium text-[#d9ecef]">
+          <h2 className="font-['Fraunces'] text-2xl sm:text-3xl font-medium text-[#d9ecef]">
             Settings
           </h2>
           <p className="mt-1 font-['Poppins'] text-xs sm:text-sm text-[#9bbec7]">
@@ -397,67 +394,6 @@ function OwnerSettings({ user, onLogout, features, onEditWorkspace }) {
               </div>
             )}
 
-            {false && (
-              <form
-                className="mt-6 grid gap-4 border-t border-sky-100/10 pt-5 sm:grid-cols-2"
-                onSubmit={(event) => event.preventDefault()}
-              >
-                <div className="sm:col-span-2">
-                  <h4 className="font-['Poppins'] text-xs font-semibold uppercase tracking-wider text-[#73c4ca]">
-                    Disable Two-Factor Authentication
-                  </h4>
-                  <p className="mt-1 font-['Poppins'] text-xs text-[#9bbec7]">
-                    To turn off 2FA, please verify your account password and provide a current authenticator code.
-                  </p>
-                </div>
-                <div>
-                  <label className="font-['Poppins'] text-[10px] font-semibold tracking-wider text-[#9ebfc8] uppercase">
-                    Account Password
-                  </label>
-                  <input
-                    type="password"
-                    autoComplete="current-password"
-                    className={inputClass}
-                    placeholder="Enter password"
-                    value={disableForm.password}
-                    onChange={(e) =>
-                      setDisableForm((prev) => ({ ...prev, password: e.target.value }))
-                    }
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="font-['Poppins'] text-[10px] font-semibold tracking-wider text-[#9ebfc8] uppercase">
-                    Current 6-Digit Code
-                  </label>
-                  <input
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
-                    className={inputClass}
-                    placeholder="000000"
-                    maxLength={6}
-                    value={disableForm.code}
-                    onChange={(e) =>
-                      setDisableForm((prev) => ({
-                        ...prev,
-                        code: e.target.value.replace(/\D/g, "").slice(0, 6),
-                      }))
-                    }
-                    required
-                  />
-                </div>
-                <div className="sm:col-span-2">
-                  <button
-                    type="submit"
-                    disabled={busy}
-                    className="rounded-full border border-red-400/30 bg-red-500/10 px-4 py-2 font-['Poppins'] text-xs font-medium text-red-200 transition hover:bg-red-500/20 disabled:opacity-60 cursor-pointer"
-                  >
-                    {busy ? "Disabling…" : "Disable 2FA"}
-                  </button>
-                </div>
-              </form>
-            )}
-
             {/* Recovery Codes Box */}
             {recoveryCodes.length > 0 && (
               <div className="mt-6 rounded-xl border border-amber-300/30 bg-amber-400/10 p-5">
@@ -525,46 +461,8 @@ function OwnerSettings({ user, onLogout, features, onEditWorkspace }) {
               About Fishonitory
             </h3>
             <p className="mt-2 font-['Poppins'] text-xs sm:text-sm leading-relaxed text-[#9bbec7]">
-              Fishonitory is a dedicated management suite crafted specifically for ornamental fish hatcheries, breeders, and aquarium retail stores. It streamlines complex inventory tracking, tank water conditions, staff scheduling, sales POS, and payroll in a unified, modern interface.
+              This section is still In progress.
             </p>
-
-            <div className="mt-6 grid gap-4 sm:grid-cols-2">
-              <div className="rounded-xl border border-sky-100/10 bg-white/[.03] p-4">
-                <h4 className="font-['Poppins'] text-xs font-semibold text-[#73c4ca]">
-                  🐠 Livestock & Batch Tracking
-                </h4>
-                <p className="mt-1 font-['Poppins'] text-[11px] leading-relaxed text-[#9abcc5]">
-                  Track species categories, unit costs, selling prices, supplier purchases, and mortality records with complete accountability.
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-sky-100/10 bg-white/[.03] p-4">
-                <h4 className="font-['Poppins'] text-xs font-semibold text-[#73c4ca]">
-                  🌊 Tank & Habitat Care
-                </h4>
-                <p className="mt-1 font-['Poppins'] text-[11px] leading-relaxed text-[#9abcc5]">
-                  Maintain tank sanitation cycles, filter maintenance intervals, and specialized aquatic notes for fish health.
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-sky-100/10 bg-white/[.03] p-4">
-                <h4 className="font-['Poppins'] text-xs font-semibold text-[#73c4ca]">
-                  💰 Point of Sale & Payroll
-                </h4>
-                <p className="mt-1 font-['Poppins'] text-[11px] leading-relaxed text-[#9abcc5]">
-                  Record live cash and online payments, generate sales receipts, track gross profits, and compute staff wages accurately.
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-sky-100/10 bg-white/[.03] p-4">
-                <h4 className="font-['Poppins'] text-xs font-semibold text-[#73c4ca]">
-                  🛡️ Role-Based Access Control
-                </h4>
-                <p className="mt-1 font-['Poppins'] text-[11px] leading-relaxed text-[#9abcc5]">
-                  Strict segregation of duties between Owner, Master Staff, and standard Staff with audit logging for key actions.
-                </p>
-              </div>
-            </div>
           </div>
 
           <div className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-6 shadow-[0_14px_35px_rgba(0,12,31,.14)] lg:col-span-1">
@@ -605,89 +503,8 @@ function OwnerSettings({ user, onLogout, features, onEditWorkspace }) {
               Help & Support Center
             </h3>
             <p className="mt-2 font-['Poppins'] text-xs sm:text-sm text-[#9bbec7]">
-              Need assistance with system operations, staff roles, or hardware integration? We are here to help.
+             This section is still In progress.
             </p>
-
-            <div className="mt-6 grid gap-4 sm:grid-cols-2">
-              <div className="rounded-xl border border-sky-100/10 bg-white/[.03] p-4">
-                <p className="font-['Poppins'] text-[10px] font-bold uppercase tracking-wider text-[#73c4ca]">
-                  TECHNICAL SUPPORT EMAIL
-                </p>
-                <p className="mt-1 font-['Poppins'] text-sm font-medium text-[#d9ecef]">
-                  support@fishonitory.com
-                </p>
-                <p className="mt-1 font-['Poppins'] text-[11px] text-[#7fa7ae]">
-                  Typically responds within 2 business hours.
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-sky-100/10 bg-white/[.03] p-4">
-                <p className="font-['Poppins'] text-[10px] font-bold uppercase tracking-wider text-[#73c4ca]">
-                  SUPPORT HELPLINE
-                </p>
-                <p className="mt-1 font-['Poppins'] text-sm font-medium text-[#d9ecef]">
-                  +63 (02) 8123-4567
-                </p>
-                <p className="mt-1 font-['Poppins'] text-[11px] text-[#7fa7ae]">
-                  Monday to Saturday, 8:00 AM – 6:00 PM PHT.
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-6">
-              <h4 className="font-['Fraunces'] text-lg font-medium text-[#d9ecef]">
-                Frequently Asked Owner Questions
-              </h4>
-              <div className="mt-3 space-y-3 font-['Poppins'] text-xs text-[#9bbec7]">
-                <details className="rounded-xl border border-sky-100/10 bg-white/[.02] p-3.5">
-                  <summary className="font-medium text-[#d9ecef] cursor-pointer">
-                    How do I export sales and audit reports for tax or accounting?
-                  </summary>
-                  <p className="mt-2 text-[#9abcc5] leading-relaxed">
-                    Navigate to <strong>Operations & Reports</strong> in the sidebar. At the top right, use the "Export Sales" and "Export Audit" buttons to download structured CSV spreadsheets.
-                  </p>
-                </details>
-
-                <details className="rounded-xl border border-sky-100/10 bg-white/[.02] p-3.5">
-                  <summary className="font-medium text-[#d9ecef] cursor-pointer">
-                    Can staff members access the payroll or sales profit margins?
-                  </summary>
-                  <p className="mt-2 text-[#9abcc5] leading-relaxed">
-                    No. Staff members are limited to the Staff Dashboard where they can record sales and log tank updates. They cannot see supplier costs, profits, or payroll computations.
-                  </p>
-                </details>
-
-                <details className="rounded-xl border border-sky-100/10 bg-white/[.02] p-3.5">
-                  <summary className="font-medium text-[#d9ecef] cursor-pointer">
-                    What happens if I lose my 2FA Authenticator phone?
-                  </summary>
-                  <p className="mt-2 text-[#9abcc5] leading-relaxed">
-                    Use one of the one-time emergency recovery codes provided when you first set up two-factor authentication in the Account Security tab.
-                  </p>
-                </details>
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-6 shadow-[0_14px_35px_rgba(0,12,31,.14)] lg:col-span-1">
-            <h3 className="font-['Fraunces'] text-xl font-medium text-[#d9ecef]">
-              Quick Actions
-            </h3>
-            <div className="mt-4 space-y-3">
-              <a
-                href="/help"
-                className="block rounded-xl border border-sky-100/10 bg-white/[.04] p-3.5 font-['Poppins'] text-xs font-medium text-[#c9e1e5] no-underline transition hover:bg-white/[.08] hover:text-[#d9ecef]"
-              >
-                📖 Open Full Help Guide
-              </a>
-              <button
-                type="button"
-                onClick={onLogout}
-                className="w-full rounded-xl border border-red-300/20 bg-red-400/10 p-3.5 text-left font-['Poppins'] text-xs font-medium text-red-200 transition hover:bg-red-400/20 cursor-pointer"
-              >
-                🚪 Sign Out of Current Session
-              </button>
-            </div>
           </div>
         </div>
       )}

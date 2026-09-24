@@ -22,11 +22,28 @@ function getCookieToken(cookieHeader, cookieName = "access_token") {
 const authMiddleware = (req, res, next) => {
   const authorization = req.headers.authorization;
   const requestedRole = req.headers["x-session-role"];
-  const cookieName = cookieNameForRole(requestedRole);
-  const token =
-    authorization && authorization.startsWith("Bearer ")
-      ? authorization.slice(7)
-      : getCookieToken(req.headers.cookie, cookieName || "access_token");
+  const preferredCookieName = cookieNameForRole(requestedRole);
+  const fallbackCookieNames = [
+    preferredCookieName,
+    "owner_access_token",
+    "staff_access_token",
+    "master_staff_access_token",
+    "access_token",
+  ].filter(Boolean);
+
+  let token = null;
+
+  if (authorization && authorization.startsWith("Bearer ")) {
+    token = authorization.slice(7);
+  } else {
+    for (const cookieName of fallbackCookieNames) {
+      const candidate = getCookieToken(req.headers.cookie, cookieName);
+      if (candidate) {
+        token = candidate;
+        break;
+      }
+    }
+  }
 
   if (!token) {
     return res
@@ -36,9 +53,11 @@ const authMiddleware = (req, res, next) => {
 
   try {
     req.user = jwt.verify(token, config.jwtSecret);
+
     if (requestedRole && req.user.role !== requestedRole) {
       return res.status(403).json({ message: "This session is not authorized for the requested account type." });
     }
+
     next();
   } catch (error) {
     return res

@@ -95,7 +95,7 @@ function Inventory({
                 id="fish-dialog-title"
                 className="font-['Fraunces'] text-xl font-medium text-[#d9ecef]"
               >
-                {editingFishId ? "Edit Fish" : "Add Fish"}
+                {editingFishId ? "Edit Fish" : "Add Fish/Fish Food"}
               </h3>
               <button
                 type="button"
@@ -219,7 +219,7 @@ function Inventory({
               </label>
 
                 <label className="flex flex-col gap-2">
-                  Photo
+                  Photo(Optional)
                   <div className="flex items-center gap-3 rounded-lg border border-sky-100/15 bg-[#052235] p-3">
                     {fishForm.photoUrl ? (
                       <img

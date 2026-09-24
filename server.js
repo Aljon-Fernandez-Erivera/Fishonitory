@@ -1,8 +1,10 @@
 const express = require("express");
 const cors = require("cors");
+const helmet = require("helmet");
 const mongoose = require("mongoose");
 const config = require("./server/config/config");
 const connectDB = require("./server/config/db");
+const Payroll = require("./server/models/Payroll");
 
 const app = express();
 const DB_RETRY_DELAY_MS = 10_000;
@@ -19,6 +21,12 @@ if (config.nodeEnv === "production") {
 // browser traffic HTTPS-only and prevent confidential API responses from being
 // retained in intermediary caches.
 app.set("trust proxy", 1);
+app.use(
+  helmet({
+    contentSecurityPolicy: false,
+    crossOriginResourcePolicy: false,
+  }),
+);
 app.use((req, res, next) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "DENY");
@@ -89,10 +97,16 @@ async function connectToDatabase() {
   }
 }
 
-// Robust Health check endpoint
+
+// Updated health check: keep the response explicit and trigger a reconnect attempt
+// when the database is disconnected, without hiding the real readiness state.
 app.get("/health", (req, res) => {
   const state = mongoose.connection.readyState;
-  // readyState values: 0 = disconnected, 1 = connected, 2 = connecting, 3 = disconnecting
+  const isConnected = state === 1;
+
+  if (!isConnected && !connectionAttemptInProgress) {
+    scheduleDatabaseReconnect();
+  }
 
   const statusMap = {
     0: { code: 503, status: "degraded", database: "disconnected" },
@@ -107,7 +121,8 @@ app.get("/health", (req, res) => {
     status: response.status,
     database: response.database,
     readyState: state,
-    timestamp: new Date(),
+    reconnectScheduled: !isConnected && !connectionAttemptInProgress,
+    timestamp: new Date().toISOString(),
   });
 });
 
@@ -132,9 +147,28 @@ app.use((error, req, res, next) => {
   return res.status(error.statusCode || 500).json({ message: error.statusCode ? error.message : "An unexpected server error occurred." });
 });
 
-// Start the HTTP server immediately so deployment probes can read /health.
-app.listen(config.port, () => {
-  console.log(`Server running on http://localhost:${config.port}`);
+// LEGACY STARTUP ORDER (saved for easy rollback):
+// app.listen(config.port, () => {
+//   console.log(`Server running on http://localhost:${config.port}`);
+//   console.log("Connecting to MongoDB Atlas...");
+//   connectToDatabase();
+// });
+
+async function startServer() {
   console.log("Connecting to MongoDB Atlas...");
-  connectToDatabase();
-});
+
+  try {
+    await connectToDatabase();
+    await Payroll.backfillMissingBenefitTypes();
+    app.listen(config.port, () => {
+      console.log(`Server running on http://localhost:${config.port}`);
+    });
+  } catch (error) {
+    console.error("MongoDB connection failed during startup. Starting server in degraded mode.");
+    app.listen(config.port, () => {
+      console.log(`Server running on http://localhost:${config.port}`);
+    });
+  }
+}
+
+startServer();

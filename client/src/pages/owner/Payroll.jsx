@@ -8,7 +8,22 @@ const peso = new Intl.NumberFormat("en-PH", {
 const dateKey = (date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 const today = () => dateKey(new Date());
-const money = (value) => Number(value || 0).toFixed(2);
+const asNumber = (value, fallback = 0) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+const money = (value) => asNumber(value, 0).toFixed(2);
+const formatDisplayDate = (value) => {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return "";
+  const [year, month, day] = value.split("-").map(Number);
+  const safeDate = new Date(year, month - 1, day);
+  if (Number.isNaN(safeDate.getTime())) return "";
+  return safeDate.toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+};
 
 const escapeHtml = (value) =>
   String(value ?? "").replace(
@@ -41,13 +56,33 @@ const DEDUCTION_PRESETS = [
 ];
 
 function getRange(type, value) {
-  const [year, month, day] = (value || today()).split("-").map(Number);
-  const start = new Date(year, month - 1, type === "monthly" ? 1 : day);
+  const safeValue = value || today();
+  const [year, month, day] = safeValue.split("-").map(Number);
+  const initial = new Date(year, month - 1, type === "monthly" ? 1 : day);
+  const start = new Date(initial);
+  if (type === "weekly") {
+    const dayOffset = (start.getDay() + 6) % 7;
+    start.setDate(start.getDate() - dayOffset);
+  }
   const end = new Date(start);
   if (type === "weekly") end.setDate(end.getDate() + 6);
   else if (type === "fifteenDays") end.setDate(end.getDate() + 14);
   else end.setMonth(end.getMonth() + 1, 0);
   return { start: dateKey(start), end: dateKey(end) };
+}
+
+function normalizePeriodStart(value, type) {
+  if (!value) return value;
+  if (type !== "weekly") return value;
+
+  const [year, month, day] = value.split("-").map(Number);
+  const entryDate = new Date(year, month - 1, day);
+  if (Number.isNaN(entryDate.getTime())) return value;
+
+  const startOfWeek = new Date(entryDate);
+  const dayOffset = (startOfWeek.getDay() + 6) % 7;
+  startOfWeek.setDate(startOfWeek.getDate() - dayOffset);
+  return dateKey(startOfWeek);
 }
 
 function printSlip(entry, owner) {
@@ -62,11 +97,14 @@ function printSlip(entry, owner) {
     day: "numeric",
   });
 
+  const baseGross = asNumber(entry.baseGross, asNumber(entry.grossPay, 0) - asNumber(entry.benefits, 0));
+  const netPay = asNumber(entry.netPay, baseGross + asNumber(entry.benefits, 0) - asNumber(entry.deductions, 0));
+
   const additionRows = (entry.benefitItems || [])
     .filter((item) => item.type === "addition")
     .map(
       (item) =>
-        `<tr><td>${escapeHtml(item.name)}</td><td>+${peso.format(item.amount)}</td></tr>`,
+        `<tr><td>${escapeHtml(item.name)}</td><td>+${peso.format(asNumber(item.amount, 0))}</td></tr>`,
     )
     .join("");
 
@@ -74,7 +112,7 @@ function printSlip(entry, owner) {
     .filter((item) => item.type !== "addition")
     .map(
       (item) =>
-        `<tr><td>${escapeHtml(item.name)}</td><td>-${peso.format(item.amount)}</td></tr>`,
+        `<tr><td>${escapeHtml(item.name)}</td><td>-${peso.format(asNumber(item.amount, 0))}</td></tr>`,
     )
     .join("");
 
@@ -103,7 +141,7 @@ function printSlip(entry, owner) {
     <table>
       <tr><td>Payable days</td><td>${entry.payableDays}</td></tr>
       <tr><td>Daily rate</td><td>${peso.format(entry.dailyRate)}</td></tr>
-      <tr><td>Base pay</td><td>${peso.format(entry.baseGross)}</td></tr>
+      <tr><td>Base pay</td><td>${peso.format(baseGross)}</td></tr>
     </table>
 
     <h2>Additions (Overtime / Bonuses)</h2>
@@ -112,7 +150,7 @@ function printSlip(entry, owner) {
     <h2>Deductions</h2>
     <table>
       ${deductionRows || "<tr><td>No deductions</td><td>₱0.00</td></tr>"}
-      <tr class="total"><td>Net pay</td><td>${peso.format(entry.netPay)}</td></tr>
+      <tr class="total"><td>Net pay</td><td>${peso.format(netPay)}</td></tr>
     </table>
   `);
   popup.document.close();
@@ -151,6 +189,9 @@ function Payroll({ staff, attendance, payroll, onSave, onDelete, toast, owner })
       person.role === "Staff" && person.staffPosition !== "Master Staff",
   );
   const range = getRange(form.periodType, form.periodStart);
+  const canAddItem = draft.name.trim().length > 0 && Number.isFinite(Number(draft.amount)) && Number(draft.amount) > 0;
+  const [editingIndex, setEditingIndex] = useState(null);
+  const [editDraft, setEditDraft] = useState({ name: "", amount: "", type: "addition" });
 
   const summary = useMemo(() => {
     const records = attendance.filter(
@@ -184,11 +225,28 @@ function Payroll({ staff, attendance, payroll, onSave, onDelete, toast, owner })
     };
   }, [attendance, form.dailyRate, form.staffId, items, range.end, range.start]);
 
-  const update = (event) =>
-    setForm((current) => ({
-      ...current,
-      [event.target.name]: event.target.value,
-    }));
+  const update = (event) => {
+    const { name, value } = event.target;
+    setForm((current) => {
+      if (name === "periodStart") {
+        return {
+          ...current,
+          periodStart: normalizePeriodStart(value, current.periodType),
+        };
+      }
+      if (name === "periodType") {
+        return {
+          ...current,
+          periodType: value,
+          periodStart: normalizePeriodStart(current.periodStart, value),
+        };
+      }
+      return {
+        ...current,
+        [name]: value,
+      };
+    });
+  };
 
   const addItem = () => {
     const trimmedName = draft.name.trim();
@@ -217,9 +275,50 @@ function Payroll({ staff, attendance, payroll, onSave, onDelete, toast, owner })
 
     setItems((current) => [
       ...current,
-      { name: trimmedName, amount: money(parsedAmount), type: draft.type },
+      { name: trimmedName, amount: Number(parsedAmount.toFixed(2)), type: draft.type },
     ]);
     setDraft((prev) => ({ ...prev, name: "", amount: "" }));
+  };
+
+  const beginEditItem = (index) => {
+    const item = items[index];
+    setEditingIndex(index);
+    setEditDraft({
+      name: item.name,
+      amount: String(item.amount),
+      type: item.type,
+    });
+  };
+
+  const saveEditedItem = () => {
+    const trimmedName = editDraft.name.trim();
+    const parsedAmount = Number(editDraft.amount);
+
+    if (!trimmedName || !Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+      SwalAlert.fire({
+        title: "Invalid Amount",
+        text: "Please enter a valid item name and positive amount before saving.",
+        icon: "warning",
+        background: "#062d48",
+        color: "#d9ecef",
+      });
+      return;
+    }
+
+    setItems((current) =>
+      current.map((item, index) =>
+        index === editingIndex
+          ? {
+              ...item,
+              name: trimmedName,
+              amount: Number(parsedAmount.toFixed(2)),
+              type: editDraft.type,
+            }
+          : item,
+      ),
+    );
+    setEditingIndex(null);
+    setEditDraft({ name: "", amount: "", type: "addition" });
   };
 
   const confirmDelete = async (id) => {
@@ -315,7 +414,7 @@ function Payroll({ staff, attendance, payroll, onSave, onDelete, toast, owner })
               </select>
             </Field>
             <Field>
-              Sahuran
+              Pay Schedule
               <select
                 className={input}
                 name="periodType"
@@ -343,11 +442,16 @@ function Payroll({ staff, attendance, payroll, onSave, onDelete, toast, owner })
                 onChange={update}
                 required
               />
+              {form.periodType === "weekly" && (
+                <span className="text-[10px] uppercase tracking-[.1em] text-[#73c4ca]">
+                  Week starts Monday
+                </span>
+              )}
             </Field>
             <Field>
               Payroll period
               <output className={`${input} py-2.5`}>
-                {range.start} to {range.end}
+                {formatDisplayDate(range.start)} to {formatDisplayDate(range.end)}
               </output>
             </Field>
             <Field>
@@ -476,9 +580,10 @@ function Payroll({ staff, attendance, payroll, onSave, onDelete, toast, owner })
                 placeholder="₱0.00"
               />
               <button
-                className="rounded-full border border-sky-100/15 bg-white/[.05] px-4 py-2.5 font-['Poppins'] text-sm font-medium text-[#d9ecef] transition hover:bg-white/[.1] focus:outline-none focus:ring-2 focus:ring-[#73c4ca]"
+                className="rounded-full border border-sky-100/15 bg-white/[.05] px-4 py-2.5 font-['Poppins'] text-sm font-medium text-[#d9ecef] transition hover:bg-white/[.1] focus:outline-none focus:ring-2 focus:ring-[#73c4ca] disabled:cursor-not-allowed disabled:opacity-40"
                 type="button"
                 onClick={addItem}
+                disabled={!canAddItem}
               >
                 Add
               </button>
@@ -487,32 +592,105 @@ function Payroll({ staff, attendance, payroll, onSave, onDelete, toast, owner })
             <ul className="mt-3 grid gap-2 p-0">
               {items.map((item, index) => (
                 <li
-                  className="flex items-center justify-between rounded-lg bg-white/[.04] px-3 py-2 font-['Poppins'] text-xs text-[#c9e1e5]"
+                  className="rounded-lg bg-white/[.04] px-3 py-2 font-['Poppins'] text-xs text-[#c9e1e5]"
                   key={`${item.name}-${index}`}
                 >
-                  <span>
-                    <strong
-                      className={
-                        item.type === "addition"
-                          ? "text-emerald-300 mr-1"
-                          : "text-amber-300 mr-1"
-                      }
-                    >
-                      {item.type === "addition" ? "+ " : "- "}
-                    </strong>
-                    {item.name} · {peso.format(item.amount)}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setItems((current) =>
-                        current.filter((_, itemIndex) => itemIndex !== index),
-                      )
-                    }
-                    className="rounded-full border border-red-400/20 bg-red-500/10 px-2.5 py-1 font-['Poppins'] text-[11px] font-medium text-red-300 transition hover:border-red-400/40 hover:bg-red-500/20 hover:text-red-200 focus:outline-none focus:ring-1 focus:ring-red-400/50"
-                  >
-                    Remove
-                  </button>
+                  {editingIndex === index ? (
+                    <div className="grid gap-2 sm:grid-cols-[1fr_130px_auto_auto]">
+                      <input
+                        className={input}
+                        value={editDraft.name}
+                        onChange={(event) =>
+                          setEditDraft((current) => ({
+                            ...current,
+                            name: event.target.value,
+                          }))
+                        }
+                        maxLength={80}
+                      />
+                      <input
+                        className={input}
+                        type="number"
+                        min="0"
+                        max="100000"
+                        step="0.01"
+                        value={editDraft.amount}
+                        onChange={(event) =>
+                          setEditDraft((current) => ({
+                            ...current,
+                            amount: event.target.value,
+                          }))
+                        }
+                      />
+                      <select
+                        className={input}
+                        value={editDraft.type}
+                        onChange={(event) =>
+                          setEditDraft((current) => ({
+                            ...current,
+                            type: event.target.value,
+                          }))
+                        }
+                      >
+                        <option value="addition">Addition</option>
+                        <option value="deduction">Deduction</option>
+                      </select>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={saveEditedItem}
+                          className="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-200"
+                        >
+                          Save
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingIndex(null);
+                            setEditDraft({ name: "", amount: "", type: "addition" });
+                          }}
+                          className="rounded-full border border-sky-100/15 bg-white/[.05] px-2.5 py-1 text-[11px] font-medium text-[#d9ecef]"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between gap-3">
+                      <span>
+                        <strong
+                          className={
+                            item.type === "addition"
+                              ? "text-emerald-300 mr-1"
+                              : "text-amber-300 mr-1"
+                          }
+                        >
+                          {item.type === "addition" ? "+ " : "- "}
+                        </strong>
+                        {item.name} · {peso.format(item.amount)}
+                      </span>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => beginEditItem(index)}
+                          className="rounded-full border border-sky-100/15 bg-white/[.05] px-2.5 py-1 font-['Poppins'] text-[11px] font-medium text-[#d9ecef] transition hover:bg-white/[.1]"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setItems((current) =>
+                              current.filter((_, itemIndex) => itemIndex !== index),
+                            )
+                          }
+                          className="rounded-full border border-red-400/20 bg-red-500/10 px-2.5 py-1 font-['Poppins'] text-[11px] font-medium text-red-300 transition hover:border-red-400/40 hover:bg-red-500/20 hover:text-red-200 focus:outline-none focus:ring-1 focus:ring-red-400/50"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>

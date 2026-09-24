@@ -18,8 +18,8 @@ const businessFeaturesSchema = new mongoose.Schema(
 const attendancePolicySchema = new mongoose.Schema(
   {
     clockInTime: { type: String, default: "07:00" }, // "HH:mm", 24-hr
-    graceMinutes: { type: Number, default: 15 },      // minutes after clockInTime before "Late"
-    cutoffTime: { type: String, default: "18:00" },   // after this, no-shows become "Absent"
+    graceMinutes: { type: Number, default: 15 }, // minutes after clockInTime before "Late"
+    cutoffTime: { type: String, default: "18:00" }, // after this, no-shows become "Absent"
   },
   { _id: false },
 );
@@ -132,6 +132,29 @@ const userSchema = new mongoose.Schema(
       default: "Owner",
     },
     attendancePolicy: { type: attendancePolicySchema, default: () => ({}) },
+
+    shiftTemplates: {
+      type: [
+        {
+          name: { type: String, required: true, trim: true, maxlength: 40 },
+          clockInTime: { type: String, default: "07:00" },
+          graceMinutes: { type: Number, default: 15 },
+          cutoffTime: { type: String, default: "18:00" },
+        },
+      ],
+      default: [],
+    },
+    // Only set on Staff docs — references an _id inside the owner's shiftTemplates array.
+    shiftTemplateId: {
+      type: mongoose.Schema.Types.ObjectId,
+      default: null,
+    },
+    // Owner-configurable flat amount auto-deducted in payroll per "Late" day.
+    lateDeductionAmount: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
   },
   { timestamps: true },
 );
