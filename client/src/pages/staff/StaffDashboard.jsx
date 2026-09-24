@@ -26,7 +26,6 @@ const escapeHtml = (value) =>
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
 
-
 // Function to make API requests with authentication headers
 async function apiRequest(path, options = {}) {
   const response = await fetch(`${API_URL}${path}`, {
@@ -55,6 +54,7 @@ function StaffDashboard() {
   const { user, authReady, logout } = useAuth();
 
   const [activePage, setActivePage] = useState("overview");
+  const [settingsTab, setSettingsTab] = useState("profile");
   const [inventoryOpen, setInventoryOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [receipt, setReceipt] = useState(null);
@@ -365,12 +365,25 @@ function StaffDashboard() {
         : "bg-transparent text-[#8fb7be] hover:text-[#d9ecef]"
     }`;
 
+  const settingsTabClass = (tab) =>
+    `rounded-xl px-4 py-2 font-['Poppins'] text-xs sm:text-sm font-medium transition cursor-pointer ${
+      settingsTab === tab
+        ? "bg-[#65c9c9] text-[#073047] shadow-sm"
+        : "bg-white/[.04] text-[#8fb7be] hover:bg-white/[.08] hover:text-[#d9ecef]"
+    }`;
+
   return (
     <main className="box-border flex h-[100dvh] min-h-0 w-full flex-col overflow-hidden bg-[radial-gradient(circle_at_88%_12%,#0a5267_0%,#08465d_42%,#021a31_100%)] text-[#c9e1e5] md:flex-row">
       {/* SIDEBAR */}
       <aside className="box-border flex w-full shrink-0 flex-col overflow-hidden border-b border-cyan-100/[.08] bg-[#062f43] px-4 py-3 md:h-full md:w-56 md:border-b-0 md:border-r md:px-3 md:pt-4 md:pb-4">
         {/* Brand */}
-        <div className="flex shrink-0 items-center gap-2.5 px-1">
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          aria-label="Refresh Fishonitory workspace"
+          title="Refresh dashboard"
+          className="flex shrink-0 items-center gap-2.5 rounded-lg border-0 bg-transparent px-1 py-1 text-left transition hover:bg-white/[.04] focus:outline-none focus:ring-2 focus:ring-[#73c4ca] cursor-pointer"
+        >
           <img
             src="/LOGO.svg"
             alt="Fishonitory"
@@ -384,7 +397,7 @@ function StaffDashboard() {
               Staff workspace
             </small>
           </div>
-        </div>
+        </button>
 
         {/* Navigation list with independent scroll */}
         <nav
@@ -581,7 +594,7 @@ function StaffDashboard() {
                   </small>
                 </article>
 
-                <article  className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-5 shadow-[0_14px_35px_rgba(0,12,31,.14)]">
+                <article className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-5 shadow-[0_14px_35px_rgba(0,12,31,.14)]">
                   <span className="font-['Poppins'] text-xs font-medium uppercase tracking-[0.12em] text-[#91b5bf]">
                     Food Supplies
                   </span>
@@ -780,7 +793,6 @@ function StaffDashboard() {
                   active tanks.
                 </p>
               </div>
-
               <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 {tanks.map((tank) => (
                   <div
@@ -1281,136 +1293,389 @@ function StaffDashboard() {
             </div>
           )}
 
+          {/* 8. SETTINGS — styled to match the Owner settings page */}
           {activePage === "settings" && (
-            <div className="grid gap-5 lg:grid-cols-2">
-              <div className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-6 shadow-[0_14px_35px_rgba(0,12,31,.14)]">
-                <p className="font-['Poppins'] text-xs font-semibold uppercase tracking-[0.16em] text-[#73c4ca]">
-                  Staff account
-                </p>
-                <h3 className="mt-2 font-['Fraunces'] text-2xl font-medium text-[#d9ecef]">
-                  Your workspace settings
-                </h3>
-                <div className="mt-5 space-y-3 font-['Poppins'] text-sm">
-                  <p className="rounded-xl bg-white/[.04] p-3 text-[#c9e1e5]">
-                    <span className="text-[#7fa7ae]">Name: </span>
-                    {user?.staffName || "Staff member"}
+            <div className="grid gap-6 pb-6">
+              {/* Header */}
+              <div className="flex flex-col justify-between gap-3 border-b border-sky-100/10 pb-4 sm:flex-row sm:items-end">
+                <div>
+                  <h2 className="font-['Fraunces'] text-2xl sm:text-3xl font-medium text-[#d9ecef]">
+                    Settings
+                  </h2>
+                  <p className="mt-1 font-['Poppins'] text-xs sm:text-sm text-[#9bbec7]">
+                    View your account details, security tips, and system
+                    information.
                   </p>
-                  <p className="rounded-xl bg-white/[.04] p-3 text-[#c9e1e5]">
-                    <span className="text-[#7fa7ae]">Email: </span>
-                    {user?.email || "Not available"}
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 font-['Poppins'] text-xs font-medium text-emerald-300">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_#34d399]" />
+                    Master Staff
+                  </span>
+                </div>
+              </div>
+
+              {/* Tabs Navigation */}
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSettingsTab("profile")}
+                  className={settingsTabClass("profile")}
+                >
+                  Profile
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSettingsTab("security")}
+                  className={settingsTabClass("security")}
+                >
+                  Account Security
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSettingsTab("about")}
+                  className={settingsTabClass("about")}
+                >
+                  About
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSettingsTab("contact")}
+                  className={settingsTabClass("contact")}
+                >
+                  Contact & Support
+                </button>
+              </div>
+
+              {/* TAB: PROFILE */}
+              {settingsTab === "profile" && (
+                <div className="grid gap-6 lg:grid-cols-3">
+                  <div className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-6 shadow-[0_14px_35px_rgba(0,12,31,.14)] lg:col-span-1">
+                    <div className="flex flex-col items-center text-center">
+                      <span className="grid h-20 w-20 place-items-center rounded-full bg-[#75bec4]/20 font-['Poppins'] text-3xl font-semibold text-[#bce9e9] shadow-inner">
+                        {(user?.staffName || user?.email || "S")
+                          .trim()
+                          .charAt(0)
+                          .toUpperCase()}
+                      </span>
+                      <h3 className="mt-4 font-['Fraunces'] text-xl font-medium text-[#d9ecef]">
+                        {user?.staffName || "Staff Member"}
+                      </h3>
+                      <p className="font-['Poppins'] text-xs text-[#7fa7ae]">
+                        {user?.email || "staff@fishonitory.com"}
+                      </p>
+                      <span className="mt-3 rounded-full border border-sky-100/15 bg-white/[.06] px-3 py-1 font-['Poppins'] text-[0.7rem] font-medium text-[#73c4ca]">
+                        {user?.staffPosition || "Operations Staff"}
+                      </span>
+                    </div>
+
+                    <div className="mt-6 border-t border-sky-100/10 pt-4 font-['Poppins'] text-xs text-[#9abcc5] space-y-2.5">
+                      <div className="flex justify-between">
+                        <span className="text-[#6f9ca5]">Position</span>
+                        <span className="font-medium text-[#d9ecef]">
+                          {user?.staffPosition || "Operations Staff"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-[#6f9ca5]">Account Role</span>
+                        <span className="font-medium text-[#73c4ca]">
+                          {user?.role === "masterStaff"
+                            ? "Master Staff"
+                            : user?.role || "Staff"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-6 shadow-[0_14px_35px_rgba(0,12,31,.14)] lg:col-span-2">
+                    <h3 className="font-['Fraunces'] text-xl font-medium text-[#d9ecef]">
+                      Account Details
+                    </h3>
+                    <p className="mt-1 font-['Poppins'] text-xs text-[#9bbec7]">
+                      Your staff credentials on record for this workspace.
+                    </p>
+
+                    <div className="mt-6 grid gap-4 sm:grid-cols-2">
+                      <div className="rounded-xl border border-sky-100/10 bg-white/[.03] p-4">
+                        <label className="font-['Poppins'] text-[10px] font-semibold tracking-wider text-[#6f9ca5] uppercase">
+                          Full Name
+                        </label>
+                        <p className="mt-1 font-['Poppins'] text-sm font-medium text-[#d9ecef]">
+                          {user?.staffName || "Not specified"}
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl border border-sky-100/10 bg-white/[.03] p-4">
+                        <label className="font-['Poppins'] text-[10px] font-semibold tracking-wider text-[#6f9ca5] uppercase">
+                          Email Address
+                        </label>
+                        <p className="mt-1 font-['Poppins'] text-sm font-medium text-[#d9ecef]">
+                          {user?.email || "Not specified"}
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl border border-sky-100/10 bg-white/[.03] p-4">
+                        <label className="font-['Poppins'] text-[10px] font-semibold tracking-wider text-[#6f9ca5] uppercase">
+                          Position
+                        </label>
+                        <p className="mt-1 font-['Poppins'] text-sm font-medium text-[#d9ecef]">
+                          {user?.staffPosition || "Operations Staff"}
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl border border-sky-100/10 bg-white/[.03] p-4">
+                        <label className="font-['Poppins'] text-[10px] font-semibold tracking-wider text-[#6f9ca5] uppercase">
+                          Account Role
+                        </label>
+                        <p className="mt-1 font-['Poppins'] text-sm font-medium text-[#d9ecef]">
+                          {user?.role === "masterStaff"
+                            ? "Master Staff"
+                            : user?.role || "Staff"}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-6 rounded-xl border border-[#75bec4]/20 bg-[#75bec4]/10 p-4">
+                      <h4 className="font-['Poppins'] text-xs font-semibold uppercase tracking-wider text-[#73c4ca]">
+                        Staff Access Notice
+                      </h4>
+                      <p className="mt-1.5 font-['Poppins'] text-xs leading-relaxed text-[#c9e8e9]">
+                        This account has access to daily operations — inventory,
+                        tank updates, point of sale, and the announcement board.
+                        Business tools, staff account management, and financial
+                        reports remain owner-only.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB: ACCOUNT SECURITY */}
+              {settingsTab === "security" && (
+                <div className="grid gap-6 lg:grid-cols-3">
+                  <div className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-6 shadow-[0_14px_35px_rgba(0,12,31,.14)] lg:col-span-2">
+                    <div className="flex flex-wrap items-start justify-between gap-4 border-b border-sky-100/10 pb-4">
+                      <div>
+                        <h3 className="font-['Fraunces'] text-xl font-medium text-[#d9ecef]">
+                          Login & Attendance Credentials
+                        </h3>
+                        <p className="mt-1 font-['Poppins'] text-xs text-[#9bbec7]">
+                          Your staff email and password are used for both the
+                          Staff Time Clock and account sign-in.
+                        </p>
+                      </div>
+                      <span className="rounded-full border border-sky-100/15 bg-white/[.05] px-3 py-1 font-['Poppins'] text-xs font-medium text-[#9bbec7]">
+                        Managed by Owner
+                      </span>
+                    </div>
+
+                    <p className="mt-5 font-['Poppins'] text-xs leading-relaxed text-[#c9e1e5]">
+                      Password resets and two-factor authentication for staff
+                      accounts are managed by the business owner. If you've
+                      forgotten your password or need your authenticator reset,
+                      contact your shift lead or the owner directly.
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-6 shadow-[0_14px_35px_rgba(0,12,31,.14)] lg:col-span-1">
+                    <h3 className="font-['Fraunces'] text-xl font-medium text-[#d9ecef]">
+                      Security Best Practices
+                    </h3>
+                    <ul className="mt-4 space-y-3 font-['Poppins'] text-xs leading-relaxed text-[#9bbec7]">
+                      <li className="flex gap-2">
+                        <span className="text-[#73c4ca] font-bold">1.</span>
+                        <span>
+                          <strong>Lockout Protection:</strong> Accounts are
+                          automatically locked for 5 minutes after 5 consecutive
+                          failed login attempts.
+                        </span>
+                      </li>
+                      <li className="flex gap-2">
+                        <span className="text-[#73c4ca] font-bold">2.</span>
+                        <span>
+                          <strong>Keep It Personal:</strong> Never share your
+                          login with other staff — each clock-in and clock-out
+                          is tied to your own account.
+                        </span>
+                      </li>
+                      <li className="flex gap-2">
+                        <span className="text-[#73c4ca] font-bold">3.</span>
+                        <span>
+                          <strong>Session Expiry:</strong> Always click{" "}
+                          <em>Logout</em> before leaving public or shared shop
+                          terminals.
+                        </span>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB: ABOUT */}
+              {settingsTab === "about" && (
+                <div className="grid gap-6 lg:grid-cols-3">
+                  <div className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-6 shadow-[0_14px_35px_rgba(0,12,31,.14)] lg:col-span-2">
+                    <h3 className="font-['Fraunces'] text-2xl font-medium text-[#d9ecef]">
+                      About Fishonitory
+                    </h3>
+                    <p className="mt-2 font-['Poppins'] text-xs sm:text-sm leading-relaxed text-[#9bbec7]">
+                      This section is still In progress.
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-6 shadow-[0_14px_35px_rgba(0,12,31,.14)] lg:col-span-1">
+                    <h3 className="font-['Fraunces'] text-xl font-medium text-[#d9ecef]">
+                      System Information
+                    </h3>
+                    <div className="mt-4 space-y-3 font-['Poppins'] text-xs text-[#9bbec7]">
+                      <div className="flex justify-between border-b border-sky-100/10 pb-2">
+                        <span>Version</span>
+                        <span className="font-mono text-[#d9ecef]">
+                          v1.0.0 (Final)
+                        </span>
+                      </div>
+                      <div className="flex justify-between border-b border-sky-100/10 pb-2">
+                        <span>Release Type</span>
+                        <span className="text-emerald-300">Production</span>
+                      </div>
+                      <div className="flex justify-between border-b border-sky-100/10 pb-2">
+                        <span>Frontend</span>
+                        <span className="text-[#d9ecef]">
+                          React 19 + Tailwind v4
+                        </span>
+                      </div>
+                      <div className="flex justify-between border-b border-sky-100/10 pb-2">
+                        <span>Backend</span>
+                        <span className="text-[#d9ecef]">
+                          Node.js + Express API
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Database</span>
+                        <span className="text-[#d9ecef]">MongoDB Atlas</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB: CONTACT & SUPPORT */}
+              {settingsTab === "contact" && (
+                <div className="grid gap-6 lg:grid-cols-3">
+                  <div className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-6 shadow-[0_14px_35px_rgba(0,12,31,.14)] lg:col-span-2">
+                    <h3 className="font-['Fraunces'] text-2xl font-medium text-[#d9ecef]">
+                      Help & Support Center
+                    </h3>
+                    <p className="mt-2 font-['Poppins'] text-xs sm:text-sm text-[#9bbec7]">
+                      This section is still In progress.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activePage === "time-clock" && (
+            <div className="mx-auto w-full max-w-2xl rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-6 shadow-[0_14px_35px_rgba(0,12,31,.14)]">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-sky-100/10 pb-4">
+                <div>
+                  <p className="font-['Poppins'] text-xs font-semibold uppercase tracking-[.16em] text-[#73c4ca]">
+                    Staff attendance
                   </p>
-                  <p className="rounded-xl bg-white/[.04] p-3 text-[#c9e1e5]">
-                    <span className="text-[#7fa7ae]">Role: </span>
-                    {user?.staffPosition || "Master Staff"}
+                  <h3 className="mt-1 font-['Fraunces'] text-xl font-medium text-[#d9ecef]">
+                    Staff Time Clock
+                  </h3>
+                </div>
+                <span className="rounded-full border border-sky-100/15 bg-white/[.04] px-3 py-1 font-['Poppins'] text-xs text-[#73c4ca]">
+                  {currentTime.toLocaleTimeString("en-PH", {
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })}
+                </span>
+                {/* Side info panel */}
+                <div className="flex flex-col justify-between rounded-xl border border-sky-100/[.08] bg-white/[.03] p-5">
+                  <div>
+                    <h4 className="mt-4 font-['Fraunces'] text-lg font-medium text-[#d9ecef]">
+                      {currentTime.toLocaleDateString("en-PH", {
+                        weekday: "long",
+                        month: "long",
+                        day: "numeric",
+                      })}
+                    </h4>
+                    <p className="mt-2 font-['Poppins'] text-xs leading-relaxed text-[#9bbec7]">
+                      Use your own staff email and password to clock in when
+                      your shift starts, and clock out when it ends. This keeps
+                      attendance records accurate for payroll and scheduling.
+                    </p>
+                  </div>
+                  <p className="mt-4 font-['Poppins'] text-[11px] text-[#6f9ca5]">
+                    Having trouble logging your time? Let the owner or your
+                    shift lead know.
                   </p>
                 </div>
               </div>
-              <div className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-6 shadow-[0_14px_35px_rgba(0,12,31,.14)]">
-                <h3 className="font-['Fraunces'] text-xl font-medium text-[#d9ecef]">
-                  Help & tutorial
-                </h3>
-                <p className="mt-2 font-['Poppins'] text-sm leading-relaxed text-[#9bbec7]">
-                  The owner controls business tools and account security. Your
-                  settings are focused on your role, guidance, and safe access
-                  to daily work.
-                </p>
+
+              <div className="mt-6 grid gap-6 lg:grid-cols-[1.1fr,0.9fr]">
+                {/* Form */}
+                <div className="rounded-xl border border-sky-100/[.08] bg-white/[.03] p-5">
+                  <div className="grid gap-4">
+                    <label className="block font-['Poppins'] text-[10px] font-semibold uppercase tracking-wider text-[#89afb9]">
+                      Staff email
+                      <input
+                        type="email"
+                        autoComplete="email"
+                        placeholder="you@fishonitory.com"
+                        value={timeClock.email}
+                        onChange={(event) =>
+                          setTimeClock((value) => ({
+                            ...value,
+                            email: event.target.value,
+                          }))
+                        }
+                        className="mt-1.5 w-full rounded-xl border border-sky-100/15 bg-white/[.06] px-3.5 py-3 font-['Poppins'] text-sm font-normal normal-case text-[#d9ecef] outline-none transition-colors placeholder:text-[#6d8b92] focus:border-[#73c4ca] focus:bg-white/[.09] focus:ring-2 focus:ring-[#73c4ca]/25"
+                      />
+                    </label>
+
+                    <label className="block font-['Poppins'] text-[10px] font-semibold uppercase tracking-wider text-[#89afb9]">
+                      Password
+                      <input
+                        type="password"
+                        autoComplete="current-password"
+                        placeholder="••••••••"
+                        value={timeClock.password}
+                        onChange={(event) =>
+                          setTimeClock((value) => ({
+                            ...value,
+                            password: event.target.value,
+                          }))
+                        }
+                        className="mt-1.5 w-full rounded-xl border border-sky-100/15 bg-white/[.06] px-3.5 py-3 font-['Poppins'] text-sm font-normal normal-case text-[#d9ecef] outline-none transition-colors placeholder:text-[#6d8b92] focus:border-[#73c4ca] focus:bg-white/[.09] focus:ring-2 focus:ring-[#73c4ca]/25"
+                      />
+                    </label>
+
+                    <div className="mt-2 flex gap-3">
+                      <button
+                        type="button"
+                        disabled={timeClockBusy}
+                        onClick={() => submitTimeClock("clock-in")}
+                        className="flex-1 rounded-xl bg-[#75bec4] py-3.5 text-center font-['Poppins'] text-sm font-semibold text-[#052d45] transition hover:bg-[#86d0d6] disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
+                      >
+                        {timeClockBusy ? "Clocking in…" : "Clock In"}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={timeClockBusy}
+                        onClick={() => submitTimeClock("clock-out")}
+                        className="flex-1 rounded-xl border border-sky-100/15 bg-white/[.04] py-3.5 text-center font-['Poppins'] text-sm font-semibold text-[#d9ecef] transition hover:border-[#73c4ca]/40 hover:bg-white/[.08] disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
+                      >
+                        {timeClockBusy ? "Clocking out…" : "Clock Out"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           )}
-{activePage === "time-clock" && (
-  <div className="mx-auto w-full max-w-2xl rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-6 shadow-[0_14px_35px_rgba(0,12,31,.14)]">
-    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-sky-100/10 pb-4">
-      <div>
-        <p className="font-['Poppins'] text-xs font-semibold uppercase tracking-[.16em] text-[#73c4ca]">
-          Staff attendance
-        </p>
-        <h3 className="mt-1 font-['Fraunces'] text-xl font-medium text-[#d9ecef]">
-          Staff Time Clock
-        </h3>
-      </div>
-      <span className="rounded-full border border-sky-100/15 bg-white/[.04] px-3 py-1 font-['Poppins'] text-xs text-[#73c4ca]">
-        {currentTime.toLocaleTimeString("en-PH", {
-          hour: "numeric",
-          minute: "2-digit",
-        })}
-      </span>
-      {/* Side info panel */}
-      <div className="flex flex-col justify-between rounded-xl border border-sky-100/[.08] bg-white/[.03] p-5">
-        <div>
-          <h4 className="mt-4 font-['Fraunces'] text-lg font-medium text-[#d9ecef]">
-            {currentTime.toLocaleDateString("en-PH", {
-              weekday: "long",
-              month: "long",
-              day: "numeric",
-            })}
-          </h4>
-          <p className="mt-2 font-['Poppins'] text-xs leading-relaxed text-[#9bbec7]">
-            Use your own staff email and password to clock in when your shift
-            starts, and clock out when it ends. This keeps attendance records
-            accurate for payroll and scheduling.
-          </p>
-        </div>
-        <p className="mt-4 font-['Poppins'] text-[11px] text-[#6f9ca5]">
-          Having trouble logging your time? Let the owner or your shift lead know.
-        </p>
-      </div>
-    </div>
-
-    <div className="mt-6 grid gap-6 lg:grid-cols-[1.1fr,0.9fr]">
-      {/* Form */}
-      <div className="rounded-xl border border-sky-100/[.08] bg-white/[.03] p-5">
-        <div className="grid gap-4">
-          <label className="block font-['Poppins'] text-[10px] font-semibold uppercase tracking-wider text-[#89afb9]">
-            Staff email
-            <input
-              type="email"
-              autoComplete="email"
-              placeholder="you@fishonitory.com"
-              value={timeClock.email}
-              onChange={(event) =>
-                setTimeClock((value) => ({ ...value, email: event.target.value }))
-              }
-              className="mt-1.5 w-full rounded-xl border border-sky-100/15 bg-white/[.06] px-3.5 py-3 font-['Poppins'] text-sm font-normal normal-case text-[#d9ecef] outline-none transition-colors placeholder:text-[#6d8b92] focus:border-[#73c4ca] focus:bg-white/[.09] focus:ring-2 focus:ring-[#73c4ca]/25"
-            />
-          </label>
-
-          <label className="block font-['Poppins'] text-[10px] font-semibold uppercase tracking-wider text-[#89afb9]">
-            Password
-            <input
-              type="password"
-              autoComplete="current-password"
-              placeholder="••••••••"
-              value={timeClock.password}
-              onChange={(event) =>
-                setTimeClock((value) => ({ ...value, password: event.target.value }))
-              }
-              className="mt-1.5 w-full rounded-xl border border-sky-100/15 bg-white/[.06] px-3.5 py-3 font-['Poppins'] text-sm font-normal normal-case text-[#d9ecef] outline-none transition-colors placeholder:text-[#6d8b92] focus:border-[#73c4ca] focus:bg-white/[.09] focus:ring-2 focus:ring-[#73c4ca]/25"
-            />
-          </label>
-
-          <div className="mt-2 flex gap-3">
-            <button
-              type="button"
-              disabled={timeClockBusy}
-              onClick={() => submitTimeClock("clock-in")}
-              className="flex-1 rounded-xl bg-[#75bec4] py-3.5 text-center font-['Poppins'] text-sm font-semibold text-[#052d45] transition hover:bg-[#86d0d6] disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
-            >
-              {timeClockBusy ? "Clocking in…" : "Clock In"}
-            </button>
-            <button
-              type="button"
-              disabled={timeClockBusy}
-              onClick={() => submitTimeClock("clock-out")}
-              className="flex-1 rounded-xl border border-sky-100/15 bg-white/[.04] py-3.5 text-center font-['Poppins'] text-sm font-semibold text-[#d9ecef] transition hover:border-[#73c4ca]/40 hover:bg-white/[.08] disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
-            >
-              {timeClockBusy ? "Clocking out…" : "Clock Out"}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-)}
         </section>
       </div>
     </main>

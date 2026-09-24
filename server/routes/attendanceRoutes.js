@@ -46,5 +46,15 @@ router.delete(
   validateId("id"),
   attendanceController.deleteAttendance,
 );
+router.get("/shift-templates", authMiddleware, attendanceController.listShiftTemplates);
+router.post("/shift-templates", authMiddleware, attendanceController.saveShiftTemplate);
+router.delete(
+  "/shift-templates/:id",
+  authMiddleware,
+  validateId("id"),
+  attendanceController.deleteShiftTemplate,
+);
+router.post("/shift-templates/assign", authMiddleware, attendanceController.assignStaffShift);
+router.post("/late-deduction", authMiddleware, attendanceController.updateLateDeductionAmount);
 
 module.exports = router;

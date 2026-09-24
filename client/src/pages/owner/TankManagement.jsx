@@ -48,7 +48,7 @@ function TankManagement({
     setEditingTankId(null);
     setTankForm({
       name: "",
-      status: "Needs Cleaning",
+      status: "Available",
       nextMaintenance: "",
       notes: "",
     });

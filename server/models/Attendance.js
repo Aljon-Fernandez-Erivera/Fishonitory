@@ -28,6 +28,11 @@ const attendanceSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    lateDeductionAmount: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
   },
   { timestamps: true },
 );

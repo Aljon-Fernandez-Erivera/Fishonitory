@@ -17,7 +17,7 @@ const tankSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
-      default: "Needs Cleaning",
+      default: "Available",
     },
     nextMaintenance: { type: Date, default: null },
     cleaningFrequencyDays: { type: Number, default: null },

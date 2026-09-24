@@ -10,12 +10,14 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     let active = true;
     const pathname = window.location.pathname;
+    const storedRole = sessionStorage.getItem("role");
     const sessionRole =
-      pathname === "/owner-dashboard" || pathname === "/account"
+      storedRole ||
+      (pathname === "/owner-dashboard" || pathname === "/account"
         ? "Owner"
         : pathname === "/staff-dashboard"
           ? "masterStaff"
-          : "";
+          : "");
 
     fetch(`${API_URL}/auth/session`, {
       credentials: "include",
@@ -72,7 +74,7 @@ export function AuthProvider({ children }) {
 
       // Friendly at secure message para sa user (walang sensitive technical details)
       setToastMessage(
-        "Oops! Nagka-porsyento lang sa koneksyon. Proceeding in offline mode...",
+        "Internet Connection Error. Proceeding in offline mode...",
       );
     }
     setUser({ role });

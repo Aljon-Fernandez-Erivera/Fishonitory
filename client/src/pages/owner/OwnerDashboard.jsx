@@ -151,6 +151,31 @@
     const [workspaceSaving, setWorkspaceSaving] = useState(false);
     const [workspaceError, setWorkspaceError] = useState("");
     const pollingRequestInFlight = useRef(false);
+    const lastToastRef = useRef("");
+    const [shiftTemplates, setShiftTemplates] = useState([]);
+    const [lateDeductionAmount, setLateDeductionAmount] = useState(0);
+
+    const notify = (type, title) => {
+      const safeTitle = typeof title === "string" ? title.trim() : "";
+      if (!safeTitle) return;
+      const dedupeKey = `${type}:${safeTitle}`;
+      if (lastToastRef.current === dedupeKey) return;
+      lastToastRef.current = dedupeKey;
+      Swal.fire({
+        toast: true,
+        position: "top-end",
+        icon: type,
+        title: safeTitle,
+        showConfirmButton: false,
+        timer: 4000,
+        timerProgressBar: true,
+        background: "#062d48",
+        color: "#d9ecef",
+      });
+      window.setTimeout(() => {
+        if (lastToastRef.current === dedupeKey) lastToastRef.current = "";
+      }, 4500);
+    };
 
 
     // Function para i-load ang lahat ng data sa dashboard, ito yung mag fe-fetch ng lahat ng data mula sa server.
@@ -175,6 +200,7 @@
           auditData,
           payrollData,
           workspaceData,
+          shiftData,
         ] = await Promise.all([
           apiRequest("/owner/staff"),
           apiRequest("/attendance"),
@@ -187,6 +213,7 @@
           apiRequest("/operations/audit-logs"),
           apiRequest("/payroll"),
           apiRequest("/owner/workspace-settings"),
+          apiRequest("/attendance/shift-templates"),
         ]);
         setStaff(staffData.staff);
         setAttendance(attendanceData.records);
@@ -199,6 +226,8 @@
         setMortality(mortalityData.records);
         setAuditLogs(auditData.logs);
         setPayroll(payrollData.payroll);
+        setShiftTemplates(shiftData.shiftTemplates || []);
+        setLateDeductionAmount(shiftData.lateDeductionAmount || 0);
         setBusinessFeatures({ ...defaultBusinessFeatures, ...workspaceData.features });
         if (!background) setWorkspaceSetupOpen(!workspaceData.setupCompleted);
         setSalesRange((currentRange) => {
@@ -286,30 +315,30 @@
     // useEffect para i-handle ang toast message para sa staff, kung ang staffToast ay hindi empty, magse-set ng timer na magtatanggal ng toast message pagkatapos ng 5 seconds.
     useEffect(() => {
       if (!staffToast) return undefined;
-      Swal.fire({ toast: true, position: "top-end", icon: "success", title: staffToast, showConfirmButton: false, timer: 5000, timerProgressBar: true });
-      const timer = setTimeout(() => setStaffToast(""), 5000);
+      notify("success", staffToast);
+      const timer = setTimeout(() => setStaffToast(""), 4500);
       return () => clearTimeout(timer);
     }, [staffToast]);
 
     // useEffect para i-handle ang toast message para sa payroll, kung ang payrollToast ay hindi empty, magse-set ng timer na magtatanggal ng toast message pagkatapos ng 5 seconds.
     useEffect(() => {
       if (!payrollToast) return undefined;
-      Swal.fire({ toast: true, position: "top-end", icon: "success", title: payrollToast, showConfirmButton: false, timer: 5000, timerProgressBar: true });
-      const timer = setTimeout(() => setPayrollToast(""), 5000);
+      notify("success", payrollToast);
+      const timer = setTimeout(() => setPayrollToast(""), 4500);
       return () => clearTimeout(timer);
     }, [payrollToast]);
 
     useEffect(() => {
       if (!message) return undefined;
-      Swal.fire({ toast: true, position: "top-end", icon: "success", title: message, showConfirmButton: false, timer: 5000, timerProgressBar: true });
-      const timer = setTimeout(() => setMessage(""), 5000);
+      notify("success", message);
+      const timer = setTimeout(() => setMessage(""), 4500);
       return () => clearTimeout(timer);
     }, [message]);
 
     useEffect(() => {
       if (!error) return undefined;
-      Swal.fire({ toast: true, position: "top-end", icon: "error", title: error, showConfirmButton: false, timer: 5000, timerProgressBar: true });
-      const timer = setTimeout(() => setError(""), 5000);
+      notify("error", error);
+      const timer = setTimeout(() => setError(""), 4500);
       return () => clearTimeout(timer);
     }, [error]);
 
@@ -477,6 +506,57 @@
           body: JSON.stringify({ status }),
         });
         await loadDashboardData();
+      } catch (requestError) {
+        setError(requestError.message);
+      }
+    };
+
+        const handleSaveShiftTemplate = async (template) => {
+      try {
+        await apiRequest("/attendance/shift-templates", {
+          method: "POST",
+          body: JSON.stringify(template),
+        });
+        setMessage(template.id ? "Shift template updated." : "Shift template added.");
+        await loadDashboardData();
+      } catch (requestError) {
+        setError(requestError.message);
+      }
+    };
+
+    const handleDeleteShiftTemplate = async (id) => {
+      const confirmation = await Swal.fire({ title: "Delete shift template?", text: "Staff assigned to this shift will fall back to the default schedule.", icon: "warning", showCancelButton: true, confirmButtonText: "Delete", confirmButtonColor: "#d33", background: "#062d48", color: "#d9ecef" });
+      if (!confirmation.isConfirmed) return;
+      try {
+        await apiRequest(`/attendance/shift-templates/${id}`, { method: "DELETE" });
+        setMessage("Shift template deleted.");
+        await loadDashboardData();
+      } catch (requestError) {
+        setError(requestError.message);
+      }
+    };
+
+    const handleAssignStaffShift = async (staffId, shiftTemplateId) => {
+      try {
+        await apiRequest("/attendance/shift-templates/assign", {
+          method: "POST",
+          body: JSON.stringify({ staffId, shiftTemplateId }),
+        });
+        setMessage("Staff shift updated.");
+        await loadDashboardData();
+      } catch (requestError) {
+        setError(requestError.message);
+      }
+    };
+
+    const handleUpdateLateDeductionAmount = async (amount) => {
+      try {
+        await apiRequest("/attendance/late-deduction", {
+          method: "POST",
+          body: JSON.stringify({ amount }),
+        });
+        setLateDeductionAmount(amount);
+        setMessage("Late deduction amount updated.");
       } catch (requestError) {
         setError(requestError.message);
       }
@@ -757,6 +837,12 @@
               )}
               onSetStaffAttendance={handleSetStaffAttendance}
               onDelete={handleDeleteAttendance}
+              shiftTemplates={shiftTemplates}
+              lateDeductionAmount={lateDeductionAmount}
+              onSaveShiftTemplate={handleSaveShiftTemplate}
+              onDeleteShiftTemplate={handleDeleteShiftTemplate}
+              onAssignStaffShift={handleAssignStaffShift}
+              onUpdateLateDeductionAmount={handleUpdateLateDeductionAmount}
             />
           );
         case "inventory":
@@ -777,6 +863,7 @@
           return (
             <TankManagement
               tanks={tanks}
+              fish={fish}
               tankForm={tankForm}
               setTankForm={setTankForm}
               editingTankId={editingTankId}
@@ -799,7 +886,17 @@
             />
           );
         case "operations":
-          return <section className="mx-auto w-full max-w-7xl rounded-2xl border border-dashed border-sky-100/15 bg-[#062d48]/50 p-8 text-center"><h2 className="font-['Fraunces'] text-2xl text-[#d9ecef]">Operations and Reports</h2><p className="mt-2 font-['Poppins'] text-sm text-[#9bbec7]">This workspace is being redesigned and is intentionally empty for now.</p></section>;
+          return (
+            <OwnerOperations
+              fish={fish}
+              purchases={purchases}
+              mortality={mortality}
+              auditLogs={auditLogs}
+              sales={sales}
+              onPurchase={handlePurchase}
+              onMortality={handleMortality}
+            />
+          );
         case "payroll":
           return (
             <Payroll
@@ -870,7 +967,13 @@
     return (
       <main className="box-border flex h-[100dvh] min-h-0 w-full flex-col overflow-hidden bg-[radial-gradient(circle_at_88%_12%,#0a5267_0%,#08465d_42%,#021a31_100%)] text-[#c9e1e5] md:flex-row owner-dashboard-main">
         <aside className="box-border flex w-full shrink-0 flex-col overflow-hidden border-b border-cyan-100/[.08] bg-[#062f43] md:h-full md:w-56 md:border-b-0 md:border-r md:px-3 md:pt-4 md:pb-4">
-          <div className="flex shrink-0 items-center gap-2.5 px-1">
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            aria-label="Refresh Fishonitory workspace"
+            title="Refresh dashboard"
+            className="cursor-pointer flex shrink-0 items-center gap-2.5 rounded-lg border-0 bg-transparent px-1 py-1 text-left transition hover:bg-white/[.04] focus:outline-none focus:ring-2 focus:ring-[#73c4ca]"
+          >
             <img src="/LOGO.svg" alt="Fishonitory" className="h-10 w-10 object-contain" />
             <div>
               <strong className="block font-['Poppins'] text-[0.9rem] font-medium text-[#cde4e6]">
@@ -880,7 +983,7 @@
                 Owners workspace
               </small>
             </div>
-          </div>
+          </button>
 
           <nav
             className="mt-4 flex min-w-0 gap-0.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:mt-6 md:min-h-0 md:flex-1 md:flex-col md:overflow-y-auto md:overflow-x-hidden md:pr-1 [scrollbar-width:thin]"
