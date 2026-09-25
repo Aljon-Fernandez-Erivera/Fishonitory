@@ -7,6 +7,8 @@ import {
   LoadingOverlay,
 } from "./shared/AuthLayout.jsx";
 
+import PasswordRequirements from "./shared/passwordRequirements.jsx";
+
 const emailPattern = /^\S+@\S+\.\S+$/;
 
 function EyeIcon({ open }) {
@@ -234,6 +236,7 @@ function ForgotPasswordPage() {
                 {errors.password}
               </p>
             )}
+            <PasswordRequirements password={form.password} />
             <label className="block font-['Poppins'] text-[10px] font-medium tracking-[0.12em] text-[#9ebfc8]">
               CONFIRM PASSWORD
               <div className="relative">
@@ -251,9 +254,7 @@ function ForgotPasswordPage() {
                     showConfirmPassword ? "Hide password" : "Show password"
                   }
                   aria-pressed={showConfirmPassword}
-                  onClick={() =>
-                    setShowConfirmPassword((value) => !value)
-                  }
+                  onClick={() => setShowConfirmPassword((value) => !value)}
                   disabled={loading}
                   tabIndex={-1}
                   className="absolute right-3 top-1/2 mt-[3px] -translate-y-1/2 grid h-6 w-6 place-items-center rounded-md bg-transparent border-0 p-0 text-[#9ebfc8] transition-colors hover:text-[#d9ecef] disabled:cursor-not-allowed disabled:opacity-50"

@@ -196,10 +196,11 @@ function OwnerOperations({
             className={secondaryButtonClass}
             type="button"
             onClick={() =>
-              downloadCsv("audit-log.csv", [
-                ["Date", "Action", "Entity", "Details"],
+             downloadCsv("audit-log.csv", [
+                ["Date", "User Email", "Action", "Entity", "Details"],
                 ...auditLogs.map((log) => [
                   log.createdAt,
+                  log.actorId?.email || "",
                   log.action,
                   log.entityType,
                   log.details,
@@ -601,6 +602,7 @@ function OwnerOperations({
               <thead className="sticky top-0 z-10 backdrop-blur-2xl">
                 <tr>
                   <th className={tableHeaderClass}>Date</th>
+                  <th className={tableHeaderClass}>User Email</th>
                   <th className={tableHeaderClass}>Action</th>
                   <th className={tableHeaderClass}>Entity</th>
                   <th className={tableHeaderClass}>Details</th>
@@ -609,9 +611,12 @@ function OwnerOperations({
               <tbody>
                 {visibleAuditLogs.length ? (
                   visibleAuditLogs.map((log) => (
-                    <tr key={log._id}>
+                   <tr key={log._id}>
                       <td className={tableCellClass}>
                         {new Date(log.createdAt).toLocaleString()}
+                      </td>
+                      <td className={tableCellClass}>
+                        {log.actorId?.email || "—"}
                       </td>
                       <td className={tableCellClass}>{log.action}</td>
                       <td className={tableCellClass}>{log.entityType}</td>
