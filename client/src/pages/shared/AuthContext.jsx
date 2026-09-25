@@ -10,8 +10,9 @@ export function AuthProvider({ children }) {
   const refreshSession = useCallback(async () => {
     const tabSessionKey = "fishonitory_tab_session";
     const hasTabSession = sessionStorage.getItem(tabSessionKey) === "active";
+    const token = sessionStorage.getItem("fishonitory_auth_token");
 
-    if (!hasTabSession) {
+    if (!hasTabSession && !token) {
       sessionStorage.removeItem("role");
       setUser(null);
       return;
@@ -30,7 +31,10 @@ export function AuthProvider({ children }) {
     try {
       const response = await fetch(`${API_URL}/auth/session`, {
         credentials: "include",
-        headers: sessionRole ? { "X-Session-Role": sessionRole } : {},
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(sessionRole ? { "X-Session-Role": sessionRole } : {}),
+        },
       });
       const sessionUser = response.ok ? (await response.json()).user : null;
 
@@ -71,14 +75,20 @@ export function AuthProvider({ children }) {
     };
   }, [refreshSession]);
 
-  const login = useCallback(async (_token, role) => {
+  const login = useCallback(async (token, role) => {
     sessionStorage.setItem("fishonitory_tab_session", "active");
     sessionStorage.setItem("role", role);
+    if (token) {
+      sessionStorage.setItem("fishonitory_auth_token", token);
+    }
     sessionStorage.removeItem("fishonitory_session_expired");
     try {
       const response = await fetch(`${API_URL}/auth/session`, {
         credentials: "include",
-        headers: { "X-Session-Role": role },
+        headers: {
+          Authorization: token ? `Bearer ${token}` : undefined,
+          "X-Session-Role": role,
+        },
       });
       if (response.ok) {
         const data = await response.json();
@@ -107,6 +117,7 @@ export function AuthProvider({ children }) {
       sessionStorage.setItem("fishonitory_session_expired", "1");
       sessionStorage.removeItem("fishonitory_tab_session");
       sessionStorage.removeItem("role");
+      sessionStorage.removeItem("fishonitory_auth_token");
       setUser(null);
     }
   }, [user?.role]);
