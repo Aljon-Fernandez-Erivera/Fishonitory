@@ -17,6 +17,10 @@ import { API_URL } from "../../config.js";
 import "../../css/owner-dashboard-layout.css";
 import Swal from "sweetalert2";
 import NotificationBell from "../shared/NotificationBell.jsx";
+import {
+  confirmOceanicAction,
+  showOceanicLogoutConfirm,
+} from "../../utils/oceanicSwal.js";
 
 // Placeholder objects para sa forms ng add staff
 const emptyStaff = {
@@ -99,8 +103,12 @@ async function apiRequest(path, options = {}) {
     error.code = "SYSTEM_UNAVAILABLE";
     throw error;
   }
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.message || "Request failed.");
+const data = await response.json();
+  if (!response.ok) {
+    const error = new Error(data.message || "Request failed.");
+    error.code = data.code;
+    throw error;
+  }
   return data;
 }
 
@@ -273,6 +281,13 @@ const handleSaveShiftAssignment = async (assignment) => {
     };
 
     const handleDeleteShiftAssignment = async (id) => {
+      const confirmation = await confirmOceanicAction({
+        title: "Remove shift assignment?",
+        text: "This will delete the assigned shift for the selected date.",
+        confirmButtonText: "Remove assignment",
+      });
+      if (!confirmation.isConfirmed) return;
+
       try {
         await apiRequest(`/attendance/shift-assignments/${id}`, { method: "DELETE" });
         setMessage("Shift assignment removed.");
@@ -763,6 +778,13 @@ const handleSaveShiftAssignment = async (assignment) => {
   };
 
   const handleDeleteFish = async (id) => {
+    const confirmation = await confirmOceanicAction({
+      title: "Delete fish item?",
+      text: "This action will remove the fish record from inventory.",
+      confirmButtonText: "Delete item",
+    });
+    if (!confirmation.isConfirmed) return;
+
     try {
       await apiRequest(`/fish/${id}`, { method: "DELETE" });
       setMessage("Fish item deleted successfully.");
@@ -796,6 +818,13 @@ const handleSaveShiftAssignment = async (assignment) => {
   };
 
   const handleDeleteTank = async (id) => {
+    const confirmation = await confirmOceanicAction({
+      title: "Delete tank?",
+      text: "This will remove the selected tank and its stored data.",
+      confirmButtonText: "Delete tank",
+    });
+    if (!confirmation.isConfirmed) return;
+
     try {
       await apiRequest(`/store/tanks/${id}`, { method: "DELETE" });
       setMessage("Tank deleted successfully.");
@@ -818,7 +847,7 @@ const handleSaveShiftAssignment = async (assignment) => {
     }
   };
 
-  const handleSavePayroll = async (payrollData) => {
+const handleSavePayroll = async (payrollData) => {
     try {
       const data = await apiRequest("/payroll", {
         method: "POST",
@@ -827,6 +856,32 @@ const handleSaveShiftAssignment = async (assignment) => {
       setPayrollToast(data.message);
       await loadDashboardData();
     } catch (requestError) {
+      if (requestError.code === "PAYROLL_ALREADY_EXISTS") {
+        const confirmation = await Swal.fire({
+          title: "Payroll already exists for this period",
+          text: `${requestError.message} Do you want to overwrite it with the new numbers?`,
+          icon: "warning",
+          showCancelButton: true,
+          confirmButtonText: "Overwrite",
+          confirmButtonColor: "#d33",
+          cancelButtonText: "Cancel",
+          background: "#062d48",
+          color: "#d9ecef",
+        });
+        if (confirmation.isConfirmed) {
+          try {
+            const retryData = await apiRequest("/payroll", {
+              method: "POST",
+              body: JSON.stringify({ ...payrollData, confirmOverwrite: true }),
+            });
+            setPayrollToast(retryData.message);
+            await loadDashboardData();
+          } catch (retryError) {
+            setError(retryError.message);
+          }
+        }
+        return;
+      }
       setError(requestError.message);
     }
   };
@@ -868,6 +923,13 @@ const handleSaveShiftAssignment = async (assignment) => {
   };
 
   const handleDeleteNote = async (id) => {
+    const confirmation = await confirmOceanicAction({
+      title: "Delete announcement?",
+      text: "This announcement will be removed immediately for everyone.",
+      confirmButtonText: "Delete announcement",
+    });
+    if (!confirmation.isConfirmed) return;
+
     try {
       await apiRequest(`/notes/${id}`, { method: "DELETE" });
       setNotes((current) => current.filter((item) => item._id !== id));
@@ -1249,16 +1311,9 @@ case "attendance":
             className="mt-2.5 w-full rounded-lg border border-cyan-100/10 bg-white/[.05] px-3 py-2 text-center font-['Poppins'] text-[0.75rem] font-medium text-[#b8d8dd] outline-none transition hover:border-red-200/25 hover:bg-red-200/10 hover:text-red-100 focus:ring-2 focus:ring-[#73c4ca]/50 cursor-pointer"
             type="button"
             onClick={async () => {
-              const result = await Swal.fire({
-                title: "Log out?",
-                text: "You will need to sign in again to continue.",
-                icon: "question",
-                showCancelButton: true,
-                confirmButtonText: "Log out",
-                cancelButtonText: "Stay signed in",
-                background: "#062d48",
-                color: "#d9ecef",
-                confirmButtonColor: "#4f9fa5",
+              const result = await showOceanicLogoutConfirm(async () => {
+                await logout();
+                window.location.replace("/login");
               });
               if (result.isConfirmed) {
                 await logout();

@@ -8,6 +8,15 @@ export function AuthProvider({ children }) {
   const [setToastMessage] = useState("");
 
   const refreshSession = useCallback(async () => {
+    const tabSessionKey = "fishonitory_tab_session";
+    const hasTabSession = sessionStorage.getItem(tabSessionKey) === "active";
+
+    if (!hasTabSession) {
+      sessionStorage.removeItem("role");
+      setUser(null);
+      return;
+    }
+
     const pathname = window.location.pathname;
     const storedRole = sessionStorage.getItem("role");
     const sessionRole =
@@ -41,6 +50,10 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     let active = true;
 
+    if (!sessionStorage.getItem("fishonitory_tab_session")) {
+      sessionStorage.setItem("fishonitory_tab_session", "fresh");
+    }
+
     refreshSession().finally(() => {
       if (active) setAuthReady(true);
     });
@@ -59,7 +72,9 @@ export function AuthProvider({ children }) {
   }, [refreshSession]);
 
   const login = useCallback(async (_token, role) => {
+    sessionStorage.setItem("fishonitory_tab_session", "active");
     sessionStorage.setItem("role", role);
+    sessionStorage.removeItem("fishonitory_session_expired");
     try {
       const response = await fetch(`${API_URL}/auth/session`, {
         credentials: "include",
@@ -89,6 +104,8 @@ export function AuthProvider({ children }) {
         headers: user?.role ? { "X-Session-Role": user.role } : {},
       });
     } finally {
+      sessionStorage.setItem("fishonitory_session_expired", "1");
+      sessionStorage.removeItem("fishonitory_tab_session");
       sessionStorage.removeItem("role");
       setUser(null);
     }

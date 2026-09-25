@@ -127,14 +127,17 @@ export function FriendlyDialog({ dialog, onClose }) {
   if (!dialog) return null;
   return (
     <div
-      className="fixed inset-0 z-40 grid place-items-center bg-[#021a31]/75 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-40 grid place-items-center bg-[#021a31]/70 p-4 backdrop-blur-md"
       role="presentation"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
     >
       <section
         role="dialog"
         aria-modal="true"
         aria-labelledby="friendly-dialog-title"
-        className="w-full max-w-sm rounded-2xl border border-sky-100/15 bg-[#062d48] p-6 text-center shadow-2xl"
+        className="w-full max-w-sm rounded-2xl border border-sky-100/15 bg-[#062d48]/90 p-6 text-center shadow-[0_28px_80px_rgba(0,12,31,.45)] backdrop-blur-md"
       >
         <h2
           id="friendly-dialog-title"

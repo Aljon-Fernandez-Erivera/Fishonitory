@@ -165,9 +165,26 @@ exports.savePayroll = async (req, res, next) => {
         });
     }
 
-    const period = `${periodStart} to ${periodEnd}`;
+const period = `${periodStart} to ${periodEnd}`;
+    const existing = await Payroll.findOne({
+      ownerId: req.user.userId,
+      staffId,
+      periodStart,
+      periodEnd,
+    }).select("_id netPay grossPay");
 
-    // 8. Upsert payroll entry safely
+    if (existing && !req.body.confirmOverwrite) {
+      return res.status(409).json({
+        code: "PAYROLL_ALREADY_EXISTS",
+        message: `Payroll for this staff member and period already exists (previous net pay: ₱${existing.netPay.toFixed(2)}). Generating again will overwrite it.`,
+        existing: {
+          netPay: existing.netPay,
+          grossPay: existing.grossPay,
+        },
+      });
+    }
+
+    // 9. Upsert payroll entry safely
     const payroll = await Payroll.findOneAndUpdate(
       { ownerId: req.user.userId, staffId, periodStart, periodEnd },
       {

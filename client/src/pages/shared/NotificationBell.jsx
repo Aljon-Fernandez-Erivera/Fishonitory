@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 const todayKey = () =>
   new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" });
@@ -23,6 +23,7 @@ function NotificationBell({
   viewerId = "",
 }) {
   const [open, setOpen] = useState(false);
+  const wrapperRef = useRef(null);
   const [readIds, setReadIds] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem(READ_STORAGE_KEY) || "[]");
@@ -34,6 +35,17 @@ function NotificationBell({
   useEffect(() => {
     localStorage.setItem(READ_STORAGE_KEY, JSON.stringify(readIds.slice(-100)));
   }, [readIds]);
+
+  useEffect(() => {
+    const handlePointerDown = (event) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, []);
 
   const notifications = useMemo(() => {
     const items = [];
@@ -103,7 +115,7 @@ function NotificationBell({
   };
 
   return (
-    <div className="relative shrink-0">
+    <div ref={wrapperRef} className="relative shrink-0">
       <button
         type="button"
         aria-label="Open notifications"

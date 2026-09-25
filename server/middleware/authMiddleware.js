@@ -1,24 +1,13 @@
 const jwt = require("jsonwebtoken");
 const config = require("../config/config");
+const {
+  cookieNameForRole,
+  getCookieToken,
+  requireRole,
+} = require("./authorization");
 
-const cookieNameForRole = (role) => {
-  if (role === "Owner") return "owner_access_token";
-  if (role === "Staff") return "staff_access_token";
-  if (role === "masterStaff") return "master_staff_access_token";
-  return null;
-};
-
-function getCookieToken(cookieHeader, cookieName = "access_token") {
-  const tokenCookie = cookieHeader
-    ?.split(";")
-    .map((cookie) => cookie.trim())
-    .find((cookie) => cookie.startsWith(`${cookieName}=`));
-
-  return tokenCookie
-    ? decodeURIComponent(tokenCookie.slice(cookieName.length + 1))
-    : null;
-}
-
+// Validate the JWT before letting any authenticated endpoint proceed. This is the
+// first line of defense for every protected API route.
 const authMiddleware = (req, res, next) => {
   const authorization = req.headers.authorization;
   const requestedRole = req.headers["x-session-role"];
@@ -33,6 +22,8 @@ const authMiddleware = (req, res, next) => {
 
   let token = null;
 
+  // Prefer Authorization headers, then fall back to role-specific cookies. This
+  // ensures the app can authenticate correctly across local/dev and deployment setups.
   if (authorization && authorization.startsWith("Bearer ")) {
     token = authorization.slice(7);
   } else {
@@ -52,13 +43,14 @@ const authMiddleware = (req, res, next) => {
   }
 
   try {
+    // Verify the session token and attach the decoded user payload to the request.
     req.user = jwt.verify(token, config.jwtSecret);
 
     if (requestedRole && req.user.role !== requestedRole) {
       return res.status(403).json({ message: "This session is not authorized for the requested account type." });
     }
 
-    next();
+    return next();
   } catch (error) {
     return res
       .status(401)
@@ -67,4 +59,5 @@ const authMiddleware = (req, res, next) => {
 };
 
 module.exports = authMiddleware;
+module.exports.requireRole = requireRole;
 module.exports.cookieNameForRole = cookieNameForRole;

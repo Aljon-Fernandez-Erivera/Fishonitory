@@ -1,5 +1,6 @@
 const express = require("express");
 const authMiddleware = require("../middleware/authMiddleware");
+const { requireRole } = require("../middleware/authorization");
 const ownerController = require("../controllers/ownerController");
 const {
   validateAccountStatus,
@@ -13,6 +14,7 @@ const {
 
 const router = express.Router();
 router.use(authMiddleware);
+router.use(requireRole(["Owner"]));
 router.get("/workspace-settings", ownerController.getWorkspaceSettings);
 router.put("/workspace-settings", ownerController.updateWorkspaceSettings);
 router.post("/staff/send-otp", validateStaff, ownerController.sendStaffOtp);

@@ -1,6 +1,7 @@
 const express = require("express");
 const attendanceController = require("../controllers/attendanceController");
 const authMiddleware = require("../middleware/authMiddleware");
+const { requireRole } = require("../middleware/authorization");
 const {
   validateAttendanceStatus,
   validateId,
@@ -8,6 +9,9 @@ const {
 } = require("../middleware/requestValidators");
 
 const router = express.Router();
+
+router.use(authMiddleware);
+router.use(requireRole(["Owner", "masterStaff", "Staff"]));
 
 router.post("/staff-time-clock", attendanceController.staffTimeClock);
 

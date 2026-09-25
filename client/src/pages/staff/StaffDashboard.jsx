@@ -7,6 +7,7 @@ import { API_URL } from "../../config.js";
 import "../../css/owner-dashboard-layout.css";
 import Swal from "sweetalert2";
 import NotificationBell from "../shared/NotificationBell.jsx";
+import { showOceanicLogoutConfirm } from "../../utils/oceanicSwal.js";
 
 // Choices para sa mga fish tank statuses na pwedeng i-update ng staff sa dashboard.
 const tankStatuses = [
@@ -496,16 +497,9 @@ function StaffDashboard() {
             className="mt-2.5 w-full rounded-lg border border-cyan-100/10 bg-white/[.05] px-3 py-2 text-center font-['Poppins'] text-[0.75rem] font-medium text-[#b8d8dd] outline-none transition hover:border-red-200/25 hover:bg-red-200/10 hover:text-red-100 focus:outline-none focus:ring-2 focus:ring-[#73c4ca]/50 cursor-pointer"
             type="button"
             onClick={async () => {
-              const result = await Swal.fire({
-                title: "Log out?",
-                text: "You will need to sign in again to continue.",
-                icon: "question",
-                showCancelButton: true,
-                confirmButtonText: "Log out",
-                cancelButtonText: "Stay signed in",
-                background: "#062d48",
-                color: "#d9ecef",
-                confirmButtonColor: "#4f9fa5",
+              const result = await showOceanicLogoutConfirm(async () => {
+                await logout();
+                window.location.replace("/login");
               });
               if (result.isConfirmed) {
                 await logout();

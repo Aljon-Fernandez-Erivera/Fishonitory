@@ -462,7 +462,7 @@ function Payroll({ staff, attendance, payroll, onSave, onDelete, toast, owner })
     }
   };
 
-  const handleSubmit = (event) => {
+const handleSubmit = (event) => {
     event.preventDefault();
     if (summary.netPay < 0) {
       SwalAlert.fire({
