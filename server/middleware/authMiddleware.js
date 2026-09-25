@@ -43,7 +43,6 @@ const authMiddleware = (req, res, next) => {
   }
 
   try {
-    // Verify the session token and attach the decoded user payload to the request.
     req.user = jwt.verify(token, config.jwtSecret);
 
     if (requestedRole && req.user.role !== requestedRole) {
