@@ -92,7 +92,7 @@ function AppRoutes() {
       return;
     }
 
-    if (user && publicAuthPages.has(currentPath)) {
+    if (user && publicAuthPages.has(currentPath) && !sessionStorage.getItem("fishonitory_login_success")) {
       sessionStorage.setItem("fishonitory_session_expired", "1");
       sessionStorage.removeItem("role");
       sessionStorage.removeItem("fishonitory_tab_session");
@@ -116,7 +116,7 @@ function AppRoutes() {
         return;
       }
 
-      if (user && nextPublicAuthPages.has(nextPath)) {
+      if (user && nextPublicAuthPages.has(nextPath) && !sessionStorage.getItem("fishonitory_login_success")) {
         sessionStorage.setItem("fishonitory_session_expired", "1");
         sessionStorage.removeItem("role");
         sessionStorage.removeItem("fishonitory_tab_session");
