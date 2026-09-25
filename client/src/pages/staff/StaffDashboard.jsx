@@ -73,6 +73,7 @@ function StaffDashboard() {
   const [error, setError] = useState("");
   const [timeClock, setTimeClock] = useState({ email: "", password: "" });
   const [timeClockBusy, setTimeClockBusy] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const [currentTime, setCurrentTime] = useState(() => new Date());
 
@@ -370,9 +371,27 @@ function StaffDashboard() {
     }`;
 
   return (
-    <main className="box-border flex h-[100dvh] min-h-0 w-full flex-col overflow-hidden bg-[radial-gradient(circle_at_88%_12%,#0a5267_0%,#08465d_42%,#021a31_100%)] text-[#c9e1e5] md:flex-row">
+    <main className="owner-dashboard-main box-border flex h-[100dvh] min-h-0 w-full flex-col overflow-hidden bg-[radial-gradient(circle_at_88%_12%,#0a5267_0%,#08465d_42%,#021a31_100%)] text-[#c9e1e5] md:flex-row">
+      <button
+        type="button"
+        aria-label={sidebarOpen ? "Close dashboard menu" : "Open dashboard menu"}
+        aria-expanded={sidebarOpen}
+        className={`owner-mobile-menu-toggle ${sidebarOpen ? "is-open" : ""}`}
+        onClick={() => setSidebarOpen((open) => !open)}
+      >
+        <span />
+        <span />
+        <span />
+      </button>
+
+      <div
+        className={`owner-mobile-backdrop ${sidebarOpen ? "is-visible" : ""}`}
+        onClick={() => setSidebarOpen(false)}
+        aria-hidden="true"
+      />
+
       {/* SIDEBAR */}
-      <aside className="box-border flex w-full shrink-0 flex-col overflow-hidden border-b border-cyan-100/[.08] bg-[#062f43] px-4 py-3 md:h-full md:w-56 md:border-b-0 md:border-r md:px-3 md:pt-4 md:pb-4">
+      <aside className={`owner-sidebar box-border flex w-full shrink-0 flex-col overflow-hidden border-b border-cyan-100/[.08] bg-[#062f43] px-4 py-3 md:h-full md:w-56 md:border-b-0 md:border-r md:px-3 md:pt-4 md:pb-4 ${sidebarOpen ? "is-open" : ""}`}>
         {/* Brand */}
         <button
           type="button"
@@ -404,63 +423,90 @@ function StaffDashboard() {
           <button
             className={navButtonClass("overview")}
             type="button"
-            onClick={() => setActivePage("overview")}
+            onClick={() => {
+              setActivePage("overview");
+              setSidebarOpen(false);
+            }}
           >
             Overview
           </button>
           <button
             className={navButtonClass("time-clock")}
             type="button"
-            onClick={() => setActivePage("time-clock")}
+            onClick={() => {
+              setActivePage("time-clock");
+              setSidebarOpen(false);
+            }}
           >
             Staff Time Clock
           </button>
           <button
             className={navButtonClass("inventory")}
             type="button"
-            onClick={() => setActivePage("inventory")}
+            onClick={() => {
+              setActivePage("inventory");
+              setSidebarOpen(false);
+            }}
           >
             Fish & Feed Inventory
           </button>
           <button
             className={navButtonClass("tanks")}
             type="button"
-            onClick={() => setActivePage("tanks")}
+            onClick={() => {
+              setActivePage("tanks");
+              setSidebarOpen(false);
+            }}
           >
             Tank Updates
           </button>
           <button
             className={navButtonClass("calculator")}
             type="button"
-            onClick={() => setActivePage("calculator")}
+            onClick={() => {
+              setActivePage("calculator");
+              setSidebarOpen(false);
+            }}
           >
             Point of Sale (POS)
           </button>
           <button
             className={navButtonClass("sales")}
             type="button"
-            onClick={() => setActivePage("sales")}
+            onClick={() => {
+              setActivePage("sales");
+              setSidebarOpen(false);
+            }}
           >
             Sales
           </button>
           <button
             className={navButtonClass("leave-note")}
             type="button"
-            onClick={() => setActivePage("leave-note")}
+            onClick={() => {
+              setActivePage("leave-note");
+              setSidebarOpen(false);
+            }}
           >
             Post to Board
           </button>
           <button
             className={navButtonClass("announcements")}
             type="button"
-            onClick={() => setActivePage("announcements")}
+            onClick={() => {
+              setActivePage("announcements");
+              setSidebarOpen(false);
+            }}
           >
             Announcements
           </button>
           <button
             className={navButtonClass("settings")}
             type="button"
-            onClick={() => setActivePage("settings")}
+            onClick={() => {
+              setActivePage("settings");
+              setSidebarOpen(false);
+            }}
           >
             Settings
           </button>
@@ -470,12 +516,17 @@ function StaffDashboard() {
         <div className="mt-auto shrink-0 border-t border-cyan-100/[.08] pt-2.5 pb-0.5 md:pt-3 md:pb-1">
           <div
             className="flex cursor-pointer items-center gap-2.5 rounded-lg p-1.5 transition hover:bg-white/[.04]"
-            onClick={() => setActivePage("settings")}
+            onClick={() => {
+              setActivePage("settings");
+              setSidebarOpen(false);
+            }}
             role="button"
             tabIndex={0}
             onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ")
+              if (event.key === "Enter" || event.key === " ") {
                 setActivePage("settings");
+                setSidebarOpen(false);
+              }
             }}
           >
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#75bec4]/20 font-['Poppins'] text-sm font-semibold text-[#bce9e9]">

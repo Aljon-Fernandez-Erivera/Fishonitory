@@ -156,6 +156,7 @@ function OwnerDashboard() {
   const [salesRange, setSalesRange] = useState({ startDate: "", endDate: "" });
   const [systemUnavailable, setSystemUnavailable] = useState(false);
   const [currentTime, setCurrentTime] = useState(() => new Date());
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [businessFeatures, setBusinessFeatures] = useState(
     defaultBusinessFeatures,
   );
@@ -1165,8 +1166,26 @@ case "attendance":
   };
 
   return (
-    <main className="box-border flex h-[100dvh] min-h-0 w-full flex-col overflow-hidden bg-[radial-gradient(circle_at_88%_12%,#0a5267_0%,#08465d_42%,#021a31_100%)] text-[#c9e1e5] md:flex-row owner-dashboard-main">
-      <aside className="box-border flex w-full shrink-0 flex-col overflow-hidden border-b border-cyan-100/[.08] bg-[#062f43] md:h-full md:w-56 md:border-b-0 md:border-r md:px-3 md:pt-4 md:pb-4">
+    <main className="owner-dashboard-main box-border flex h-[100dvh] min-h-0 w-full flex-col overflow-hidden bg-[radial-gradient(circle_at_88%_12%,#0a5267_0%,#08465d_42%,#021a31_100%)] text-[#c9e1e5] md:flex-row">
+      <button
+        type="button"
+        aria-label={sidebarOpen ? "Close dashboard menu" : "Open dashboard menu"}
+        aria-expanded={sidebarOpen}
+        className={`owner-mobile-menu-toggle ${sidebarOpen ? "is-open" : ""}`}
+        onClick={() => setSidebarOpen((open) => !open)}
+      >
+        <span />
+        <span />
+        <span />
+      </button>
+
+      <div
+        className={`owner-mobile-backdrop ${sidebarOpen ? "is-visible" : ""}`}
+        onClick={() => setSidebarOpen(false)}
+        aria-hidden="true"
+      />
+
+      <aside className={`owner-sidebar box-border flex w-full shrink-0 flex-col overflow-hidden border-b border-cyan-100/[.08] bg-[#062f43] px-4 py-3 md:h-full md:w-56 md:border-b-0 md:border-r md:px-3 md:pt-4 md:pb-4 ${sidebarOpen ? "is-open" : ""}`}>
         <button
           type="button"
           onClick={() => window.location.reload()}
@@ -1196,7 +1215,10 @@ case "attendance":
           <button
             className={navButtonClass("overview")}
             type="button"
-            onClick={() => setActivePage("overview")}
+            onClick={() => {
+              setActivePage("overview");
+              setSidebarOpen(false);
+            }}
           >
             Overview
           </button>
@@ -1204,7 +1226,10 @@ case "attendance":
             <button
               className={navButtonClass("attendance")}
               type="button"
-              onClick={() => setActivePage("attendance")}
+              onClick={() => {
+                setActivePage("attendance");
+                setSidebarOpen(false);
+              }}
             >
               Attendance
             </button>
@@ -1213,7 +1238,10 @@ case "attendance":
             <button
               className={navButtonClass("staff")}
               type="button"
-              onClick={() => setActivePage("staff")}
+              onClick={() => {
+                setActivePage("staff");
+                setSidebarOpen(false);
+              }}
             >
               Staff Management
             </button>
@@ -1222,7 +1250,10 @@ case "attendance":
             <button
               className={navButtonClass("inventory")}
               type="button"
-              onClick={() => setActivePage("inventory")}
+              onClick={() => {
+                setActivePage("inventory");
+                setSidebarOpen(false);
+              }}
             >
               Fish Inventory
             </button>
@@ -1231,7 +1262,10 @@ case "attendance":
             <button
               className={navButtonClass("tanks")}
               type="button"
-              onClick={() => setActivePage("tanks")}
+              onClick={() => {
+                setActivePage("tanks");
+                setSidebarOpen(false);
+              }}
             >
               Tank Management
             </button>
@@ -1240,7 +1274,10 @@ case "attendance":
             <button
               className={navButtonClass("notes")}
               type="button"
-              onClick={() => setActivePage("notes")}
+              onClick={() => {
+                setActivePage("notes");
+                setSidebarOpen(false);
+              }}
             >
               Announcement Board
             </button>
@@ -1249,7 +1286,10 @@ case "attendance":
             <button
               className={navButtonClass("sales")}
               type="button"
-              onClick={() => setActivePage("sales")}
+              onClick={() => {
+                setActivePage("sales");
+                setSidebarOpen(false);
+              }}
             >
               Sales
             </button>
@@ -1258,7 +1298,10 @@ case "attendance":
             <button
               className={navButtonClass("payroll")}
               type="button"
-              onClick={() => setActivePage("payroll")}
+              onClick={() => {
+                setActivePage("payroll");
+                setSidebarOpen(false);
+              }}
             >
               Payroll
             </button>
@@ -1267,7 +1310,10 @@ case "attendance":
             <button
               className={navButtonClass("operations")}
               type="button"
-              onClick={() => setActivePage("operations")}
+              onClick={() => {
+                setActivePage("operations");
+                setSidebarOpen(false);
+              }}
             >
               Operations & Reports
             </button>
@@ -1275,7 +1321,10 @@ case "attendance":
           <button
             className={navButtonClass("settings")}
             type="button"
-            onClick={() => setActivePage("settings")}
+            onClick={() => {
+              setActivePage("settings");
+              setSidebarOpen(false);
+            }}
           >
             Settings
           </button>
@@ -1284,12 +1333,18 @@ case "attendance":
         <div className="mt-auto shrink-0 border-t border-cyan-100/[.08] pt-2.5 pb-0.5 md:pt-3 md:pb-1">
           <div
             className="flex items-center gap-2.5 rounded-lg p-1.5 transition hover:bg-white/[.04] cursor-pointer"
-            onClick={() => setActivePage("settings")}
+            onClick={() => {
+              setActivePage("settings");
+              setSidebarOpen(false);
+            }}
             title="Open Settings"
             role="button"
             tabIndex={0}
             onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") setActivePage("settings");
+              if (e.key === "Enter" || e.key === " ") {
+                setActivePage("settings");
+                setSidebarOpen(false);
+              }
             }}
           >
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#75bec4]/20 font-['Poppins'] text-sm font-semibold text-[#bce9e9]">
