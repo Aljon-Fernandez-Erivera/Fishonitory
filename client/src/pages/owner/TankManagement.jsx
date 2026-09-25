@@ -1,21 +1,10 @@
 import { useState } from "react";
 
-const tankStatuses = [
-  "Needs Cleaning",
-  "Clean",
-  "For Replacement",
-  "Damaged",
-  "Under Maintenance",
-  "Available",
-];
+const tankStatuses = ["Under Maintenance", "Available"];
 
 const statusStyles = {
-  "Needs Cleaning": "bg-amber-400/15 text-amber-200",
-  "Clean": "bg-emerald-400/15 text-emerald-200",
-  "For Replacement": "bg-orange-400/15 text-orange-200",
-  "Damaged": "bg-red-400/15 text-red-200",
   "Under Maintenance": "bg-sky-400/15 text-sky-200",
-  "Available": "bg-[#75bec4]/15 text-[#aee0e1]",
+  Available: "bg-[#75bec4]/15 text-[#aee0e1]",
 };
 
 const frequencyOptions = [
@@ -27,6 +16,14 @@ const frequencyOptions = [
 
 const fieldClass =
   "mt-1.5 box-border w-full rounded-xl border border-sky-100/10 bg-white/[.06] px-3 py-2.5 font-['Poppins'] text-sm text-[#d9ecef] outline-none [color-scheme:dark] focus:border-[#73c4ca]";
+
+const todayISODate = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
 
 function TankManagement({
   tanks,
@@ -213,11 +210,11 @@ function TankManagement({
               Tank Name
               <input
                 className={fieldClass}
-                name="name"
-                placeholder="Tank name"
-                value={tankForm.name}
+                type="date"
+                name="nextMaintenance"
+                min={todayISODate()}
+                value={tankForm.nextMaintenance}
                 onChange={updateField}
-                required
               />
             </label>
             <label className="font-['Poppins'] text-xs font-medium text-[#a9c8cf]">

@@ -1,10 +1,13 @@
 const path = require("path");
 const dotenv = require("dotenv");
 
-// Load backend env files explicitly.
-// The root .env is allowed to override the server .env so edits in either file are picked up.
-dotenv.config({ path: path.resolve(__dirname, "../.env") });
-dotenv.config({ path: path.resolve(__dirname, "../../.env"), override: true });
+// Prefer the root .env as the main source of configuration for local and deployment setups.
+// The server-level .env is only a fallback for older setups.
+const rootEnvPath = path.resolve(__dirname, "../../.env");
+const serverEnvPath = path.resolve(__dirname, "../.env");
+
+dotenv.config({ path: rootEnvPath });
+dotenv.config({ path: serverEnvPath });
 
 const config = {
   port: process.env.PORT || 3000,
@@ -17,13 +20,11 @@ const config = {
   nodeEnv: process.env.NODE_ENV || "development",
 };
 
-// Fail fast immediately if MONGODB_URI could not be read
+// Keep startup resilient in deployment environments where env vars are injected by the host.
 if (!config.mongoURI) {
-  console.error("\n FATAL: MONGODB_URI is undefined or missing in .env!");
-  console.error(
-    `Attempted resolution path: ${path.resolve(__dirname, "../.env")}\n`,
+  console.warn(
+    "Warning: MONGODB_URI is undefined or missing. The app may fail when the database is used.",
   );
-  process.exit(1);
 }
 
 if (!config.jwtSecret) {

@@ -1,3 +1,4 @@
+import PasswordRequirements from "./shared/passwordRequirements.jsx";
 import { useEffect, useState } from "react";
 import {
   getCountries,
@@ -7,7 +8,11 @@ import {
 import { API_URL } from "../config.js";
 import { LoadingOverlay } from "./shared/AuthLayout.jsx";
 import { Link } from "react-router-dom";
-
+import {
+  sanitizePhoneDigits,
+  maxLocalDigitsForCountry,
+  isValidLocalPhoneForCountry,
+} from "./shared/phoneUtils.js";
 const countryNameFormatter = new Intl.DisplayNames(["en"], { type: "region" });
 const countryOptions = getCountries()
   .map((country) => ({
@@ -105,7 +110,10 @@ function RegisterBusinessPage() {
           sanitizedValue = value.replace(/[^a-zA-Z0-9\s\-,.#]/g, "");
           break;
         case "phoneNumber":
-          sanitizedValue = value.replace(/\D/g, "");
+          sanitizedValue = sanitizePhoneDigits(value).slice(
+            0,
+            maxLocalDigitsForCountry(countryIso),
+          );
           break;
         case "otp":
           sanitizedValue = value.replace(/\D/g, "").slice(0, 6);
@@ -139,11 +147,15 @@ function RegisterBusinessPage() {
       newErrors.businessAddress = "Business Address is required.";
     }
     if (
-      !/^\d{4,14}$/.test(formData.phoneNumber) ||
+      !isValidLocalPhoneForCountry(formData.phoneNumber, countryIso) ||
       fullPhoneNumber.length > 15 ||
-      !isValidPhoneNumber(formData.phoneNumber, countryIso)
+      (countryIso !== "PH" &&
+        !isValidPhoneNumber(formData.phoneNumber, countryIso))
     ) {
-      newErrors.phoneNumber = "Enter a valid phone number using digits only.";
+      newErrors.phoneNumber =
+        countryIso === "PH"
+          ? "Enter a valid 10-digit PH mobile number starting with 9 (e.g. 9171234567)."
+          : "Enter a valid phone number using digits only.";
     }
     if (!formData.acceptedTerms) {
       newErrors.acceptedTerms =
@@ -418,6 +430,7 @@ function RegisterBusinessPage() {
                   {errors.password}
                 </span>
               )}
+              <PasswordRequirements password={formData.password} />
             </div>
 
             <div className="sm:col-span-2">

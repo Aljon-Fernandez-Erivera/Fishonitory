@@ -55,6 +55,40 @@ const DEDUCTION_PRESETS = [
   "Uniform Fee",
 ];
 
+function getSelectedStaffRecords(attendance, staffId, startDate, endDate) {
+  if (!staffId) return [];
+  return (attendance || []).filter((record) => {
+    const recordStaffId = record.userId?._id || record.userId;
+    return (
+      String(recordStaffId) === String(staffId) &&
+      record.dateKey >= startDate &&
+      record.dateKey <= endDate
+    );
+  });
+}
+
+function formatTime(value) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
+function getHoursWorked(checkIn, checkOut) {
+  if (!checkIn || !checkOut) return "-";
+  const start = new Date(checkIn).getTime();
+  const end = new Date(checkOut).getTime();
+  if (Number.isNaN(start) || Number.isNaN(end) || end <= start) return "-";
+  const totalMinutes = Math.max(0, Math.round((end - start) / 60000));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return `${hours}h ${minutes}m`;
+}
+
 function getRange(type, value) {
   const safeValue = value || today();
   const [year, month, day] = safeValue.split("-").map(Number);
@@ -85,8 +119,8 @@ function normalizePeriodStart(value, type) {
   return dateKey(startOfWeek);
 }
 
-function printSlip(entry, owner) {
-  const popup = window.open("", "_blank", "width=760,height=900");
+function printSlip(entry, owner, attendance, staff) {
+  const popup = window.open("", "_blank", "width=980,height=980");
   if (!popup) return;
 
   const businessName = owner?.businessName || "Payroll Slip";
@@ -96,9 +130,56 @@ function printSlip(entry, owner) {
     month: "long",
     day: "numeric",
   });
+  const selectedStaff = staff.find((person) =>
+    String(person._id) === String(entry.staffId?._id || entry.staffId),
+  );
+  const staffRecords = (attendance || []).filter((record) => {
+    const recordStaffId = record.userId?._id || record.userId;
+    return (
+      String(recordStaffId) === String(entry.staffId?._id || entry.staffId) &&
+      record.dateKey >= entry.periodStart &&
+      record.dateKey <= entry.periodEnd
+    );
+  });
 
-  const baseGross = asNumber(entry.baseGross, asNumber(entry.grossPay, 0) - asNumber(entry.benefits, 0));
-  const netPay = asNumber(entry.netPay, baseGross + asNumber(entry.benefits, 0) - asNumber(entry.deductions, 0));
+  const baseGross = asNumber(
+    entry.baseGross,
+    asNumber(entry.grossPay, 0) - asNumber(entry.benefits, 0),
+  );
+  const netPay = asNumber(
+    entry.netPay,
+    baseGross + asNumber(entry.benefits, 0) - asNumber(entry.deductions, 0),
+  );
+
+  const dtrRows = staffRecords
+    .map((record) => {
+      const totalMinutes =
+        record.checkIn && record.checkOut
+          ? Math.max(
+              0,
+              Math.round(
+                (new Date(record.checkOut).getTime() -
+                  new Date(record.checkIn).getTime()) /
+                  60000,
+              ),
+            )
+          : 0;
+      const hours = Math.floor(totalMinutes / 60);
+      const minutes = totalMinutes % 60;
+      return `
+        <tr>
+          <td>${escapeHtml(selectedStaff?.staffName || entry.staffName || "-")}</td>
+          <td>${escapeHtml(selectedStaff?.staffPosition || "-")}</td>
+          <td>${escapeHtml(record.dateKey || "-")}</td>
+          <td>${escapeHtml(formatTime(record.checkIn))}</td>
+          <td>${escapeHtml(formatTime(record.checkOut))}</td>
+          <td>${escapeHtml(record.status || "-")}</td>
+          <td>${escapeHtml(totalMinutes ? `${hours}h ${minutes}m` : "-")}</td>
+          <td>${escapeHtml(record.lateDeductionAmount ? peso.format(record.lateDeductionAmount) : "₱0.00")}</td>
+        </tr>
+      `;
+    })
+    .join("");
 
   const additionRows = (entry.benefitItems || [])
     .filter((item) => item.type === "addition")
@@ -120,38 +201,55 @@ function printSlip(entry, owner) {
     <!doctype html>
     <title>${escapeHtml(businessName)} Payroll Slip</title>
     <style>
-      body { font-family: Arial; color: #12313b; padding: 42px; max-width: 680px; margin: auto; }
+      body { font-family: Arial; color: #12313b; padding: 32px; max-width: 980px; margin: auto; }
       header { border-bottom: 3px solid #398e96; padding-bottom: 18px; }
       h1 { margin: 0; color: #135867; }
-      h2 { font-size: 18px; margin: 28px 0 10px; }
-      table { width: 100%; border-collapse: collapse; }
-      td { padding: 10px 0; border-bottom: 1px solid #d9e5e6; }
-      td:last-child { text-align: right; font-weight: 600; }
-      .total { font-size: 20px; color: #135867; }
+      h2 { font-size: 18px; margin: 24px 0 10px; }
+      table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+      th, td { padding: 10px 8px; border-bottom: 1px solid #d9e5e6; text-align: left; font-size: 12px; }
+      th { background: #edf5f6; color: #12313b; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
+      td:last-child, th:last-child { text-align: right; }
+      .total { font-size: 18px; color: #135867; }
       .meta { margin-top: 6px; font-size: 12px; color: #5a7a82; }
+      .summary { margin-top: 18px; }
     </style>
 
     <header>
       <h1>${escapeHtml(businessName)}</h1>
-      <small>Payroll Slip · ${escapeHtml(entry.period)} · ${escapeHtml(entry.staffId?.staffName || entry.staffName)}</small>
-      <p class="meta">Approved by: ${escapeHtml(ownerName)} · Printed on: ${escapeHtml(printedOn)}</p>
+      <small>Payroll Slip · ${escapeHtml(entry.period)} · ${escapeHtml(selectedStaff?.staffName || entry.staffName)}</small>
+      <p class="meta">Employee: ${escapeHtml(selectedStaff?.staffName || entry.staffName)} · Position: ${escapeHtml(selectedStaff?.staffPosition || "-")} · Approved by: ${escapeHtml(ownerName)} · Printed on: ${escapeHtml(printedOn)}</p>
     </header>
 
-    <h2>Basic Earnings</h2>
+    <h2>Daily Time Record (DTR)</h2>
     <table>
-      <tr><td>Payable days</td><td>${entry.payableDays}</td></tr>
-      <tr><td>Daily rate</td><td>${peso.format(entry.dailyRate)}</td></tr>
-      <tr><td>Base pay</td><td>${peso.format(baseGross)}</td></tr>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Position</th>
+          <th>Date</th>
+          <th>Clock In</th>
+          <th>Clock Out</th>
+          <th>Status</th>
+          <th>Total</th>
+          <th>Late</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${dtrRows || "<tr><td colspan='8'>No attendance records found for this period.</td></tr>"}
+      </tbody>
     </table>
 
-    <h2>Additions (Overtime / Bonuses)</h2>
-    <table>${additionRows || "<tr><td>No additions</td><td>₱0.00</td></tr>"}</table>
-
-    <h2>Deductions</h2>
-    <table>
-      ${deductionRows || "<tr><td>No deductions</td><td>₱0.00</td></tr>"}
-      <tr class="total"><td>Net pay</td><td>${peso.format(netPay)}</td></tr>
-    </table>
+    <div class="summary">
+      <h2>Payroll Summary</h2>
+      <table>
+        <tr><td>Payable days</td><td>${entry.payableDays}</td></tr>
+        <tr><td>Daily rate</td><td>${peso.format(entry.dailyRate)}</td></tr>
+        <tr><td>Base pay</td><td>${peso.format(baseGross)}</td></tr>
+        ${additionRows || "<tr><td>No additions</td><td>₱0.00</td></tr>"}
+        ${deductionRows || "<tr><td>No deductions</td><td>₱0.00</td></tr>"}
+        <tr class="total"><td>Net pay</td><td>${peso.format(netPay)}</td></tr>
+      </table>
+    </div>
   `);
   popup.document.close();
   popup.focus();
@@ -193,25 +291,47 @@ function Payroll({ staff, attendance, payroll, onSave, onDelete, toast, owner })
   const [editingIndex, setEditingIndex] = useState(null);
   const [editDraft, setEditDraft] = useState({ name: "", amount: "", type: "addition" });
 
-  const summary = useMemo(() => {
-    const records = attendance.filter(
-      (record) =>
-        (record.userId?._id || record.userId) === form.staffId &&
-        record.dateKey >= range.start &&
-        record.dateKey <= range.end,
+  const selectedRecords = useMemo(
+    () => getSelectedStaffRecords(attendance, form.staffId, range.start, range.end),
+    [attendance, form.staffId, range.end, range.start],
+  );
+
+  const autoLateItem = useMemo(() => {
+    if (!form.staffId) return null;
+    const lateRecords = selectedRecords.filter((record) => record.status === "Late");
+    if (!lateRecords.length) return null;
+    const lateTotal = lateRecords.reduce(
+      (total, record) => total + Number(record.lateDeductionAmount || 0),
+      0,
     );
+    if (lateTotal <= 0) return null;
+    return {
+      name: `Late (${lateRecords.length} day${lateRecords.length > 1 ? "s" : ""})`,
+      amount: lateTotal,
+      type: "deduction",
+      autoGenerated: true,
+    };
+  }, [form.staffId, selectedRecords]);
+
+  const visibleItems = useMemo(() => {
+    if (!autoLateItem) return items;
+    return [autoLateItem, ...items];
+  }, [autoLateItem, items]);
+
+  const summary = useMemo(() => {
+    const records = selectedRecords;
     const payableDays = records.filter((record) =>
       ["Present", "Late"].includes(record.status),
     ).length;
 
     const baseGross = payableDays * Number(form.dailyRate || 0);
-    const totalAdditions = items
+    const totalAdditions = visibleItems
       .filter((item) => item.type === "addition")
       .reduce((total, item) => total + Number(item.amount), 0);
 
     const grossPay = baseGross + totalAdditions;
 
-    const deductions = items
+    const deductions = visibleItems
       .filter((item) => item.type === "deduction")
       .reduce((total, item) => total + Number(item.amount), 0);
 
@@ -222,8 +342,10 @@ function Payroll({ staff, attendance, payroll, onSave, onDelete, toast, owner })
       grossPay,
       deductions,
       netPay: grossPay - deductions,
+      lateRecords: records.filter((record) => record.status === "Late"),
+      lateDeduction: autoLateItem ? Number(autoLateItem.amount) : 0,
     };
-  }, [attendance, form.dailyRate, form.staffId, items, range.end, range.start]);
+  }, [autoLateItem, form.dailyRate, selectedRecords, visibleItems]);
 
   const update = (event) => {
     const { name, value } = event.target;
@@ -590,109 +712,122 @@ function Payroll({ staff, attendance, payroll, onSave, onDelete, toast, owner })
             </div>
 
             <ul className="mt-3 grid gap-2 p-0">
-              {items.map((item, index) => (
-                <li
-                  className="rounded-lg bg-white/[.04] px-3 py-2 font-['Poppins'] text-xs text-[#c9e1e5]"
-                  key={`${item.name}-${index}`}
-                >
-                  {editingIndex === index ? (
-                    <div className="grid gap-2 sm:grid-cols-[1fr_130px_auto_auto]">
-                      <input
-                        className={input}
-                        value={editDraft.name}
-                        onChange={(event) =>
-                          setEditDraft((current) => ({
-                            ...current,
-                            name: event.target.value,
-                          }))
-                        }
-                        maxLength={80}
-                      />
-                      <input
-                        className={input}
-                        type="number"
-                        min="0"
-                        max="100000"
-                        step="0.01"
-                        value={editDraft.amount}
-                        onChange={(event) =>
-                          setEditDraft((current) => ({
-                            ...current,
-                            amount: event.target.value,
-                          }))
-                        }
-                      />
-                      <select
-                        className={input}
-                        value={editDraft.type}
-                        onChange={(event) =>
-                          setEditDraft((current) => ({
-                            ...current,
-                            type: event.target.value,
-                          }))
-                        }
-                      >
-                        <option value="addition">Addition</option>
-                        <option value="deduction">Deduction</option>
-                      </select>
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={saveEditedItem}
-                          className="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-200"
-                        >
-                          Save
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditingIndex(null);
-                            setEditDraft({ name: "", amount: "", type: "addition" });
-                          }}
-                          className="rounded-full border border-sky-100/15 bg-white/[.05] px-2.5 py-1 text-[11px] font-medium text-[#d9ecef]"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-between gap-3">
-                      <span>
-                        <strong
-                          className={
-                            item.type === "addition"
-                              ? "text-emerald-300 mr-1"
-                              : "text-amber-300 mr-1"
+              {visibleItems.map((item, index) => {
+                const isAutoLate = item.autoGenerated;
+                const itemIndex = items.findIndex((entry) => entry.name === item.name && entry.amount === item.amount && entry.type === item.type);
+                const actualIndex = isAutoLate ? -1 : itemIndex;
+
+                return (
+                  <li
+                    className="rounded-lg bg-white/[.04] px-3 py-2 font-['Poppins'] text-xs text-[#c9e1e5]"
+                    key={`${item.name}-${index}`}
+                  >
+                    {editingIndex === actualIndex && !isAutoLate ? (
+                      <div className="grid gap-2 sm:grid-cols-[1fr_130px_auto_auto]">
+                        <input
+                          className={input}
+                          value={editDraft.name}
+                          onChange={(event) =>
+                            setEditDraft((current) => ({
+                              ...current,
+                              name: event.target.value,
+                            }))
+                          }
+                          maxLength={80}
+                        />
+                        <input
+                          className={input}
+                          type="number"
+                          min="0"
+                          max="100000"
+                          step="0.01"
+                          value={editDraft.amount}
+                          onChange={(event) =>
+                            setEditDraft((current) => ({
+                              ...current,
+                              amount: event.target.value,
+                            }))
+                          }
+                        />
+                        <select
+                          className={input}
+                          value={editDraft.type}
+                          onChange={(event) =>
+                            setEditDraft((current) => ({
+                              ...current,
+                              type: event.target.value,
+                            }))
                           }
                         >
-                          {item.type === "addition" ? "+ " : "- "}
-                        </strong>
-                        {item.name} · {peso.format(item.amount)}
-                      </span>
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => beginEditItem(index)}
-                          className="rounded-full border border-sky-100/15 bg-white/[.05] px-2.5 py-1 font-['Poppins'] text-[11px] font-medium text-[#d9ecef] transition hover:bg-white/[.1]"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setItems((current) =>
-                              current.filter((_, itemIndex) => itemIndex !== index),
-                            )
-                          }
-                          className="rounded-full border border-red-400/20 bg-red-500/10 px-2.5 py-1 font-['Poppins'] text-[11px] font-medium text-red-300 transition hover:border-red-400/40 hover:bg-red-500/20 hover:text-red-200 focus:outline-none focus:ring-1 focus:ring-red-400/50"
-                        >
-                          Remove
-                        </button>
+                          <option value="addition">Addition</option>
+                          <option value="deduction">Deduction</option>
+                        </select>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={saveEditedItem}
+                            className="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-200"
+                          >
+                            Save
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingIndex(null);
+                              setEditDraft({ name: "", amount: "", type: "addition" });
+                            }}
+                            className="rounded-full border border-sky-100/15 bg-white/[.05] px-2.5 py-1 text-[11px] font-medium text-[#d9ecef]"
+                          >
+                            Cancel
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </li>
-              ))}
+                    ) : (
+                      <div className="flex items-center justify-between gap-3">
+                        <span>
+                          <strong
+                            className={
+                              item.type === "addition"
+                                ? "text-emerald-300 mr-1"
+                                : "text-amber-300 mr-1"
+                            }
+                          >
+                            {item.type === "addition" ? "+ " : "- "}
+                          </strong>
+                          {item.name} · {peso.format(item.amount)}
+                          {isAutoLate && (
+                            <span className="ml-2 text-[10px] uppercase tracking-[.08em] text-[#73c4ca]">
+                              auto
+                            </span>
+                          )}
+                        </span>
+                        {!isAutoLate && (
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => beginEditItem(actualIndex)}
+                              className="rounded-full border border-sky-100/15 bg-white/[.05] px-2.5 py-1 font-['Poppins'] text-[11px] font-medium text-[#d9ecef] transition hover:bg-white/[.1]"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setItems((current) =>
+                                  current.filter((_, itemIndex) => itemIndex !== actualIndex),
+                                )
+                              }
+                              className="rounded-full border border-red-400/20 bg-red-500/10 px-2.5 py-1 font-['Poppins'] text-[11px] font-medium text-red-300 transition hover:border-red-400/40 hover:bg-red-500/20 hover:text-red-200 focus:outline-none focus:ring-1 focus:ring-red-400/50"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           </div>
 
@@ -732,6 +867,10 @@ function Payroll({ staff, attendance, payroll, onSave, onDelete, toast, owner })
               <dd>{summary.payableDays}</dd>
             </div>
             <div className="flex justify-between border-b border-sky-100/[.08] pb-3 text-[#a9c8cf]">
+              <dt>Late days</dt>
+              <dd>{summary.lateRecords.length}</dd>
+            </div>
+            <div className="flex justify-between border-b border-sky-100/[.08] pb-3 text-[#a9c8cf]">
               <dt>Base Pay</dt>
               <dd>{peso.format(summary.baseGross)}</dd>
             </div>
@@ -739,6 +878,12 @@ function Payroll({ staff, attendance, payroll, onSave, onDelete, toast, owner })
               <dt>Additions (Overtime / Bonuses)</dt>
               <dd>+{peso.format(summary.totalAdditions)}</dd>
             </div>
+            {autoLateItem && (
+              <div className="flex justify-between border-b border-sky-100/[.08] pb-3 text-amber-300">
+                <dt>{autoLateItem.name}</dt>
+                <dd>-{peso.format(autoLateItem.amount)}</dd>
+              </div>
+            )}
             <div className="flex justify-between border-b border-sky-100/[.08] pb-3 text-[#a9c8cf]">
               <dt>Gross Pay</dt>
               <dd className="font-semibold text-[#d9ecef]">
@@ -810,7 +955,7 @@ function Payroll({ staff, attendance, payroll, onSave, onDelete, toast, owner })
                       <button
                         className="rounded-lg border border-sky-100/15 px-3 py-1.5 text-xs text-[#bce9e9] transition hover:bg-white/[.08]"
                         type="button"
-                        onClick={() => printSlip(entry, owner)}
+                        onClick={() => printSlip(entry, owner, attendance, staff)}
                       >
                         Print slip
                       </button>

@@ -56,9 +56,9 @@ const validateFish = validate((req) => {
   string(body.name, "Fish name", { min: 2, max: 100 });
   string(body.species, "Species", { min: 2, max: 100 });
   oneOf(body.category || "Fish", "Category", ["Fish", "Fish Food"]);
-  number(body.price, "Price", { min: 0, max: 10000000 });
-  number(body.costPrice ?? 0, "Cost price", { min: 0, max: 10000000 });
-  number(body.quantity, "Quantity", { integer: true, min: 0, max: 10000000 });
+  number(body.price, "Price", { min: 1, max: 10000000 });
+  number(body.costPrice ?? 0, "Cost price", { min: 1, max: 10000000 });
+number(body.quantity, "Quantity", { integer: true, min: 1, max: 10000000 });
   string(body.description, "Description", { required: false, max: 1000 });
   string(body.photoUrl, "Photo", { required: false, max: 2048 });
   if (body.photoUrl && !/^https:\/\/res\.cloudinary\.com\/[^/]+\/image\/upload\//.test(body.photoUrl)) {
@@ -74,12 +74,20 @@ const validateTank = validate((req) => {
   }
   if (body.status !== undefined)
     oneOf(body.status, "Tank status", tankStatuses);
-  if (body.nextMaintenance) {
+if (body.nextMaintenance) {
     const date = new Date(body.nextMaintenance);
     if (Number.isNaN(date.getTime())) {
       throw Object.assign(new Error("Maintenance date is invalid."), {
         statusCode: 400,
       });
+    }
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    if (date < startOfToday) {
+      throw Object.assign(
+        new Error("Maintenance date must be today or a future date."),
+        { statusCode: 400 },
+      );
     }
   }
   if (body.notes !== undefined)

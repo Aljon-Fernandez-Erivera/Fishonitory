@@ -23,16 +23,16 @@ const pendingOTPs = new Map();
 const pendingPasswordResets = new Map();
 const pendingTotpResets = new Map();
 
-//LOGIN limit
+//LOGIN limit, mag lo-lock once na reach ang 3 attempts ng 5 mins
 const ACCOUNT_ATTEMPT_LIMIT = 3;
 const ACCOUNT_LOCK_MS = 5 * 60 * 1000; //5mins
 
-//IP LIMIT
+//IP LIMIT, mag lo-lock once na reach ang 10 attempts ng wrong passwords ng 15 mins lock login all users
 const IP_ATTEMPT_LIMIT = 10; // 10 attempts
 const IP_WINDOW_MS = 15 * 60 * 1000; //15mins
 const IP_LOCK_MS = 15 * 60 * 1000; //15mins
 
-//TOTP limit
+//TOTP limit, totp limit ng 5 attempts
 const TOTP_ATTEMPT_LIMIT = 5; // 5 attempt totp
 const TOTP_LOCK_MS = 5 * 60 * 1000; 
 

@@ -1,45 +1,44 @@
 const Attendance = require("../models/Attendance");
 const User = require("../models/User");
+const ShiftAssignment = require("../models/ShiftAssignment");
 const bcrypt = require("bcryptjs");
 const { writeAudit } = require("../utils/audit");
 const { getManilaDateKey } = require("../utils/dateKey");
 
-
-function manilaMinutesNow() {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Asia/Manila",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).formatToParts(new Date());
-  const hour = Number(parts.find((p) => p.type === "hour").value);
-  const minute = Number(parts.find((p) => p.type === "minute").value);
-  return hour * 60 + minute;
-}
-
-function timeToMinutes(value, fallback) {
-  const [h, m] = (value || fallback).split(":").map(Number);
-  return h * 60 + m;
-}
-
-function resolveSchedule(staff, owner) {
+function resolveScheduleSync(staff, owner, assignedTemplateId) {
+  const templateId = assignedTemplateId || staff?.shiftTemplateId;
   const template =
-    staff?.shiftTemplateId && owner?.shiftTemplates?.id
-      ? owner.shiftTemplates.id(staff.shiftTemplateId)
+    templateId && owner?.shiftTemplates?.id
+      ? owner.shiftTemplates.id(templateId)
       : null;
   return template || owner?.attendancePolicy || {};
 }
 
-function isLateFor(schedule) {
-  const clockInMinutes = timeToMinutes(schedule?.clockInTime, "07:00");
-  const grace = schedule?.graceMinutes ?? 15;
-  return manilaMinutesNow() > clockInMinutes + grace;
+// Manila has no daylight-saving shifts, so "+08:00" is always correct here.
+function manilaDateTime(dateKeyStr, hhmm) {
+  return new Date(`${dateKeyStr}T${hhmm}:00+08:00`);
 }
 
-function isPastCutoffFor(schedule) {
-  const cutoffMinutes = timeToMinutes(schedule?.cutoffTime, "18:00");
-  return manilaMinutesNow() > cutoffMinutes;
+function scheduleWindow(dateKeyStr, schedule) {
+  const start = manilaDateTime(dateKeyStr, schedule?.clockInTime || "07:00");
+  let end = manilaDateTime(dateKeyStr, schedule?.cutoffTime || "18:00");
+  if (end.getTime() <= start.getTime()) {
+    end = new Date(end.getTime() + 24 * 60 * 60 * 1000);
+  }
+  return { start, end };
 }
+
+function isLateForDate(dateKeyStr, schedule) {
+  const { start } = scheduleWindow(dateKeyStr, schedule);
+  const grace = schedule?.graceMinutes ?? 15;
+  return Date.now() > start.getTime() + grace * 60 * 1000;
+}
+
+function isPastCutoffForDate(dateKeyStr, schedule) {
+  const { end } = scheduleWindow(dateKeyStr, schedule);
+  return Date.now() > end.getTime();
+}
+
 exports.recordStaffAttendance = async (req, res) => {
   if (req.user.role !== "Staff") {
     return res
@@ -50,20 +49,32 @@ exports.recordStaffAttendance = async (req, res) => {
   const dateKey = getManilaDateKey();
 
   try {
-    const staff = await User.findById(req.user.userId, "shiftTemplateId ownerId");
+    const staff = await User.findById(
+      req.user.userId,
+      "shiftTemplateId ownerId",
+    );
     const owner = await User.findById(
       staff.ownerId,
       "attendancePolicy shiftTemplates lateDeductionAmount",
     );
-    const schedule = resolveSchedule(staff, owner);
-    const status = isLateFor(schedule) ? "Late" : "Present";
+    const assignment = await ShiftAssignment.findOne({
+      staffId: staff._id,
+      dateKey,
+    }).select("shiftTemplateId");
+    const schedule = resolveScheduleSync(
+      staff,
+      owner,
+      assignment?.shiftTemplateId,
+    );
+    const status = isLateForDate(dateKey, schedule) ? "Late" : "Present";
 
     const attendance = await Attendance.create({
       userId: req.user.userId,
       dateKey,
       status,
       checkIn: new Date(),
-      lateDeductionAmount: status === "Late" ? owner?.lateDeductionAmount || 0 : 0,
+      lateDeductionAmount:
+        status === "Late" ? owner?.lateDeductionAmount || 0 : 0,
     });
 
     return res.status(201).json({
@@ -88,7 +99,10 @@ exports.listAttendance = async (req, res) => {
       .status(403)
       .json({ message: "Only owners can view attendance." });
 
-  const owner = await User.findById(req.user.userId, "attendancePolicy shiftTemplates");
+  const owner = await User.findById(
+    req.user.userId,
+    "attendancePolicy shiftTemplates",
+  );
   const dateKey = getManilaDateKey();
   const staffDocs = await User.find(
     { ownerId: req.user.userId, role: "Staff" },
@@ -102,14 +116,32 @@ exports.listAttendance = async (req, res) => {
   }).distinct("userId");
   const recordedSet = new Set(alreadyRecorded.map(String));
 
+  const todaysAssignments = await ShiftAssignment.find({
+    ownerId: req.user.userId,
+    staffId: { $in: staffIds },
+    dateKey,
+  }).select("staffId shiftTemplateId");
+  const assignmentMap = new Map(
+    todaysAssignments.map((a) => [String(a.staffId), a.shiftTemplateId]),
+  );
+
   const noShows = staffDocs.filter((staff) => {
     if (recordedSet.has(String(staff._id))) return false;
-    return isPastCutoffFor(resolveSchedule(staff, owner));
+    const schedule = resolveScheduleSync(
+      staff,
+      owner,
+      assignmentMap.get(String(staff._id)),
+    );
+    return isPastCutoffForDate(dateKey, schedule);
   });
 
   if (noShows.length) {
     await Attendance.insertMany(
-      noShows.map((staff) => ({ userId: staff._id, dateKey, status: "Absent" })),
+      noShows.map((staff) => ({
+        userId: staff._id,
+        dateKey,
+        status: "Absent",
+      })),
       { ordered: false },
     ).catch(() => {}); // duplicate-key races from concurrent requests are fine to ignore
   }
@@ -184,7 +216,8 @@ exports.setStaffAttendance = async (req, res) => {
       $set: {
         status,
         checkIn: ["Present", "Late"].includes(status) ? new Date() : null,
-        lateDeductionAmount: status === "Late" ? owner?.lateDeductionAmount || 0 : 0,
+        lateDeductionAmount:
+          status === "Late" ? owner?.lateDeductionAmount || 0 : 0,
       },
       $setOnInsert: { userId: staffId, dateKey },
     },
@@ -287,8 +320,16 @@ exports.staffTimeClock = async (req, res) => {
         staff.ownerId,
         "attendancePolicy shiftTemplates lateDeductionAmount",
       );
-      const schedule = resolveSchedule(staff, owner);
-      const status = isLateFor(schedule) ? "Late" : "Present";
+      const assignment = await ShiftAssignment.findOne({
+        staffId: staff._id,
+        dateKey,
+      }).select("shiftTemplateId");
+      const schedule = resolveScheduleSync(
+        staff,
+        owner,
+        assignment?.shiftTemplateId,
+      );
+      const status = isLateForDate(dateKey, schedule) ? "Late" : "Present";
 
       record = await Attendance.findOneAndUpdate(
         { userId: staff._id, dateKey },
@@ -297,7 +338,8 @@ exports.staffTimeClock = async (req, res) => {
             status,
             checkIn: new Date(),
             checkOut: null,
-            lateDeductionAmount: status === "Late" ? owner?.lateDeductionAmount || 0 : 0,
+            lateDeductionAmount:
+              status === "Late" ? owner?.lateDeductionAmount || 0 : 0,
           },
           $setOnInsert: { userId: staff._id, dateKey },
         },
@@ -332,11 +374,9 @@ exports.staffTimeClock = async (req, res) => {
     return res.json({ message: "Clock-out recorded successfully.", record });
   } catch (error) {
     console.error("Staff time clock failed:", error.message);
-    return res
-      .status(500)
-      .json({
-        message: "We could not record the time entry. Please try again.",
-      });
+    return res.status(500).json({
+      message: "We could not record the time entry. Please try again.",
+    });
   }
 };
 
@@ -382,8 +422,13 @@ exports.updateAttendancePolicy = async (req, res) => {
 
 exports.listShiftTemplates = async (req, res) => {
   if (req.user.role !== "Owner")
-    return res.status(403).json({ message: "Only owners can view shift templates." });
-  const owner = await User.findById(req.user.userId, "shiftTemplates lateDeductionAmount");
+    return res
+      .status(403)
+      .json({ message: "Only owners can view shift templates." });
+  const owner = await User.findById(
+    req.user.userId,
+    "shiftTemplates lateDeductionAmount",
+  );
   return res.json({
     shiftTemplates: owner?.shiftTemplates || [],
     lateDeductionAmount: owner?.lateDeductionAmount || 0,
@@ -392,12 +437,21 @@ exports.listShiftTemplates = async (req, res) => {
 
 exports.saveShiftTemplate = async (req, res) => {
   if (req.user.role !== "Owner")
-    return res.status(403).json({ message: "Only owners can manage shift templates." });
+    return res
+      .status(403)
+      .json({ message: "Only owners can manage shift templates." });
   const { id, name, clockInTime, graceMinutes, cutoffTime } = req.body;
   if (!name || String(name).trim().length < 2)
-    return res.status(400).json({ message: "Shift name must be at least 2 characters." });
-  if (!/^\d{2}:\d{2}$/.test(clockInTime || "") || !/^\d{2}:\d{2}$/.test(cutoffTime || ""))
-    return res.status(400).json({ message: "Provide valid clock-in and cutoff times." });
+    return res
+      .status(400)
+      .json({ message: "Shift name must be at least 2 characters." });
+  if (
+    !/^\d{2}:\d{2}$/.test(clockInTime || "") ||
+    !/^\d{2}:\d{2}$/.test(cutoffTime || "")
+  )
+    return res
+      .status(400)
+      .json({ message: "Provide valid clock-in and cutoff times." });
 
   const owner = await User.findById(req.user.userId);
   if (!owner) return res.status(404).json({ message: "Account not found." });
@@ -411,40 +465,59 @@ exports.saveShiftTemplate = async (req, res) => {
 
   if (id) {
     const template = owner.shiftTemplates.id(id);
-    if (!template) return res.status(404).json({ message: "Shift template not found." });
+    if (!template)
+      return res.status(404).json({ message: "Shift template not found." });
     template.set(payload);
   } else {
     owner.shiftTemplates.push(payload);
   }
 
   await owner.save({ validateModifiedOnly: true });
-  return res.json({ message: "Shift template saved.", shiftTemplates: owner.shiftTemplates });
+  return res.json({
+    message: "Shift template saved.",
+    shiftTemplates: owner.shiftTemplates,
+  });
 };
 
 exports.deleteShiftTemplate = async (req, res) => {
   if (req.user.role !== "Owner")
-    return res.status(403).json({ message: "Only owners can manage shift templates." });
+    return res
+      .status(403)
+      .json({ message: "Only owners can manage shift templates." });
   const owner = await User.findById(req.user.userId);
   if (!owner) return res.status(404).json({ message: "Account not found." });
   const template = owner.shiftTemplates.id(req.params.id);
-  if (!template) return res.status(404).json({ message: "Shift template not found." });
+  if (!template)
+    return res.status(404).json({ message: "Shift template not found." });
   template.deleteOne();
 
   await User.updateMany(
     { ownerId: owner._id, shiftTemplateId: req.params.id },
     { $set: { shiftTemplateId: null } },
   );
+  await ShiftAssignment.deleteMany({
+    ownerId: owner._id,
+    shiftTemplateId: req.params.id,
+  });
 
   await owner.save({ validateModifiedOnly: true });
-  return res.json({ message: "Shift template deleted.", shiftTemplates: owner.shiftTemplates });
+  return res.json({
+    message: "Shift template deleted.",
+    shiftTemplates: owner.shiftTemplates,
+  });
 };
 
 exports.assignStaffShift = async (req, res) => {
   if (req.user.role !== "Owner")
     return res.status(403).json({ message: "Only owners can assign shifts." });
   const { staffId, shiftTemplateId } = req.body;
-  const staff = await User.findOne({ _id: staffId, ownerId: req.user.userId, role: "Staff" });
-  if (!staff) return res.status(404).json({ message: "Staff account not found." });
+  const staff = await User.findOne({
+    _id: staffId,
+    ownerId: req.user.userId,
+    role: "Staff",
+  });
+  if (!staff)
+    return res.status(404).json({ message: "Staff account not found." });
 
   if (shiftTemplateId) {
     const owner = await User.findById(req.user.userId, "shiftTemplates");
@@ -463,7 +536,9 @@ exports.assignStaffShift = async (req, res) => {
 
 exports.updateLateDeductionAmount = async (req, res) => {
   if (req.user.role !== "Owner")
-    return res.status(403).json({ message: "Only owners can set the late deduction amount." });
+    return res
+      .status(403)
+      .json({ message: "Only owners can set the late deduction amount." });
   const amount = Number(req.body.amount);
   if (!Number.isFinite(amount) || amount < 0 || amount > 100000)
     return res.status(400).json({ message: "Enter a valid deduction amount." });
@@ -472,5 +547,82 @@ exports.updateLateDeductionAmount = async (req, res) => {
     { lateDeductionAmount: amount },
     { new: true, runValidators: true },
   );
-  return res.json({ message: "Late deduction amount updated.", lateDeductionAmount: owner.lateDeductionAmount });
+  return res.json({
+    message: "Late deduction amount updated.",
+    lateDeductionAmount: owner.lateDeductionAmount,
+  });
+};
+
+// --- Per-date shift assignments (calendar overrides on top of a staff's
+// standing shift template — see resolveScheduleSync above for lookup order) ---
+
+exports.listShiftAssignments = async (req, res) => {
+  if (req.user.role !== "Owner")
+    return res
+      .status(403)
+      .json({ message: "Only owners can view shift assignments." });
+  const todayKey = getManilaDateKey();
+  const shiftAssignments = await ShiftAssignment.find({
+    ownerId: req.user.userId,
+    dateKey: { $gte: todayKey },
+  })
+    .sort({ dateKey: 1 })
+    .lean();
+  return res.json({ shiftAssignments });
+};
+
+exports.saveShiftAssignment = async (req, res) => {
+  if (req.user.role !== "Owner")
+    return res.status(403).json({ message: "Only owners can assign shifts." });
+  const { staffId, dateKey, shiftTemplateId } = req.body;
+  if (
+    !staffId ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(dateKey || "") ||
+    !shiftTemplateId
+  ) {
+    return res
+      .status(400)
+      .json({ message: "Staff, date, and a shift template are required." });
+  }
+  const todayKey = getManilaDateKey();
+  if (dateKey < todayKey) {
+    return res
+      .status(400)
+      .json({ message: "Cannot assign a shift to a past date." });
+  }
+  const staff = await User.findOne({
+    _id: staffId,
+    ownerId: req.user.userId,
+    role: "Staff",
+  });
+  if (!staff)
+    return res.status(404).json({ message: "Staff account not found." });
+
+  const owner = await User.findById(req.user.userId, "shiftTemplates");
+  if (!owner?.shiftTemplates.id(shiftTemplateId))
+    return res.status(400).json({ message: "Invalid shift template." });
+
+  const assignment = await ShiftAssignment.findOneAndUpdate(
+    { ownerId: req.user.userId, staffId, dateKey },
+    {
+      $set: { shiftTemplateId },
+      $setOnInsert: { ownerId: req.user.userId, staffId, dateKey },
+    },
+    { upsert: true, new: true, setDefaultsOnInsert: true },
+  );
+  return res.json({ message: "Shift assigned for that date.", assignment });
+};
+
+exports.deleteShiftAssignment = async (req, res) => {
+  if (req.user.role !== "Owner")
+    return res
+      .status(403)
+      .json({ message: "Only owners can remove shift assignments." });
+  const assignment = await ShiftAssignment.findOneAndDelete({
+    _id: req.params.id,
+    ownerId: req.user.userId,
+  });
+  if (!assignment)
+    return res.status(404).json({ message: "Shift assignment not found." });
+  return res.json({ message: "Shift assignment removed." });
 };

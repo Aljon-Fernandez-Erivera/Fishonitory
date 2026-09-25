@@ -14,7 +14,11 @@ let connectionAttemptInProgress = false;
 if (config.nodeEnv === "production") {
   const required = ["EMAIL_USER", "EMAIL_PASS", "CLIENT_URL"];
   const missing = required.filter((name) => !process.env[name]);
-  if (missing.length) throw new Error(`Missing required production environment variables: ${missing.join(", ")}`);
+  if (missing.length) {
+    console.warn(
+      `Production env warning: missing ${missing.join(", ")}. The server will continue in a degraded mode until the deployment platform injects them.`,
+    );
+  }
 }
 
 // TLS is terminated by the deployment proxy in production. These headers keep
@@ -45,7 +49,7 @@ const allowedOrigins = (process.env.CLIENT_URL || "http://localhost:5173")
 
 app.use(
   cors({
-    origin: allowedOrigins,
+    origin: allowedOrigins.length ? allowedOrigins : true,
     credentials: true,
   }),
 );

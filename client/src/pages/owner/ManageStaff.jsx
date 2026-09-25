@@ -1,3 +1,9 @@
+import {
+  sanitizePhoneDigits,
+  maxLocalDigitsForCountry,
+} from "../shared/phoneUtils.js";
+import PasswordRequirements from "../shared/passwordRequirements.jsx";
+
 function ManageStaff({
   staff,
   staffForm,
@@ -91,9 +97,18 @@ function ManageStaff({
                 onChange={updateField}
                 required
               >
-                <option className="bg-white text-[#052d45]" value="">Select position</option>
-                <option className="bg-white text-[#052d45]" value="Staff">Staff</option>
-                <option className="bg-white text-[#052d45]" value="Master Staff">Master Staff</option>
+                <option className="bg-white text-[#052d45]" value="">
+                  Select position
+                </option>
+                <option className="bg-white text-[#052d45]" value="Staff">
+                  Staff
+                </option>
+                <option
+                  className="bg-white text-[#052d45]"
+                  value="Master Staff"
+                >
+                  Master Staff
+                </option>
               </select>
             </label>
             <label>
@@ -127,7 +142,9 @@ function ManageStaff({
                 onChange={(event) =>
                   setStaffForm((previous) => ({
                     ...previous,
-                    staffPhoneNumber: event.target.value.replace(/\D/g, ""),
+                    staffPhoneNumber: sanitizePhoneDigits(
+                      event.target.value,
+                    ).slice(0, maxLocalDigitsForCountry("PH")),
                   }))
                 }
                 required
@@ -167,7 +184,10 @@ function ManageStaff({
                 <option value="Staff" className="bg-[#062d48] text-[#d9ecef]">
                   Staff
                 </option>
-                <option value="Master Staff" className="bg-[#062d48] text-[#d9ecef]">
+                <option
+                  value="Master Staff"
+                  className="bg-[#062d48] text-[#d9ecef]"
+                >
                   Master Staff
                 </option>
               </select>
@@ -194,6 +214,7 @@ function ManageStaff({
                 minLength={8}
                 required
               />
+              <PasswordRequirements password={staffForm.staffPassword} />
             </label>
             <label>
               Phone Number
@@ -211,7 +232,9 @@ function ManageStaff({
               />
             </label>
             <div className="form-actions">
-              <button type="submit" disabled={staffOtpLoading}>Get OTP</button>
+              <button type="submit" disabled={staffOtpLoading}>
+                Get OTP
+              </button>
               <button type="button" onClick={() => setStaffModalOpen(false)}>
                 Cancel
               </button>
@@ -237,9 +260,11 @@ function ManageStaff({
               <button type="submit" disabled={staffOtpSeconds === 0}>
                 Verify OTP and Create Staff
               </button>
-              <button 
-              className="rounded-full border border-sky-100/15 bg-white/[.05] px-4 py-2.5 font-['Poppins'] text-sm font-medium text-[#d9ecef] transition hover:bg-white/[.1] focus:outline-none focus:ring-2 focus:ring-[#73c4ca]"
-              type="button" onClick={() => setStaffStep(1)}>
+              <button
+                className="rounded-full border border-sky-100/15 bg-white/[.05] px-4 py-2.5 font-['Poppins'] text-sm font-medium text-[#d9ecef] transition hover:bg-white/[.1] focus:outline-none focus:ring-2 focus:ring-[#73c4ca]"
+                type="button"
+                onClick={() => setStaffStep(1)}
+              >
                 Back
               </button>
               <button type="button" onClick={() => setStaffModalOpen(false)}>
@@ -272,12 +297,15 @@ function ManageStaff({
       >
         <h3 id="delete-staff-dialog-title">Confirm staff termination</h3>
         <p>
-          A verification code was sent to your owner email. Enter it to permanently
-          delete {deletionTarget?.staffName || "this staff"}&apos;s account.
+          A verification code was sent to your owner email. Enter it to
+          permanently delete {deletionTarget?.staffName || "this staff"}&apos;s
+          account.
         </p>
         <p>Code expires in {deletionTimerText}.</p>
         {deletionError && (
-          <p className="feedback error" role="alert">{deletionError}</p>
+          <p className="feedback error" role="alert">
+            {deletionError}
+          </p>
         )}
         <form className="dashboard-form" onSubmit={onConfirmDelete}>
           <label>
@@ -287,7 +315,9 @@ function ManageStaff({
               placeholder="6-digit code"
               value={deletionOtp}
               onChange={(event) =>
-                setDeletionOtp(event.target.value.replace(/\D/g, "").slice(0, 6))
+                setDeletionOtp(
+                  event.target.value.replace(/\D/g, "").slice(0, 6),
+                )
               }
               inputMode="numeric"
               autoComplete="one-time-code"
@@ -299,7 +329,9 @@ function ManageStaff({
             <button type="submit" disabled={deletionOtpSeconds === 0}>
               Verify and terminate account
             </button>
-            <button type="button" onClick={onCloseDeletion}>Cancel</button>
+            <button type="button" onClick={onCloseDeletion}>
+              Cancel
+            </button>
           </div>
         </form>
       </dialog>

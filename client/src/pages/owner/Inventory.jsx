@@ -2,6 +2,8 @@ import { useState } from "react";
 
 import { formatPeso } from "../shared/salesUtils.js";
 
+const NEW_OPTION = "__new__";
+
 function Inventory({
   fish,
   tanks,
@@ -15,11 +17,28 @@ function Inventory({
 }) {
   const [formOpen, setFormOpen] = useState(false);
   const [categoryView, setCategoryView] = useState("Fish");
+  const [nameMode, setNameMode] = useState("select");
+  const [speciesMode, setSpeciesMode] = useState("select");
+
+  const existingNames = [...new Set(fish.map((item) => item.name).filter(Boolean))].sort();
+  const existingSpecies = [...new Set(fish.map((item) => item.species).filter(Boolean))].sort();
+
   const updateField = (event) =>
     setFishForm((previous) => ({
       ...previous,
       [event.target.name]: event.target.value,
     }));
+
+  const openForm = (nextForm, editingId) => {
+    setEditingFishId(editingId);
+    setFishForm(nextForm);
+    setNameMode(nextForm.name && !existingNames.includes(nextForm.name) ? "new" : "select");
+    setSpeciesMode(
+      nextForm.species && !existingSpecies.includes(nextForm.species) ? "new" : "select",
+    );
+    setFormOpen(true);
+  };
+
   const handlePhoto = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -57,21 +76,22 @@ function Inventory({
         <button
           className="rounded-full border border-sky-100/15 bg-white/[.05] px-4 py-2.5 font-['Poppins'] text-sm font-medium text-[#d9ecef] transition hover:bg-white/[.1] focus:outline-none focus:ring-2 focus:ring-[#73c4ca]"
           type="button"
-          onClick={() => {
-            setEditingFishId(null);
-            setFishForm({
-              name: "",
-              species: "",
-              category: "Fish",
-              tankId: "",
-              price: "",
-              costPrice: "",
-              quantity: "",
-              description: "",
-              photoUrl: "",
-            });
-            setFormOpen(true);
-          }}
+          onClick={() =>
+            openForm(
+              {
+                name: "",
+                species: "",
+                category: "Fish",
+                tankId: "",
+                price: "",
+                costPrice: "",
+                quantity: "",
+                description: "",
+                photoUrl: "",
+              },
+              null,
+            )
+          }
         >
           Add Item
         </button>
@@ -115,13 +135,50 @@ function Inventory({
             >
               <label>
                 Fish Name
-                <input
-                  name="name"
-                  placeholder="Fish name"
-                  value={fishForm.name}
-                  onChange={updateField}
-                  required
-                />
+                {nameMode === "new" ? (
+                  <input
+                    name="name"
+                    placeholder="Enter new fish name"
+                    value={fishForm.name}
+                    onChange={updateField}
+                    required
+                    autoFocus
+                  />
+                ) : (
+                  <select
+                    name="name"
+                    value={existingNames.includes(fishForm.name) ? fishForm.name : ""}
+                    onChange={(event) => {
+                      if (event.target.value === NEW_OPTION) {
+                        setNameMode("new");
+                        setFishForm((previous) => ({ ...previous, name: "" }));
+                        return;
+                      }
+                      updateField(event);
+                    }}
+                    required
+                  >
+                    <option value="">Choose a name</option>
+                    {existingNames.map((name) => (
+                      <option key={name} value={name}>
+                        {name}
+                      </option>
+                    ))}
+                    <option value={NEW_OPTION}>+ Add new name</option>
+                  </select>
+                )}
+                {nameMode === "new" && existingNames.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNameMode("select");
+                      setFishForm((previous) => ({ ...previous, name: "" }));
+                    }}
+                    className="mt-1 bg-transparent border-0 p-0 text-left font-['Poppins'] text-xs text-[#73c4ca] underline"
+                  >
+                    Choose from existing names instead
+                  </button>
+                )}
               </label>
 
               <label>
@@ -148,8 +205,15 @@ function Inventory({
                   >
                     <option value="">Choose a tank first</option>
                     {tanks.map((tank) => (
-                      <option key={tank._id} value={tank._id}>
+                      <option
+                        key={tank._id}
+                        value={tank._id}
+                        disabled={tank.status === "Under Maintenance"}
+                      >
                         {tank.name} ({tank.status})
+                        {tank.status === "Under Maintenance"
+                          ? " - unavailable"
+                          : ""}
                       </option>
                     ))}
                   </select>
@@ -161,7 +225,7 @@ function Inventory({
                 <input
                   type="number"
                   name="price"
-                  min="0"
+                  min="1"
                   step="0.01"
                   placeholder="Price per unit"
                   value={fishForm.price ?? ""}
@@ -175,7 +239,7 @@ function Inventory({
                 <input
                   type="number"
                   name="costPrice"
-                  min="0"
+                  min="1"
                   step="0.01"
                   placeholder="Purchase cost per unit"
                   value={fishForm.costPrice ?? ""}
@@ -186,13 +250,50 @@ function Inventory({
 
               <label>
                 Species
-                <input
-                  name="species"
-                  placeholder="Species"
-                  value={fishForm.species}
-                  onChange={updateField}
-                  required
-                />
+                {speciesMode === "new" ? (
+                  <input
+                    name="species"
+                    placeholder="Enter new species"
+                    value={fishForm.species}
+                    onChange={updateField}
+                    required
+                    autoFocus
+                  />
+                ) : (
+                  <select
+                    name="species"
+                    value={existingSpecies.includes(fishForm.species) ? fishForm.species : ""}
+                    onChange={(event) => {
+                      if (event.target.value === NEW_OPTION) {
+                        setSpeciesMode("new");
+                        setFishForm((previous) => ({ ...previous, species: "" }));
+                        return;
+                      }
+                      updateField(event);
+                    }}
+                    required
+                  >
+                    <option value="">Choose a species</option>
+                    {existingSpecies.map((species) => (
+                      <option key={species} value={species}>
+                        {species}
+                      </option>
+                    ))}
+                    <option value={NEW_OPTION}>+ Add new species</option>
+                  </select>
+                )}
+                {speciesMode === "new" && existingSpecies.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSpeciesMode("select");
+                      setFishForm((previous) => ({ ...previous, species: "" }));
+                    }}
+                    className="mt-1 bg-transparent border-0 p-0 text-left font-['Poppins'] text-xs text-[#73c4ca] underline"
+                  >
+                    Choose from existing species instead
+                  </button>
+                )}
               </label>
 
               <label>
@@ -200,7 +301,7 @@ function Inventory({
                 <input
                   type="number"
                   name="quantity"
-                  min="0"
+                  min="1"
                   placeholder="Quantity"
                   value={fishForm.quantity}
                   onChange={updateField}
@@ -278,7 +379,6 @@ function Inventory({
               key={item._id}
               className="group flex flex-col overflow-hidden rounded-2xl border border-sky-100/[.09] bg-white/[.035] transition hover:border-[#73c4ca]/40 hover:shadow-[0_10px_25px_rgba(0,12,31,.25)]"
             >
-              {/* Image on top — full width, square */}
               <div className="relative aspect-square w-full overflow-hidden bg-[#0a4261]">
                 {item.photoUrl ? (
                   <img
@@ -299,7 +399,6 @@ function Inventory({
                 </span>
               </div>
 
-              {/* Details below */}
               <div className="flex flex-1 flex-col px-3 pb-3 pt-1.5">
                 <h3 className="truncate font-['Poppins'] text-[20px] font-semibold text-[#d9ecef] m-0">
                   {item.name}
@@ -315,21 +414,21 @@ function Inventory({
                   {item.tankId?.name && <span>{item.tankId.name}</span>}
                 </div>
 
-                {/* Actions as real buttons, pinned to bottom */}
                 <div className="mt-3 flex gap-2 pt-1">
                   <button
                     type="button"
                     className="flex-1 rounded-lg border border-sky-100/15 bg-white/[.04] py-1.5 font-['Poppins'] text-xs font-medium text-[#a8c6cc] transition hover:border-[#73c4ca]/50 hover:bg-white/[.08] hover:text-[#bce9e9]"
-                    onClick={() => {
-                      setEditingFishId(item._id);
-                      setFishForm({
-                        ...item,
-                        tankId: item.tankId?._id || item.tankId || "",
-                        price: item.price ?? "",
-                        category: item.category || "Fish",
-                      });
-                      setFormOpen(true);
-                    }}
+                    onClick={() =>
+                      openForm(
+                        {
+                          ...item,
+                          tankId: item.tankId?._id || item.tankId || "",
+                          price: item.price ?? "",
+                          category: item.category || "Fish",
+                        },
+                        item._id,
+                      )
+                    }
                   >
                     Edit
                   </button>

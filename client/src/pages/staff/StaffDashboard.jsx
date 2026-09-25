@@ -10,10 +10,6 @@ import NotificationBell from "../shared/NotificationBell.jsx";
 
 // Choices para sa mga fish tank statuses na pwedeng i-update ng staff sa dashboard.
 const tankStatuses = [
-  "Needs Cleaning",
-  "Clean",
-  "For Replacement",
-  "Damaged",
   "Under Maintenance",
   "Available",
 ];
@@ -833,7 +829,7 @@ function StaffDashboard() {
 
                     {tank.nextMaintenance && (
                       <p className="mt-3 font-['Poppins'] text-[11px] text-[#7fa7ae]">
-                        📅 Next maintenance:{" "}
+                        Next maintenance:{" "}
                         <span className="font-medium text-[#bce9e9]">
                           {new Date(tank.nextMaintenance).toLocaleDateString()}
                         </span>

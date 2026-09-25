@@ -64,6 +64,18 @@ exports.createFish = async (req, res) => {
       .status(400)
       .json({ message: "Fish name, species, and quantity are required." });
   }
+  if (
+    !Number.isFinite(Number(price)) ||
+    Number(price) < 1 ||
+    !Number.isFinite(Number(costPrice)) ||
+    Number(costPrice) < 1 ||
+    !Number.isFinite(Number(quantity)) ||
+    Number(quantity) < 1
+  ) {
+    return res
+      .status(400)
+      .json({ message: "Price, cost price, and quantity must be at least 1." });
+  }
   if (category !== "Fish Food" && !tankId)
     return res
       .status(400)
@@ -99,6 +111,20 @@ exports.updateFish = async (req, res) => {
     return res
       .status(403)
       .json({ message: "Only owners can update inventory." });
+  const normalizedPrice = req.body.price !== undefined ? Number(req.body.price) : undefined;
+  const normalizedCostPrice = req.body.costPrice !== undefined ? Number(req.body.costPrice) : undefined;
+  const normalizedQuantity = req.body.quantity !== undefined ? Number(req.body.quantity) : undefined;
+
+  if (
+    (req.body.price !== undefined && (!Number.isFinite(normalizedPrice) || normalizedPrice < 1)) ||
+    (req.body.costPrice !== undefined && (!Number.isFinite(normalizedCostPrice) || normalizedCostPrice < 1)) ||
+    (req.body.quantity !== undefined && (!Number.isFinite(normalizedQuantity) || normalizedQuantity < 1))
+  ) {
+    return res
+      .status(400)
+      .json({ message: "Price, cost price, and quantity must be at least 1." });
+  }
+
   if (req.body.category !== "Fish Food" && !req.body.tankId)
     return res
       .status(400)

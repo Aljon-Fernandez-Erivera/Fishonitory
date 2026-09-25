@@ -7,8 +7,7 @@ export function AuthProvider({ children }) {
   const [authReady, setAuthReady] = useState(false);
   const [setToastMessage] = useState("");
 
-  useEffect(() => {
-    let active = true;
+  const refreshSession = useCallback(async () => {
     const pathname = window.location.pathname;
     const storedRole = sessionStorage.getItem("role");
     const sessionRole =
@@ -19,40 +18,45 @@ export function AuthProvider({ children }) {
           ? "masterStaff"
           : "");
 
-    fetch(`${API_URL}/auth/session`, {
-      credentials: "include",
-      headers: sessionRole ? { "X-Session-Role": sessionRole } : {},
-    })
-      .then(async (response) => {
-        if (!response.ok) return null;
-        const data = await response.json();
-        return data.user;
-      })
-      .then((sessionUser) => {
-        if (!active) return;
-
-        if (sessionUser) {
-          sessionStorage.setItem("role", sessionUser.role);
-          setUser(sessionUser);
-        } else {
-          sessionStorage.removeItem("role");
-          setUser(null);
-        }
-      })
-      .catch(() => {
-        if (active) {
-          sessionStorage.removeItem("role");
-          setUser(null);
-        }
-      })
-      .finally(() => {
-        if (active) setAuthReady(true);
+    try {
+      const response = await fetch(`${API_URL}/auth/session`, {
+        credentials: "include",
+        headers: sessionRole ? { "X-Session-Role": sessionRole } : {},
       });
+      const sessionUser = response.ok ? (await response.json()).user : null;
+
+      if (sessionUser) {
+        sessionStorage.setItem("role", sessionUser.role);
+        setUser(sessionUser);
+      } else {
+        sessionStorage.removeItem("role");
+        setUser(null);
+      }
+    } catch {
+      sessionStorage.removeItem("role");
+      setUser(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    refreshSession().finally(() => {
+      if (active) setAuthReady(true);
+    });
+
+    const handlePageShow = (event) => {
+      if (event.persisted) {
+        refreshSession();
+      }
+    };
+    window.addEventListener("pageshow", handlePageShow);
 
     return () => {
       active = false;
+      window.removeEventListener("pageshow", handlePageShow);
     };
-  }, []);
+  }, [refreshSession]);
 
   const login = useCallback(async (_token, role) => {
     sessionStorage.setItem("role", role);
@@ -69,10 +73,7 @@ export function AuthProvider({ children }) {
         }
       }
     } catch (error) {
-      // Para sa developer/debugging lang
       console.error("Session check failed:", error);
-
-      // Friendly at secure message para sa user (walang sensitive technical details)
       setToastMessage(
         "Internet Connection Error. Proceeding in offline mode...",
       );

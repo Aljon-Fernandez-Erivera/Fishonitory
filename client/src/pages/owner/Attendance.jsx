@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 const weekDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -29,6 +29,10 @@ function getLocalDateKey(date) {
   return toDateKey(date.getFullYear(), date.getMonth(), date.getDate());
 }
 
+function todayISODate() {
+  return getLocalDateKey(new Date());
+}
+
 function Attendance({
   records,
   staff,
@@ -40,6 +44,9 @@ function Attendance({
   onDeleteShiftTemplate,
   onAssignStaffShift,
   onUpdateLateDeductionAmount,
+  shiftAssignments = [],
+  onSaveShiftAssignment,
+  onDeleteShiftAssignment,
 }) {
   const today = new Date();
   const [calendarMonth, setCalendarMonth] = useState(
@@ -56,13 +63,22 @@ function Attendance({
     graceMinutes: 15,
     cutoffTime: "18:00",
   });
+  const [assignmentDraft, setAssignmentDraft] = useState({
+    staffId: "",
+    dateKey: "",
+    shiftTemplateId: "",
+  });
   const [deductionDraft, setDeductionDraft] = useState(
     String(lateDeductionAmount ?? 0),
   );
+  const [lastSyncedDeduction, setLastSyncedDeduction] = useState(lateDeductionAmount);
 
-  useEffect(() => {
+  // Adjust state during render (instead of useEffect+setState) so the draft
+  // resets in the same render pass whenever the prop changes.
+  if (lateDeductionAmount !== lastSyncedDeduction) {
+    setLastSyncedDeduction(lateDeductionAmount);
     setDeductionDraft(String(lateDeductionAmount ?? 0));
-  }, [lateDeductionAmount]);
+  }
 
   const calendarDays = useMemo(() => {
     const year = calendarMonth.getFullYear();
@@ -79,8 +95,6 @@ function Attendance({
   const selectedRecords = records.filter(
     (record) => record.dateKey === selectedDate,
   );
-  // A selected day is a check-in view: only staff who actually logged a
-  // present/late attendance record on that date are shown.
   const recordForStaff = (staffId) =>
     selectedRecords.find((record) => record.userId?._id === staffId);
   const monthLabel = calendarMonth.toLocaleString("en-US", {
@@ -375,7 +389,7 @@ function Attendance({
                   onChange={(event) => setDeductionDraft(event.target.value)}
                 />
                 <button
-                  className="shrink-0 rounded-full bg-[#75bec4] px-4 py-2.5 font-['Poppins'] text-sm font-medium text-[#052d45] transition hover:bg-[#91d2d5]"
+                  className="shrink-0 rounded-full border-2 border-[#052d45]/20 bg-[#75bec4] px-4 py-2.5 font-['Poppins'] text-sm font-bold text-[#052d45] shadow-[0_2px_10px_rgba(0,0,0,.25)] transition hover:bg-[#91d2d5]"
                   type="button"
                   onClick={() => {
                     const amount = Number(deductionDraft);
@@ -475,7 +489,7 @@ function Attendance({
                 </label>
                 <button
                   type="button"
-                  className="self-end rounded-full bg-[#75bec4] px-4 py-2.5 font-['Poppins'] text-sm font-medium text-[#052d45] transition hover:bg-[#91d2d5]"
+                  className="self-end rounded-full border-2 border-[#052d45]/20 bg-[#75bec4] px-4 py-2.5 font-['Poppins'] text-sm font-bold text-[#052d45] shadow-[0_2px_10px_rgba(0,0,0,.25)] transition hover:bg-[#91d2d5]"
                   onClick={() => {
                     if (!shiftDraft.name.trim()) return;
                     onSaveShiftTemplate(shiftDraft);
@@ -487,10 +501,121 @@ function Attendance({
               </div>
             </div>
 
+            {/* Per-date shift assignments */}
+            <div className="mt-5 rounded-xl border border-sky-100/[.08] bg-white/[.03] p-4">
+              <p className="font-['Poppins'] text-xs font-semibold uppercase tracking-[.12em] text-[#73c4ca]">
+                Assign a shift to a specific date
+              </p>
+              <p className="mt-1 font-['Poppins'] text-xs text-[#9bbec7]">
+                For one-off schedule changes (e.g. covering a night shift on a
+                specific day). If a staff member has no date assigned, they
+                keep their default schedule.
+              </p>
+
+              <div className="mt-3 grid gap-2 sm:grid-cols-[1.1fr_1fr_1fr_auto]">
+                <select
+                  className={fieldClass}
+                  value={assignmentDraft.staffId}
+                  onChange={(event) =>
+                    setAssignmentDraft((current) => ({ ...current, staffId: event.target.value }))
+                  }
+                >
+                  <option className="bg-[#062d48]" value="">
+                    Choose staff
+                  </option>
+                  {staff.map((person) => (
+                    <option className="bg-[#062d48]" key={person._id} value={person._id}>
+                      {person.staffName}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  className={fieldClass}
+                  type="date"
+                  min={todayISODate()}
+                  value={assignmentDraft.dateKey}
+                  onChange={(event) =>
+                    setAssignmentDraft((current) => ({ ...current, dateKey: event.target.value }))
+                  }
+                />
+                <select
+                  className={fieldClass}
+                  value={assignmentDraft.shiftTemplateId}
+                  onChange={(event) =>
+                    setAssignmentDraft((current) => ({
+                      ...current,
+                      shiftTemplateId: event.target.value,
+                    }))
+                  }
+                >
+                  <option className="bg-[#062d48]" value="">
+                    Choose shift
+                  </option>
+                  {shiftTemplates.map((template) => (
+                    <option className="bg-[#062d48]" key={template._id} value={template._id}>
+                      {template.name}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  className="self-stretch rounded-full border-2 border-[#052d45]/20 bg-[#75bec4] px-4 py-2.5 font-['Poppins'] text-sm font-bold text-[#052d45] shadow-[0_2px_10px_rgba(0,0,0,.25)] transition hover:bg-[#91d2d5] disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={
+                    !assignmentDraft.staffId ||
+                    !assignmentDraft.dateKey ||
+                    !assignmentDraft.shiftTemplateId
+                  }
+                  onClick={() => {
+                    onSaveShiftAssignment(assignmentDraft);
+                    setAssignmentDraft({ staffId: "", dateKey: "", shiftTemplateId: "" });
+                  }}
+                >
+                  Assign
+                </button>
+              </div>
+
+              <ul className="mt-3 grid gap-2 p-0">
+                {shiftAssignments.map((assignment) => {
+                  const person = staff.find(
+                    (item) => item._id === (assignment.staffId?._id || assignment.staffId),
+                  );
+                  const template = shiftTemplates.find(
+                    (item) =>
+                      item._id === (assignment.shiftTemplateId?._id || assignment.shiftTemplateId),
+                  );
+                  return (
+                    <li
+                      key={assignment._id}
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white/[.04] px-3 py-2 font-['Poppins'] text-xs text-[#c9e1e5]"
+                    >
+                      <span>
+                        <strong className="text-[#d9ecef]">
+                          {person?.staffName || "Unknown staff"}
+                        </strong>{" "}
+                        — {assignment.dateKey} · {template?.name || "Unknown shift"}
+                      </span>
+                      <button
+                        type="button"
+                        className="rounded-full border border-red-400/20 bg-red-500/10 px-2.5 py-1 text-[11px] font-medium text-red-300 transition hover:bg-red-500/20"
+                        onClick={() => onDeleteShiftAssignment(assignment._id)}
+                      >
+                        Remove
+                      </button>
+                    </li>
+                  );
+                })}
+                {!shiftAssignments.length && (
+                  <li className="rounded-lg bg-white/[.04] px-3 py-3 text-center text-xs text-[#789faa]">
+                    No date-specific shift assignments yet.
+                  </li>
+                )}
+              </ul>
+            </div>
+
             {/* Per-staff assignment */}
             <div className="mt-5 rounded-xl border border-sky-100/[.08] bg-white/[.03] p-4">
               <p className="font-['Poppins'] text-xs font-semibold uppercase tracking-[.1em] text-[#73c4ca]">
-                Assign staff to a shift
+                Default shift per staff
               </p>
               <ul className="mt-3 grid gap-2 p-0">
                 {staff.map((person) => (
