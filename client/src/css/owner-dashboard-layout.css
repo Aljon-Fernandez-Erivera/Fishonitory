@@ -521,6 +521,65 @@
 
 /* Owner workspace visual system: applied to the older functional pages so
    Attendance, Staff, Inventory and Sales match the newer teal workspace. */
+.owner-dashboard-main {
+  position: relative;
+}
+
+.owner-sidebar {
+  box-sizing: border-box;
+  display: flex;
+  width: 100%;
+  flex-shrink: 0;
+  flex-direction: column;
+  overflow: hidden;
+  border-bottom: 1px solid rgba(207, 239, 242, 0.08);
+  background: #062f43;
+  transition: transform 220ms ease, box-shadow 220ms ease;
+}
+
+.owner-mobile-menu-toggle {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  z-index: 60;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 0.28rem;
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(136, 219, 224, 0.28);
+  border-radius: 12px;
+  background: rgba(6, 45, 72, 0.9);
+  box-shadow: 0 8px 20px rgba(2, 18, 31, 0.25);
+  cursor: pointer;
+}
+
+.owner-mobile-menu-toggle span {
+  display: block;
+  width: 20px;
+  height: 2px;
+  background: #d9ecef;
+  border-radius: 2px;
+  transition: transform 180ms ease, opacity 180ms ease;
+}
+
+.owner-mobile-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 45;
+  background: rgba(2, 16, 26, 0.45);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease;
+}
+
+.owner-mobile-backdrop.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 .owner-workspace .dashboard-page {
   width: 100%;
   max-width: 1240px;
@@ -982,13 +1041,42 @@
     display: block;
   }
 
+  .owner-mobile-menu-toggle {
+    display: inline-flex;
+  }
+
   .owner-sidebar {
-    position: static;
-    width: auto;
-    height: auto;
-    min-height: auto;
-    border-right: 0;
-    border-bottom: 1px solid var(--border);
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 50;
+    width: min(82vw, 300px);
+    height: 100dvh;
+    min-height: 100dvh;
+    border-right: 1px solid rgba(207, 239, 242, 0.08);
+    border-bottom: 0;
+    box-shadow: 18px 0 36px rgba(1, 12, 22, 0.42);
+    transform: translateX(-110%);
+  }
+
+  .owner-sidebar.is-open {
+    transform: translateX(0);
+  }
+
+  .owner-mobile-menu-toggle.is-open {
+    left: calc(min(82vw, 300px) - 0.8rem);
+  }
+
+  .owner-mobile-menu-toggle.is-open span:nth-child(1) {
+    transform: translateY(6px) rotate(45deg);
+  }
+
+  .owner-mobile-menu-toggle.is-open span:nth-child(2) {
+    opacity: 0;
+  }
+
+  .owner-mobile-menu-toggle.is-open span:nth-child(3) {
+    transform: translateY(-6px) rotate(-45deg);
   }
 
   .sidebar-nav {
@@ -1005,6 +1093,10 @@
     margin-top: 0;
   }
 
+  .owner-workspace {
+    padding-top: 4.5rem !important;
+  }
+
   .stats-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1014,6 +1106,11 @@
   .owner-content {
     margin-left: 0;
     padding: 24px 16px;
+  }
+
+  .owner-workspace {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
   }
 
   .content-header,
