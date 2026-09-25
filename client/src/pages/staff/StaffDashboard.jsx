@@ -68,6 +68,11 @@ function StaffDashboard() {
   const [cart, setCart] = useState([]);
   const [discount, setDiscount] = useState(0);
   const [note, setNote] = useState("");
+  const [customerDetails, setCustomerDetails] = useState({
+    customerName: "",
+    customerEmail: "",
+    customerPhone: "",
+  });
 
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -245,11 +250,28 @@ function StaffDashboard() {
     try {
       await apiRequest("/notes", {
         method: "POST",
-        body: JSON.stringify({ text: note }),
+        body: JSON.stringify({
+          text: note,
+          visibility: "public",
+          isTask: false,
+        }),
       });
 
       setNote("");
       setMessage("Your announcement has been posted.");
+      await loadData();
+    } catch (requestError) {
+      setError(requestError.message);
+    }
+  };
+
+  const updateTaskStatus = async (id, taskStatus) => {
+    try {
+      const data = await apiRequest(`/notes/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ taskStatus }),
+      });
+      setMessage(data.message || "Task updated.");
       await loadData();
     } catch (requestError) {
       setError(requestError.message);
@@ -285,6 +307,9 @@ function StaffDashboard() {
             quantity: item.quantity,
           })),
           discount,
+          customerName: customerDetails.customerName || "Walk-in Customer",
+          customerEmail: customerDetails.customerEmail,
+          customerPhone: customerDetails.customerPhone,
         }),
       });
 
@@ -292,6 +317,20 @@ function StaffDashboard() {
       setCheckoutOpen(false);
       setCart([]);
       setDiscount(0);
+      setCustomerDetails({ customerName: "", customerEmail: "", customerPhone: "" });
+      await loadData();
+    } catch (requestError) {
+      setError(requestError.message);
+    }
+  };
+
+  const updateOrderStatus = async (saleId, deliveryStatus) => {
+    try {
+      const data = await apiRequest(`/sales/${saleId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ deliveryStatus }),
+      });
+      setMessage(data.message || "Order status updated.");
       await loadData();
     } catch (requestError) {
       setError(requestError.message);
@@ -333,6 +372,9 @@ function StaffDashboard() {
           <h1>Fishonitory Receipt</h1>
           <p>
             Cashier: ${escapeHtml(user?.staffName || user?.role || "Staff")}<br />
+            Customer: ${escapeHtml(receipt.customerName || "Walk-in Customer")}<br />
+            Email: ${escapeHtml(receipt.customerEmail || "-")}<br />
+            Phone: ${escapeHtml(receipt.customerPhone || "-")}<br />
             Date: ${new Date(receipt.createdAt).toLocaleString()}
           </p>
           <table>${receiptItems}</table>
@@ -469,6 +511,16 @@ function StaffDashboard() {
             }}
           >
             Point of Sale (POS)
+          </button>
+          <button
+            className={navButtonClass("orders")}
+            type="button"
+            onClick={() => {
+              setActivePage("orders");
+              setSidebarOpen(false);
+            }}
+          >
+            Orders
           </button>
           <button
             className={navButtonClass("sales")}
@@ -992,6 +1044,33 @@ function StaffDashboard() {
                     />
                   </div>
 
+                  <div className="space-y-2 border-t border-sky-100/10 pt-3">
+                    <div className="font-['Poppins'] text-[10px] font-semibold uppercase tracking-[0.12em] text-[#89afb9]">
+                      Customer details
+                    </div>
+                    <input
+                      type="text"
+                      value={customerDetails.customerName}
+                      onChange={(event) => setCustomerDetails((previous) => ({ ...previous, customerName: event.target.value }))}
+                      placeholder="Customer name"
+                      className="w-full rounded-lg border border-sky-100/15 bg-white/[.07] px-2.5 py-2 font-['Poppins'] text-xs text-[#d9ecef] outline-none focus:border-[#73c4ca]"
+                    />
+                    <input
+                      type="email"
+                      value={customerDetails.customerEmail}
+                      onChange={(event) => setCustomerDetails((previous) => ({ ...previous, customerEmail: event.target.value }))}
+                      placeholder="customer@email.com"
+                      className="w-full rounded-lg border border-sky-100/15 bg-white/[.07] px-2.5 py-2 font-['Poppins'] text-xs text-[#d9ecef] outline-none focus:border-[#73c4ca]"
+                    />
+                    <input
+                      type="tel"
+                      value={customerDetails.customerPhone}
+                      onChange={(event) => setCustomerDetails((previous) => ({ ...previous, customerPhone: event.target.value }))}
+                      placeholder="+639171234567"
+                      className="w-full rounded-lg border border-sky-100/15 bg-white/[.07] px-2.5 py-2 font-['Poppins'] text-xs text-[#d9ecef] outline-none focus:border-[#73c4ca]"
+                    />
+                  </div>
+
                   {discountAmount > 0 && (
                     <div className="flex justify-between text-emerald-300">
                       <span>Discount Applied</span>
@@ -1180,21 +1259,29 @@ function StaffDashboard() {
                       </div>
                     </div>
 
-                    <div className="mt-6 flex justify-end gap-3">
-                      <button
-                        type="button"
-                        onClick={printReceipt}
-                        className="rounded-full bg-[#75bec4] px-5 py-2 font-['Poppins'] text-xs font-semibold text-[#052d45] transition hover:bg-[#86d0d6] cursor-pointer"
-                      >
-                        Print Receipt
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setReceipt(null)}
-                        className="rounded-full border border-sky-100/15 px-4 py-2 font-['Poppins'] text-xs text-[#89afb9] hover:text-[#d9ecef] cursor-pointer"
-                      >
-                        Close
-                      </button>
+                    <div className="mt-6 space-y-3">
+                      <div className="rounded-xl border border-sky-100/10 bg-white/[.03] p-3 font-['Poppins'] text-xs text-[#9bbec7]">
+                        <div className="font-semibold text-[#d9ecef]">Customer details</div>
+                        <div className="mt-1">Name: {receipt.customerName || "Walk-in Customer"}</div>
+                        <div>Email: {receipt.customerEmail || "-"}</div>
+                        <div>Phone: {receipt.customerPhone || "-"}</div>
+                      </div>
+                      <div className="flex justify-end gap-3">
+                        <button
+                          type="button"
+                          onClick={printReceipt}
+                          className="rounded-full bg-[#75bec4] px-5 py-2 font-['Poppins'] text-xs font-semibold text-[#052d45] transition hover:bg-[#86d0d6] cursor-pointer"
+                        >
+                          Print Receipt
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setReceipt(null)}
+                          className="rounded-full border border-sky-100/15 px-4 py-2 font-['Poppins'] text-xs text-[#89afb9] hover:text-[#d9ecef] cursor-pointer"
+                        >
+                          Close
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1202,7 +1289,66 @@ function StaffDashboard() {
             </div>
           )}
 
-          {/* 5. SALES */}
+          {/* 5. ORDERS */}
+          {activePage === "orders" && (
+            <div className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-6 shadow-[0_14px_35px_rgba(0,12,31,.14)]">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-sky-100/10 pb-4">
+                <div>
+                  <h3 className="font-['Fraunces'] text-xl font-medium text-[#d9ecef]">
+                    Order Tracking
+                  </h3>
+                  <p className="mt-0.5 font-['Poppins'] text-xs text-[#9bbec7]">
+                    Check customer pickups, deliveries, and pending orders.
+                  </p>
+                </div>
+                <span className="rounded-full border border-sky-100/15 bg-white/[.04] px-3 py-1 font-['Poppins'] text-xs text-[#73c4ca]">
+                  {sales.length} orders
+                </span>
+              </div>
+
+              <div className="mt-5 space-y-3">
+                {sales.length === 0 ? (
+                  <p className="font-['Poppins'] text-xs text-[#7fa7ae]">No orders have been created yet.</p>
+                ) : (
+                  sales.map((sale) => (
+                    <div key={sale._id} className="rounded-xl border border-sky-100/[.08] bg-white/[.03] p-4">
+                      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                        <div>
+                          <div className="font-['Poppins'] text-xs uppercase tracking-[0.12em] text-[#73c4ca]">
+                            {sale.customerName || "Walk-in Customer"}
+                          </div>
+                          <div className="mt-1 font-['Poppins'] text-xs text-[#9bbec7]">
+                            {sale.customerEmail || "No email"} · {sale.customerPhone || "No phone"}
+                          </div>
+                          <div className="mt-1 font-['Poppins'] text-[11px] text-[#7fa7ae]">
+                            {new Date(sale.createdAt).toLocaleString()} · {sale.items.length} product(s)
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          {(["pending", "picked-up", "delivered"]).map((status) => (
+                            <button
+                              key={status}
+                              type="button"
+                              onClick={() => updateOrderStatus(sale._id, status)}
+                              className={`rounded-full px-3 py-1.5 font-['Poppins'] text-[10px] font-semibold uppercase tracking-[0.08em] transition ${
+                                sale.deliveryStatus === status
+                                  ? "bg-[#75bec4] text-[#052d45]"
+                                  : "border border-sky-100/15 bg-transparent text-[#9bbec7] hover:text-[#d9ecef]"
+                              }`}
+                            >
+                              {status === "picked-up" ? "Picked up" : status === "delivered" ? "Delivered" : "Pending"}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* 6. SALES */}
           {activePage === "sales" && (
             <Sales
               sales={sales}
@@ -1217,7 +1363,7 @@ function StaffDashboard() {
             />
           )}
 
-          {/* 6. LEAVE NOTE */}
+          {/* 7. LEAVE NOTE */}
           {activePage === "leave-note" && (
             <div className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-6 shadow-[0_14px_35px_rgba(0,12,31,.14)]">
               <h3 className="font-['Fraunces'] text-xl font-medium text-[#d9ecef]">
@@ -1268,7 +1414,28 @@ function StaffDashboard() {
                         key={item._id}
                         className="rounded-xl border border-sky-100/[.08] bg-white/[.03] p-3.5 font-['Poppins'] text-xs text-[#c9e1e5]"
                       >
-                        {item.text}
+                        <div className="mb-2 flex flex-wrap items-center gap-2">
+                          {item.isTask && (
+                            <span className="rounded-full border border-amber-300/30 bg-amber-400/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-200">
+                              Task
+                            </span>
+                          )}
+                          {item.taskStatus === "done" && item.isTask && (
+                            <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-200">
+                              Done
+                            </span>
+                          )}
+                        </div>
+                        <div>{item.text}</div>
+                        {item.isTask && (
+                          <button
+                            type="button"
+                            onClick={() => updateTaskStatus(item._id, item.taskStatus === "done" ? "pending" : "done")}
+                            className="mt-3 rounded-full border border-sky-100/15 bg-white/[.03] px-3 py-1.5 font-['Poppins'] text-[10px] font-semibold uppercase tracking-[0.12em] text-[#d9ecef] hover:bg-white/[.08]"
+                          >
+                            {item.taskStatus === "done" ? "Mark pending" : "Mark done"}
+                          </button>
+                        )}
                       </div>
                     ))
                   )}
@@ -1277,7 +1444,7 @@ function StaffDashboard() {
             </div>
           )}
 
-          {/* 7. ANNOUNCEMENTS */}
+          {/* 8. ANNOUNCEMENTS */}
           {activePage === "announcements" && (
             <div className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-6 shadow-[0_14px_35px_rgba(0,12,31,.14)]">
               <h3 className="font-['Fraunces'] text-xl font-medium text-[#d9ecef]">
@@ -1293,6 +1460,18 @@ function StaffDashboard() {
                     key={item._id}
                     className="rounded-xl border border-cyan-400/20 bg-cyan-400/10 p-4 font-['Poppins'] text-xs text-[#d9ecef]"
                   >
+                    <div className="mb-2 flex flex-wrap items-center gap-2">
+                      {item.isTask && (
+                        <span className="rounded-full border border-amber-300/30 bg-amber-400/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-200">
+                          Task
+                        </span>
+                      )}
+                      {item.taskStatus === "done" && item.isTask && (
+                        <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-200">
+                          Done
+                        </span>
+                      )}
+                    </div>
                     <span className="font-semibold text-[#73c4ca]">
                       {item.authorId?.staffName ||
                         item.authorId?.ownerName ||
@@ -1304,6 +1483,15 @@ function StaffDashboard() {
                       :
                     </span>{" "}
                     {item.text}
+                    {item.isTask && (
+                      <button
+                        type="button"
+                        onClick={() => updateTaskStatus(item._id, item.taskStatus === "done" ? "pending" : "done")}
+                        className="mt-3 block rounded-full border border-sky-100/15 bg-white/[.03] px-3 py-1.5 font-['Poppins'] text-[10px] font-semibold uppercase tracking-[0.12em] text-[#d9ecef] hover:bg-white/[.08]"
+                      >
+                        {item.taskStatus === "done" ? "Mark pending" : "Mark done"}
+                      </button>
+                    )}
                   </div>
                 ))}
 

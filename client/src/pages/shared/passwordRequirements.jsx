@@ -1,4 +1,5 @@
 const RULES = [
+  { label: "At least 1 symbol (@,#,!)", test: (value) => /[@, # ,!]/.test(value)},
   { label: "At least 8 characters", test: (value) => value.length >= 8 },
   { label: "At least one letter", test: (value) => /[a-zA-Z]/.test(value) },
   { label: "At least one number", test: (value) => /[0-9]/.test(value) },

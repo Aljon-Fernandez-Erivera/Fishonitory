@@ -190,7 +190,28 @@ exports.sendStaffOtp = async (req, res) => {
       from: `"Fishonitory" <${process.env.EMAIL_USER}>`,
       to: email,
       subject: "Fishonitory - Staff Registration OTP",
-      text: `Your staff registration OTP is ${otp}. It expires in 5 minutes.`,
+      text: `Your Fishonitory staff registration code is ${otp}. It expires in 5 minutes.`,
+      html: `
+        <div style="margin:0;padding:32px 16px;background:#edf7fb;font-family:Arial,Helvetica,sans-serif;color:#12314a;">
+          <div style="max-width:560px;margin:0 auto;border:1px solid #d8ebf3;border-radius:18px;overflow:hidden;background:#ffffff;box-shadow:0 10px 30px rgba(16, 76, 98, 0.08);">
+            <div style="background:linear-gradient(135deg,#0d4a5f,#0a6c7d);padding:22px 28px;color:#ffffff;">
+              <div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;opacity:0.9;">Fishonitory</div>
+              <div style="margin-top:8px;font-size:28px;font-weight:700;line-height:1.2;">Complete staff setup</div>
+            </div>
+            <div style="padding:28px 24px 20px;">
+              <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#3d5d6b;">Use the one-time code below to finish registering your staff account.</p>
+              <div style="margin:18px 0 8px;text-align:center;padding:20px 16px;border-radius:12px;background:#f3fafb;border:1px solid #d4edf2;">
+                <div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#4d7b88;margin-bottom:10px;font-weight:700;">Verification code</div>
+                <div style="font-size:36px;letter-spacing:8px;font-weight:800;color:#0a4c63;">${String(otp).padStart(6, "0")}</div>
+              </div>
+              <p style="margin:16px 0 0;font-size:14px;line-height:1.7;color:#496a76;">This code expires in 5 minutes. Keep it private and do not share it with anyone.</p>
+            </div>
+            <div style="padding:0 24px 24px;font-size:12px;color:#6b8591;">
+              <div style="border-top:1px solid #e5edf1;padding-top:14px;">Fishonitory · Staff registration</div>
+            </div>
+          </div>
+        </div>
+      `,
     });
     return res.json({ message: "OTP sent to the staff email." });
   } catch (error) {

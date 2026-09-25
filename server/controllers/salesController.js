@@ -48,6 +48,9 @@ exports.createSale = async (req, res) => {
   const owner = await User.findById(ownerId).select("businessName");
   const requestedItems = Array.isArray(req.body.items) ? req.body.items : [];
   const discount = Math.max(0, Number(req.body.discount) || 0);
+  const customerName = String(req.body.customerName || "").trim() || "Walk-in Customer";
+  const customerEmail = String(req.body.customerEmail || "").trim();
+  const customerPhone = String(req.body.customerPhone || "").trim();
   if (!ownerId || !owner?.businessName || !requestedItems.length)
     return res
       .status(400)
@@ -70,8 +73,16 @@ exports.createSale = async (req, res) => {
       }
       const subtotal = items.reduce((sum, item) => sum + item.total, 0);
       const [created] = await Sale.create([{
-        ownerId, businessName: owner.businessName, soldBy: req.user.userId, items, subtotal,
-        discount: Math.min(discount, subtotal), total: subtotal - Math.min(discount, subtotal),
+        ownerId,
+        businessName: owner.businessName,
+        soldBy: req.user.userId,
+        customerName,
+        customerEmail,
+        customerPhone,
+        items,
+        subtotal,
+        discount: Math.min(discount, subtotal),
+        total: subtotal - Math.min(discount, subtotal),
       }], { session });
       return created;
     });
@@ -84,4 +95,24 @@ exports.createSale = async (req, res) => {
       .status(400)
       .json({ message: error.message || "Sale could not be completed." });
   }
+};
+
+exports.updateSaleStatus = async (req, res) => {
+  if (!['Owner', 'masterStaff', 'Staff'].includes(req.user.role)) {
+    return res.status(403).json({ message: "This account cannot update sales." });
+  }
+
+  const ownerId = await getOwnerId(req);
+  const sale = await Sale.findOne({ _id: req.params.id, ownerId }).lean();
+  if (!sale) {
+    return res.status(404).json({ message: "Sale not found." });
+  }
+
+  const updated = await Sale.findOneAndUpdate(
+    { _id: sale._id, ownerId },
+    { $set: req.validated },
+    { new: true },
+  );
+
+  return res.json({ message: "Sale updated.", sale: updated });
 };

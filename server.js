@@ -21,9 +21,6 @@ if (config.nodeEnv === "production") {
   }
 }
 
-// TLS is terminated by the deployment proxy in production. These headers keep
-// browser traffic HTTPS-only and prevent confidential API responses from being
-// retained in intermediary caches.
 app.set("trust proxy", 1);
 app.use(
   helmet({
@@ -142,6 +139,7 @@ app.use("/api/fish", require("./server/routes/fishRoutes"));
 app.use("/api/store", require("./server/routes/storeRoutes"));
 app.use("/api/notes", require("./server/routes/noteRoutes"));
 app.use("/api/sales", require("./server/routes/salesRoutes"));
+app.use("/api/orders", require("./server/routes/orderRoutes"));
 app.use("/api/operations", require("./server/routes/operationsRoutes"));
 app.use("/api/payroll", require("./server/routes/payrollRoutes"));
 

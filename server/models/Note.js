@@ -25,12 +25,26 @@ const noteSchema = new mongoose.Schema(
         message: "Note text cannot be blank.",
       },
     },
+    visibility: {
+      type: String,
+      enum: ["public", "private"],
+      default: "public",
+      index: true,
+    },
+    isTask: { type: Boolean, default: false, index: true },
+    taskStatus: {
+      type: String,
+      enum: ["pending", "done"],
+      default: "pending",
+      index: true,
+    },
+    completedBy: { type: String, trim: true, maxlength: 120, default: "" },
     resolved: { type: Boolean, default: false },
     pinned: { type: Boolean, default: false },
   },
   { timestamps: true },
 );
 
-noteSchema.index({ ownerId: 1, pinned: -1, createdAt: -1 });
+noteSchema.index({ ownerId: 1, visibility: 1, pinned: -1, createdAt: -1 });
 
 module.exports = mongoose.model("Note", noteSchema);

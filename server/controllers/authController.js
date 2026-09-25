@@ -231,13 +231,38 @@ async function verifyRecoveryCode(user, recoveryCode) {
 // Helper function to create Nodemailer transporter
 const createTransporter = () => {
   return nodemailer.createTransport({
-    service: "gmail",
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true,
+    family: 4,
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS,
     },
   });
 };
+
+const buildCodeEmailHtml = ({ title, subtitle, code, helperText, footerText }) => `
+  <div style="margin:0;padding:32px 16px;background:#edf7fb;font-family:Arial,Helvetica,sans-serif;color:#12314a;">
+    <div style="max-width:560px;margin:0 auto;border:1px solid #d8ebf3;border-radius:18px;overflow:hidden;background:#ffffff;box-shadow:0 10px 30px rgba(16, 76, 98, 0.08);">
+      <div style="background:linear-gradient(135deg,#0d4a5f,#0a6c7d);padding:22px 28px;color:#ffffff;">
+        <div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;opacity:0.9;">Fishonitory</div>
+        <div style="margin-top:8px;font-size:28px;font-weight:700;line-height:1.2;">${title}</div>
+      </div>
+      <div style="padding:28px 24px 20px;">
+        <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#3d5d6b;">${subtitle}</p>
+        <div style="margin:18px 0 8px;text-align:center;padding:20px 16px;border-radius:12px;background:#f3fafb;border:1px solid #d4edf2;">
+          <div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#4d7b88;margin-bottom:10px;font-weight:700;">Your code</div>
+          <div style="font-size:36px;letter-spacing:8px;font-weight:800;color:#0a4c63;">${code}</div>
+        </div>
+        <p style="margin:16px 0 0;font-size:14px;line-height:1.7;color:#496a76;">${helperText}</p>
+      </div>
+      <div style="padding:0 24px 24px;font-size:12px;color:#6b8591;">
+        <div style="border-top:1px solid #e5edf1;padding-top:14px;">${footerText}</div>
+      </div>
+    </div>
+  </div>
+`;
 
 // Send OTP muna
 exports.sendOtp = async (req, res) => {
@@ -272,7 +297,14 @@ exports.sendOtp = async (req, res) => {
         from: `"Fishonitory" <${process.env.EMAIL_USER}>`,
         to: email,
         subject: "Fishonitory - Registration Verification OTP",
-        text: `Your 6-digit verification code is: ${generatedOTP}. This code will expire in 5 minutes.`,
+        text: `Your Fishonitory verification code is ${generatedOTP}. It expires in 5 minutes.`,
+        html: buildCodeEmailHtml({
+          title: "Verify your account",
+          subtitle: "Use the code below to continue creating your Fishonitory account.",
+          code: String(generatedOTP).padStart(6, "0"),
+          helperText: "This code will expire in 5 minutes. For your security, never share it with anyone.",
+          footerText: "Fishonitory · Secure account verification",
+        }),
       });
     } catch (emailErr) {
       console.error("Nodemailer failed to send the OTP email.");
@@ -385,7 +417,14 @@ exports.requestPasswordReset = async (req, res) => {
           from: `"Fishonitory" <${process.env.EMAIL_USER}>`,
           to: email,
           subject: "Fishonitory - Password Reset Code",
-          text: `Your Fishonitory password reset code is: ${otp}. It expires in 5 minutes. If you did not request this, you can ignore this email.`,
+          text: `Your Fishonitory password reset code is ${otp}. It expires in 5 minutes. If you did not request this, you can ignore this email.`,
+          html: buildCodeEmailHtml({
+            title: "Reset your password",
+            subtitle: "A password reset request was made for your Fishonitory account.",
+            code: String(otp).padStart(6, "0"),
+            helperText: "Use this code to continue with your password reset. If you did not request it, you can safely ignore this email.",
+            footerText: "This reset code expires in 5 minutes.",
+          }),
         });
       } catch (mailError) {
         pendingPasswordResets.delete(email);
@@ -675,7 +714,14 @@ exports.startTotpReset = async (req, res) => {
       from: `"Fishonitory" <${process.env.EMAIL_USER}>`,
       to: user.email,
       subject: "Fishonitory - Authenticator Reset Code",
-      text: `Your authenticator reset code is: ${code}. It expires in 5 minutes. If you did not request this, change your password immediately.`,
+      text: `Your authenticator reset code is ${code}. It expires in 5 minutes. If you did not request this, change your password immediately.`,
+      html: buildCodeEmailHtml({
+        title: "Recover your authenticator",
+        subtitle: "Use the code below to reset your Fishonitory authenticator setup.",
+        code: String(code).padStart(6, "0"),
+        helperText: "This code expires in 5 minutes. If you did not request this reset, change your password immediately.",
+        footerText: "Fishonitory security notice",
+      }),
     });
     return res.json({
       message: "A reset code was sent to your account email.",
