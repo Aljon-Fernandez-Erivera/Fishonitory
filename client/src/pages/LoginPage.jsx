@@ -174,6 +174,7 @@ function LoginPage() {
         setErrors({});
         return;
       }
+      sessionStorage.setItem("fishonitory_login_success", "1");
       login(data.token, data.user.role);
       const destination =
         data.user.role === "masterStaff"
@@ -192,6 +193,7 @@ function LoginPage() {
         destination,
       });
     } catch (error) {
+      sessionStorage.removeItem("fishonitory_login_success");
       setDialog({
         title: lockSeconds ? "Login temporarily locked" : "Unable to sign in",
         message: friendly(error.message),
@@ -257,6 +259,7 @@ function LoginPage() {
         dialog={dialog}
         onClose={() => {
           const destination = dialog?.destination;
+          sessionStorage.removeItem("fishonitory_login_success");
           setDialog(null);
           if (destination) navigate(destination);
         }}

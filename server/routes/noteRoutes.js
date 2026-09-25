@@ -1,5 +1,6 @@
 const express = require("express");
 const authMiddleware = require("../middleware/authMiddleware");
+const { requireRole } = require("../middleware/authorization");
 const noteController = require("../controllers/noteController");
 const {
   validateNoteCreate,
@@ -9,6 +10,7 @@ const {
 
 const router = express.Router();
 router.use(authMiddleware);
+router.use(requireRole(["Owner", "masterStaff", "Staff"]));
 
 router.get("/", noteController.listNotes);
 router.post("/", validateNoteCreate, noteController.createNote);
