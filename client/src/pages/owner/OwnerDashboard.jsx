@@ -835,11 +835,16 @@ const handleSaveShiftAssignment = async (assignment) => {
     }
   };
 
-  const handleAddNote = async (text) => {
+  const handleAddNote = async (payload = {}) => {
     try {
       await apiRequest("/notes", {
         method: "POST",
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({
+          text: payload.text,
+          visibility: payload.visibility || "public",
+          isTask: Boolean(payload.isTask),
+          taskStatus: payload.isTask ? payload.taskStatus || "pending" : "pending",
+        }),
       });
       setMessage("Note added successfully.");
       await loadDashboardData();
