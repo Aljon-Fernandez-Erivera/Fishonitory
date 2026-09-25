@@ -45,18 +45,25 @@ function secondsUntil(date) {
 }
 
 function setAuthCookie(res, token, role) {
+  // Cross-site cookies (frontend and backend on different domains, as in
+  // production: Vercel + Render) require SameSite=None, which itself
+  // requires Secure. Locally, frontend and backend share "localhost" so
+  // Lax still works there.
+  const sameSite = config.nodeEnv === "production" ? "None" : "Lax";
   const secure = config.nodeEnv === "production" ? "; Secure" : "";
   res.setHeader("Set-Cookie", [
-    `${cookieNameForRole(role)}=${encodeURIComponent(token)}; HttpOnly; Path=/; Max-Age=86400; SameSite=Lax${secure}`,
-    "access_token=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax",
+    `${cookieNameForRole(role)}=${encodeURIComponent(token)}; HttpOnly; Path=/; Max-Age=86400; SameSite=${sameSite}${secure}`,
+    `access_token=; HttpOnly; Path=/; Max-Age=0; SameSite=${sameSite}${secure}`,
   ]);
 }
 
 function clearAuthCookie(res, role) {
   const cookieName = cookieNameForRole(role) || "access_token";
+  const sameSite = config.nodeEnv === "production" ? "None" : "Lax";
+  const secure = config.nodeEnv === "production" ? "; Secure" : "";
   res.setHeader(
     "Set-Cookie",
-    `${cookieName}=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax`,
+    `${cookieName}=; HttpOnly; Path=/; Max-Age=0; SameSite=${sameSite}${secure}`,
   );
 }
 
