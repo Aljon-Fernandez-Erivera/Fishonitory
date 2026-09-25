@@ -1020,69 +1020,63 @@
   }
 }
 
-@media (max-width: 800px) {
-  .owner-dashboard {
-    display: block;
+/* Mobile + tablet: sidebar stays as a normal, in-flow horizontal bar
+   (logo row + scrollable nav row), never a fixed overlay drawer. The
+   hamburger toggle and backdrop are only needed for the old drawer
+   pattern, so they're hidden here — the sidebar is always visible. */
+@media (max-width: 1024px) {
+  .owner-mobile-menu-toggle,
+  .owner-mobile-backdrop {
+    display: none !important;
   }
 
-  .owner-mobile-menu-toggle {
-    display: inline-flex;
+  .owner-dashboard-main {
+    flex-direction: column !important;
   }
 
   .owner-sidebar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    z-index: 50;
-    width: min(82vw, 300px);
-    height: 100dvh;
-    min-height: 100dvh;
-    border-right: 1px solid rgba(207, 239, 242, 0.08);
-    border-bottom: 0;
-    box-shadow: 18px 0 36px rgba(1, 12, 22, 0.42);
-    transform: translateX(-110%);
+    position: static !important;
+    transform: none !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    box-shadow: none !important;
+    border-right: 0 !important;
+    border-bottom: 1px solid rgba(207, 239, 242, 0.08) !important;
   }
 
-  .owner-sidebar.is-open {
-    transform: translateX(0);
-  }
-
-  .owner-mobile-menu-toggle.is-open {
-    left: calc(min(82vw, 300px) - 0.8rem);
-  }
-
-  .owner-mobile-menu-toggle.is-open span:nth-child(1) {
-    transform: translateY(6px) rotate(45deg);
-  }
-
-  .owner-mobile-menu-toggle.is-open span:nth-child(2) {
-    opacity: 0;
-  }
-
-  .owner-mobile-menu-toggle.is-open span:nth-child(3) {
-    transform: translateY(-6px) rotate(-45deg);
-  }
-  
-.owner-sidebar nav {
-    display: flex;
-    flex-direction: row;
-    flex-wrap: nowrap;
-    overflow-x: auto;
+  .owner-sidebar nav {
+    flex: none !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    -webkit-overflow-scrolling: touch;
   }
 
   .owner-sidebar nav button {
+    flex: 0 0 auto;
     white-space: nowrap;
   }
-  .logout-button {
-    margin-top: 0;
+
+  .owner-sidebar .mt-auto {
+    margin-top: 0.75rem !important;
   }
 
   .owner-workspace {
-    padding-top: 4.5rem !important;
+    padding-top: 1.5rem !important;
   }
 
   .stats-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Tighter nav button sizing on small phones specifically. */
+@media (max-width: 480px) {
+  .owner-sidebar nav button {
+    padding: 0.5rem 0.65rem;
+    font-size: 0.7rem;
   }
 }
 
@@ -1344,4 +1338,3 @@
   border-color: #fde68a !important;
   color: #92400e !important;
 }
-
