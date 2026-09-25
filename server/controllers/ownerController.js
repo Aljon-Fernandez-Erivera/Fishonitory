@@ -53,10 +53,14 @@ const decryptPendingPassword = (ciphertext) => {
 
 const createTransporter = () =>
   nodemailer.createTransport({
-    service: "gmail",
+    host: "smtp.gmail.com",
+    port: 587,
+    secure: false,
+    requireTLS: true,
+    family: 4,
     auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
   });
-
+  
 function normaliseBusinessFeatures(input) {
   if (!input || typeof input !== "object" || Array.isArray(input)) {
     throw new Error("Business features must be a valid settings object.");
