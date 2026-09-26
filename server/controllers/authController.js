@@ -228,7 +228,7 @@ async function verifyRecoveryCode(user, recoveryCode) {
   return false;
 }
 
-// Helper function to create Nodemailer transporter
+// Helper ng function para makapag create ng Nodemailer transporter
 const createTransporter = () => {
   return nodemailer.createTransport({
     host: "smtp.gmail.com",
