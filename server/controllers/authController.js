@@ -304,7 +304,7 @@ exports.sendOtp = async (req, res) => {
     try {
       const resend = await getResend();
 
-      await resend.emails.send({
+      const { data, error } = await resend.emails.send({
         from: "Fishonitory <onboarding@resend.dev>",
         to: email,
         subject: "Fishonitory - Registration Verification OTP",
@@ -319,6 +319,16 @@ exports.sendOtp = async (req, res) => {
           footerText: "Fishonitory · Secure account verification",
         }),
       });
+
+      if (error) {
+        console.error("RESEND ERROR:", error);
+
+        return res.status(500).json({
+          message: "We could not send the verification code right now.",
+        });
+      }
+
+      console.log("RESEND SUCCESS:", data);
     } catch (emailErr) {
       console.error("Resend failed to send the OTP email.");
       console.error("Email error:", emailErr.message || emailErr);
