@@ -1,7 +1,6 @@
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const { randomInt } = require("crypto");
-const { Resend } = require("resend");
 const User = require("../models/User");
 const Attendance = require("../models/Attendance");
 const LoginAttempt = require("../models/LoginAttempt");
@@ -45,10 +44,6 @@ function secondsUntil(date) {
 }
 
 function setAuthCookie(res, token, role) {
-  // Cross-site cookies (frontend and backend on different domains, as in
-  // production: Vercel + Render) require SameSite=None, which itself
-  // requires Secure. Locally, frontend and backend share "localhost" so
-  // Lax still works there.
   const sameSite = config.nodeEnv === "production" ? "None" : "Lax";
   const secure = config.nodeEnv === "production" ? "; Secure" : "";
   res.setHeader("Set-Cookie", [
@@ -228,18 +223,44 @@ async function verifyRecoveryCode(user, recoveryCode) {
   return false;
 }
 
-// Resend client. This replaces the old Nodemailer/Gmail SMTP transporter:
-// Render blocks outbound SMTP ports (25/465/587) on its free web-service
-// tier, so a raw SMTP connection to smtp.gmail.com never gets a chance to
-// authenticate — it fails at the network layer. Resend sends over a normal
-// HTTPS API call instead, which is unaffected by that block.
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Brevo transactional email. This replaced Nodemailer/Gmail SMTP (Render
+// blocks outbound SMTP ports on its free tier) and then Resend (its shared
+// sender address only accepts recipients matching your own Resend account
+// email until a domain is verified). Brevo's Single Sender Verification lets
+// a plain Gmail address send to any recipient on the free tier, over a plain
+// HTTPS POST -- no SMTP socket involved, so Render's port block never applies.
+const BREVO_API_KEY = process.env.BREVO_API_KEY;
+const EMAIL_FROM = process.env.EMAIL_FROM; // the Gmail address verified as a Sender in Brevo
+const EMAIL_FROM_NAME = process.env.EMAIL_FROM_NAME || "Fishonitory";
 
-// Until a custom domain is verified in the Resend dashboard, you can only
-// send from Resend's shared address. Set EMAIL_FROM once a domain (e.g.
-// notifications@fishonitory.com) is verified, and this switches over
-// automatically with no code changes needed.
-const EMAIL_FROM = process.env.EMAIL_FROM || "onboarding@resend.dev";
+async function sendEmail({ to, subject, html, text }) {
+  const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+    method: "POST",
+    headers: {
+      "api-key": BREVO_API_KEY,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({
+      sender: { name: EMAIL_FROM_NAME, email: EMAIL_FROM },
+      to: [{ email: to }],
+      subject,
+      htmlContent: html,
+      textContent: text,
+    }),
+  });
+
+  if (!response.ok) {
+    let details;
+    try {
+      details = await response.json();
+    } catch {
+      details = await response.text();
+    }
+    return { error: { status: response.status, details } };
+  }
+  return { error: null };
+}
 
 const buildCodeEmailHtml = ({ title, subtitle, code, helperText, footerText }) => `
   <div style="margin:0;padding:32px 16px;background:#edf7fb;font-family:Arial,Helvetica,sans-serif;color:#12314a;">
@@ -268,30 +289,24 @@ exports.sendOtp = async (req, res) => {
   try {
     const rawEmail = req.body.email;
 
-    //check kung may email sa request
     if (!rawEmail) {
       return res.status(400).json({ message: "Email is required." });
     }
     const email = rawEmail.trim().toLowerCase();
 
-    //check kung email ay gamit na ng iba
     const existingUser = await User.findOne({ email }).exec();
     if (existingUser) {
       return res.status(400).json({ message: "Email is already registered." });
     }
 
-    // Generate 6-digit integer OTP
     const generatedOTP = randomInt(100000, 1000000);
 
-    // Save in memory tas mag expire ng 5 mins
     pendingOTPs.set(email, {
       otp: generatedOTP,
       expiresAt: Date.now() + 5 * 60 * 1000,
     });
 
-    // Try sending email via Resend
-    const { error: emailErr } = await resend.emails.send({
-      from: `Fishonitory <${EMAIL_FROM}>`,
+    const { error: emailErr } = await sendEmail({
       to: email,
       subject: "Fishonitory - Registration Verification OTP",
       text: `Your Fishonitory verification code is ${generatedOTP}. It expires in 5 minutes.`,
@@ -305,22 +320,20 @@ exports.sendOtp = async (req, res) => {
     });
 
     if (emailErr) {
-      console.error("Resend failed to send the OTP email.");
+      console.error("Brevo failed to send the OTP email.");
       console.error("Email error:", emailErr);
       console.error(
-        "Check RESEND_API_KEY, and confirm EMAIL_FROM uses a verified Resend domain (or leave unset to use onboarding@resend.dev).",
+        "Check BREVO_API_KEY and confirm EMAIL_FROM matches the address verified as a Sender in Brevo.",
       );
       return res.status(500).json({
         message:
           "We could not send the verification code right now. Please try again later.",
       });
     }
-    //message confirmation once successful na generate and send ng OTP at nasend sa email
     res.json({
       message:
         "OTP has been sent to your email address. Please check your inbox or spam folder.",
     });
-    //nasa RegisterBusinessPage.jsx yung error handling kung may error sa backend.
   } catch (err) {
     console.error("--- DB / OTP ERROR DETAILS ---");
     console.error(err);
@@ -395,8 +408,7 @@ exports.verifyAndRegister = async (req, res) => {
   }
 };
 
-// Send a password-reset code. The response is deliberately the same whether
-// or not an account exists, so email addresses cannot be discovered from this endpoint.
+// Send a password-reset code.
 exports.requestPasswordReset = async (req, res) => {
   try {
     const email = req.body.email.trim().toLowerCase();
@@ -411,8 +423,7 @@ exports.requestPasswordReset = async (req, res) => {
         expiresAt: Date.now() + 5 * 60 * 1000,
       });
 
-      const { error: mailError } = await resend.emails.send({
-        from: `Fishonitory <${EMAIL_FROM}>`,
+      const { error: mailError } = await sendEmail({
         to: email,
         subject: "Fishonitory - Password Reset Code",
         text: `Your Fishonitory password reset code is ${otp}. It expires in 5 minutes. If you did not request this, you can ignore this email.`,
@@ -560,7 +571,6 @@ exports.login = async (req, res) => {
       await user.save({ validateBeforeSave: false });
     }
 
-    // Older accounts may still have role Staff while their position is Master Staff.
     const loginRole =
       user.role === "masterStaff" || user.staffPosition === "Master Staff"
         ? "masterStaff"
@@ -592,9 +602,6 @@ exports.login = async (req, res) => {
       return res.status(401).json({ message: "Invalid email or password." });
     }
 
-    // MFA is a required part of every session, regardless of the account role.
-    // Accounts created before MFA was introduced are enrolled here, after their
-    // password has been verified, rather than being granted a password-only session.
     if (!user.totpEnabled) {
       const enrollmentToken = jwt.sign(
         { userId: user._id, role: loginRole, purpose: "totp-enroll" },
@@ -684,9 +691,6 @@ exports.verifyTotpLogin = async (req, res) => {
   }
 };
 
-// Losing an authenticator must not reduce MFA to password-only access. A
-// password-verified login challenge plus a short-lived code sent to the
-// account email is required before a new authenticator can be enrolled.
 exports.startTotpReset = async (req, res) => {
   try {
     const challenge = jwt.verify(
@@ -710,8 +714,7 @@ exports.startTotpReset = async (req, res) => {
       role: challenge.role,
     });
 
-    const { error: sendErr } = await resend.emails.send({
-      from: `Fishonitory <${EMAIL_FROM}>`,
+    const { error: sendErr } = await sendEmail({
       to: user.email,
       subject: "Fishonitory - Authenticator Reset Code",
       text: `Your authenticator reset code is ${code}. It expires in 5 minutes. If you did not request this, change your password immediately.`,
@@ -824,10 +827,6 @@ exports.cancelTotpSetup = async (req, res) => {
   }
 };
 
-// These endpoints complete the first-time MFA enrollment initiated after a
-// successful password check. They deliberately accept only a short-lived,
-// purpose-bound token and never create an authenticated browser session until
-// the authenticator code is verified.
 exports.startRequiredTotpEnrollment = async (req, res) => {
   try {
     const challenge = jwt.verify(
@@ -850,7 +849,6 @@ exports.startRequiredTotpEnrollment = async (req, res) => {
         config.totpEncryptionKey,
       );
       user.totpSetupExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
-      // Do not block MFA enrollment on unrelated legacy profile data.
       await user.save({ validateBeforeSave: false });
     }
     const secret = decryptSecret(
@@ -911,8 +909,6 @@ exports.confirmRequiredTotpEnrollment = async (req, res) => {
       recoveryCodes.map((value) => bcrypt.hash(value, 10)),
     );
     await user.save({ validateBeforeSave: false });
-    // This endpoint is intentionally unauthenticated until MFA succeeds, so
-    // supply the verified challenge identity to the audit helper explicitly.
     const auditRequest = Object.create(req);
     auditRequest.user = { userId: user._id, role: challenge.role };
     await writeAudit(
