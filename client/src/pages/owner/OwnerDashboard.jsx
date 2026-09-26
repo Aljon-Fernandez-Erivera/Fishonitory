@@ -103,7 +103,7 @@ async function apiRequest(path, options = {}) {
     error.code = "SYSTEM_UNAVAILABLE";
     throw error;
   }
-const data = await response.json();
+  const data = await response.json();
   if (!response.ok) {
     const error = new Error(data.message || "Request failed.");
     error.code = data.code;
@@ -163,7 +163,7 @@ function OwnerDashboard() {
   const [workspaceSetupOpen, setWorkspaceSetupOpen] = useState(false);
   const [workspaceSaving, setWorkspaceSaving] = useState(false);
   const [workspaceError, setWorkspaceError] = useState("");
-const pollingRequestInFlight = useRef(false);
+  const pollingRequestInFlight = useRef(false);
   const lastToastRef = useRef("");
   const [shiftTemplates, setShiftTemplates] = useState([]);
   const [lateDeductionAmount, setLateDeductionAmount] = useState(0);
@@ -201,35 +201,35 @@ const pollingRequestInFlight = useRef(false);
       setSystemUnavailable(false);
     }
     try {
- const [
-          staffData,
-          attendanceData,
-          fishData,
-          tankData,
-          noteData,
-          salesData,
-          purchaseData,
-          mortalityData,
-          auditData,
-          payrollData,
-          workspaceData,
-          shiftData,
-          shiftAssignmentsData,
-        ] = await Promise.all([
-          apiRequest("/owner/staff"),
-          apiRequest("/attendance"),
-          apiRequest("/fish"),
-          apiRequest("/store/tanks"),
-          apiRequest("/notes"),
-          apiRequest("/sales"),
-          apiRequest("/operations/purchases"),
-          apiRequest("/operations/mortality"),
-          apiRequest("/operations/audit-logs"),
-          apiRequest("/payroll"),
-          apiRequest("/owner/workspace-settings"),
-          apiRequest("/attendance/shift-templates"),
-          apiRequest("/attendance/shift-assignments"),
-        ]);
+      const [
+        staffData,
+        attendanceData,
+        fishData,
+        tankData,
+        noteData,
+        salesData,
+        purchaseData,
+        mortalityData,
+        auditData,
+        payrollData,
+        workspaceData,
+        shiftData,
+        shiftAssignmentsData,
+      ] = await Promise.all([
+        apiRequest("/owner/staff"),
+        apiRequest("/attendance"),
+        apiRequest("/fish"),
+        apiRequest("/store/tanks"),
+        apiRequest("/notes"),
+        apiRequest("/sales"),
+        apiRequest("/operations/purchases"),
+        apiRequest("/operations/mortality"),
+        apiRequest("/operations/audit-logs"),
+        apiRequest("/payroll"),
+        apiRequest("/owner/workspace-settings"),
+        apiRequest("/attendance/shift-templates"),
+        apiRequest("/attendance/shift-assignments"),
+      ]);
       setStaff(staffData.staff);
       setAttendance(attendanceData.records);
       setFish(fishData.fish);
@@ -268,35 +268,37 @@ const pollingRequestInFlight = useRef(false);
     }
   };
 
-const handleSaveShiftAssignment = async (assignment) => {
-      try {
-        await apiRequest("/attendance/shift-assignments", {
-          method: "POST",
-          body: JSON.stringify(assignment),
-        });
-        setMessage("Shift assigned for that date.");
-        await loadDashboardData();
-      } catch (requestError) {
-        setError(requestError.message);
-      }
-    };
-
-    const handleDeleteShiftAssignment = async (id) => {
-      const confirmation = await confirmOceanicAction({
-        title: "Remove shift assignment?",
-        text: "This will delete the assigned shift for the selected date.",
-        confirmButtonText: "Remove assignment",
+  const handleSaveShiftAssignment = async (assignment) => {
+    try {
+      await apiRequest("/attendance/shift-assignments", {
+        method: "POST",
+        body: JSON.stringify(assignment),
       });
-      if (!confirmation.isConfirmed) return;
+      setMessage("Shift assigned for that date.");
+      await loadDashboardData();
+    } catch (requestError) {
+      setError(requestError.message);
+    }
+  };
 
-      try {
-        await apiRequest(`/attendance/shift-assignments/${id}`, { method: "DELETE" });
-        setMessage("Shift assignment removed.");
-        await loadDashboardData();
-      } catch (requestError) {
-        setError(requestError.message);
-      }
-    };
+  const handleDeleteShiftAssignment = async (id) => {
+    const confirmation = await confirmOceanicAction({
+      title: "Remove shift assignment?",
+      text: "This will delete the assigned shift for the selected date.",
+      confirmButtonText: "Remove assignment",
+    });
+    if (!confirmation.isConfirmed) return;
+
+    try {
+      await apiRequest(`/attendance/shift-assignments/${id}`, {
+        method: "DELETE",
+      });
+      setMessage("Shift assignment removed.");
+      await loadDashboardData();
+    } catch (requestError) {
+      setError(requestError.message);
+    }
+  };
 
   // purchase handler
   const handlePurchase = async (purchase) => {
@@ -843,7 +845,9 @@ const handleSaveShiftAssignment = async (assignment) => {
           text: payload.text,
           visibility: payload.visibility || "public",
           isTask: Boolean(payload.isTask),
-          taskStatus: payload.isTask ? payload.taskStatus || "pending" : "pending",
+          taskStatus: payload.isTask
+            ? payload.taskStatus || "pending"
+            : "pending",
         }),
       });
       setMessage("Note added successfully.");
@@ -853,7 +857,7 @@ const handleSaveShiftAssignment = async (assignment) => {
     }
   };
 
-const handleSavePayroll = async (payrollData) => {
+  const handleSavePayroll = async (payrollData) => {
     try {
       const data = await apiRequest("/payroll", {
         method: "POST",
@@ -1020,27 +1024,27 @@ const handleSavePayroll = async (payrollData) => {
             onStatus={handleStaffStatus}
           />
         );
-case "attendance":
-          return (
-            <Attendance
-              records={attendance}
-              staff={staff.filter(
-                (item) =>
-                  item.role === "Staff" && item.staffPosition !== "Master Staff",
-              )}
-              onSetStaffAttendance={handleSetStaffAttendance}
-              onDelete={handleDeleteAttendance}
-              shiftTemplates={shiftTemplates}
-              lateDeductionAmount={lateDeductionAmount}
-              onSaveShiftTemplate={handleSaveShiftTemplate}
-              onDeleteShiftTemplate={handleDeleteShiftTemplate}
-              onAssignStaffShift={handleAssignStaffShift}
-              onUpdateLateDeductionAmount={handleUpdateLateDeductionAmount}
-              shiftAssignments={shiftAssignments}
-              onSaveShiftAssignment={handleSaveShiftAssignment}
-              onDeleteShiftAssignment={handleDeleteShiftAssignment}
-            />
-          );
+      case "attendance":
+        return (
+          <Attendance
+            records={attendance}
+            staff={staff.filter(
+              (item) =>
+                item.role === "Staff" && item.staffPosition !== "Master Staff",
+            )}
+            onSetStaffAttendance={handleSetStaffAttendance}
+            onDelete={handleDeleteAttendance}
+            shiftTemplates={shiftTemplates}
+            lateDeductionAmount={lateDeductionAmount}
+            onSaveShiftTemplate={handleSaveShiftTemplate}
+            onDeleteShiftTemplate={handleDeleteShiftTemplate}
+            onAssignStaffShift={handleAssignStaffShift}
+            onUpdateLateDeductionAmount={handleUpdateLateDeductionAmount}
+            shiftAssignments={shiftAssignments}
+            onSaveShiftAssignment={handleSaveShiftAssignment}
+            onDeleteShiftAssignment={handleDeleteShiftAssignment}
+          />
+        );
       case "inventory":
         return (
           <Inventory
@@ -1174,7 +1178,9 @@ case "attendance":
     <main className="owner-dashboard-main box-border flex h-[100dvh] min-h-0 w-full flex-col overflow-hidden bg-[radial-gradient(circle_at_88%_12%,#0a5267_0%,#08465d_42%,#021a31_100%)] text-[#c9e1e5] md:flex-row">
       <button
         type="button"
-        aria-label={sidebarOpen ? "Close dashboard menu" : "Open dashboard menu"}
+        aria-label={
+          sidebarOpen ? "Close dashboard menu" : "Open dashboard menu"
+        }
         aria-expanded={sidebarOpen}
         className={`owner-mobile-menu-toggle ${sidebarOpen ? "is-open" : ""}`}
         onClick={() => setSidebarOpen((open) => !open)}
@@ -1190,7 +1196,9 @@ case "attendance":
         aria-hidden="true"
       />
 
-      <aside className={`owner-sidebar box-border flex w-full shrink-0 flex-col overflow-hidden border-b border-cyan-100/[.08] bg-[#062f43] px-4 py-3 md:h-full md:w-56 md:border-b-0 md:border-r md:px-3 md:pt-4 md:pb-4 ${sidebarOpen ? "is-open" : ""}`}>
+      <aside
+        className={`owner-sidebar box-border flex w-full shrink-0 flex-col overflow-hidden border-b border-cyan-100/[.08] bg-[#062f43] px-4 py-3 md:h-full md:w-56 md:border-b-0 md:border-r md:px-3 md:pt-4 md:pb-4 ${sidebarOpen ? "is-open" : ""}`}
+      >
         <button
           type="button"
           onClick={() => window.location.reload()}
@@ -1387,7 +1395,7 @@ case "attendance":
       </aside>
 
       <div className="owner-workspace min-h-0 min-w-0 flex-1 overflow-y-auto px-4 py-6 sm:px-5 lg:px-5 lg:py-8">
-        <header className="mb-7 flex w-full max-w-7xl items-start justify-between gap-4 border-b border-sky-100/10 pb-5">
+        <header className="mb-7 flex w-full max-w-7xl flex-wrap items-start justify-between gap-3 border-b border-sky-100/10 pb-5">
           <div>
             <p className="font-['Poppins'] text-[0.65rem] font-medium tracking-[0.16em] text-[#73c4ca]">
               BUSINESS CONTROL CENTER
@@ -1401,7 +1409,7 @@ case "attendance":
               })}
             </p>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex w-full shrink-0 items-center justify-between gap-2 sm:w-auto sm:justify-end">
             <span className="inline-flex items-center gap-2 rounded-full border border-sky-100/10 bg-white/[.04] px-3 py-1.5 font-['Poppins'] text-xs text-[#a8c9d0]">
               <span
                 className={`h-1.5 w-1.5 rounded-full bg-[#73c4ca] shadow-[0_0_10px_#73c4ca] ${
