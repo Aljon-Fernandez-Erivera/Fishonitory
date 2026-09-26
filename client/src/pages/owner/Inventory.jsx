@@ -45,8 +45,7 @@ function Inventory({
     );
 
     setSpeciesMode(
-      nextForm.species &&
-        !existingSpecies.includes(nextForm.species)
+      nextForm.species && !existingSpecies.includes(nextForm.species)
         ? "new"
         : "select",
     );
@@ -83,9 +82,7 @@ function Inventory({
         photoUrl,
       }));
     } catch (error) {
-      window.alert(
-        error.message || "Could not upload the image.",
-      );
+      window.alert(error.message || "Could not upload the image.");
 
       event.target.value = "";
     }
@@ -129,18 +126,18 @@ function Inventory({
             )
           }
         >
-          + Add Item
+          Add Item
         </button>
       </div>
 
       {/* CATEGORY TABS */}
-      <div className="grid grid-cols-2 rounded-2xl border border-sky-100/10 bg-[#05263d] p-1">
+      <div className="flex items-center gap-2 rounded-xl border border-sky-100/10 p-1">
         <button
           type="button"
-          className={`min-h-[42px] rounded-xl px-4 py-2.5 font-['Poppins'] text-sm font-medium transition ${
+          className={`min-h-42px rounded-xl px-5 py-2.5 font-['Poppins'] text-base font-medium transition ${
             categoryView === "Fish"
               ? "bg-[#73c4ca] text-[#052d45] shadow-sm"
-              : "text-[#89afb9] hover:bg-white/[.05] hover:text-[#d9ecef]"
+              : "bg-transparent text-[#89afb9] hover:bg-white/[.05] hover:text-[#d9ecef]"
           }`}
           onClick={() => setCategoryView("Fish")}
         >
@@ -149,10 +146,10 @@ function Inventory({
 
         <button
           type="button"
-          className={`min-h-[42px] rounded-xl px-4 py-2.5 font-['Poppins'] text-sm font-medium transition ${
+          className={`min-h-[42px] rounded-xl px-5 py-2.5 font-['Poppins'] text-base font-medium transition ${
             categoryView === "Fish Food"
               ? "bg-[#73c4ca] text-[#052d45] shadow-sm"
-              : "text-[#89afb9] hover:bg-white/[.05] hover:text-[#d9ecef]"
+              : "bg-transparent text-[#89afb9] hover:bg-white/[.05] hover:text-[#d9ecef]"
           }`}
           onClick={() => setCategoryView("Fish Food")}
         >
@@ -184,9 +181,7 @@ function Inventory({
               )}
 
               <span className="absolute right-2 top-2 max-w-[75%] truncate rounded-lg bg-black/55 px-2.5 py-1.5 font-['Poppins'] text-xs font-medium text-[#bce9e9] backdrop-blur-sm">
-                {item.species ||
-                  item.description ||
-                  "Fish"}
+                {item.species || item.description || "Fish"}
               </span>
             </div>
 
@@ -201,15 +196,10 @@ function Inventory({
 
               <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 font-['Poppins'] text-xs text-[#a8c6cc]">
                 <span>
-                  Stock:{" "}
-                  <b className="text-[#d9ecef]">
-                    {item.quantity}
-                  </b>
+                  Stock: <b className="text-[#d9ecef]">{item.quantity}</b>
                 </span>
 
-                {item.tankId?.name && (
-                  <span>{item.tankId.name}</span>
-                )}
+                {item.tankId?.name && <span>{item.tankId.name}</span>}
               </div>
 
               <div className="mt-4 grid grid-cols-2 gap-2">
@@ -220,14 +210,10 @@ function Inventory({
                     openForm(
                       {
                         ...item,
-                        tankId:
-                          item.tankId?._id ||
-                          item.tankId ||
-                          "",
+                        tankId: item.tankId?._id || item.tankId || "",
                         price: item.price ?? "",
                         costPrice: item.costPrice ?? "",
-                        category:
-                          item.category || "Fish",
+                        category: item.category || "Fish",
                       },
                       item._id,
                     )
@@ -255,29 +241,6 @@ function Inventory({
             <p className="mt-3 font-['Poppins'] text-sm text-[#9bbec7]">
               No {categoryView.toLowerCase()} items yet.
             </p>
-
-            <button
-              type="button"
-              onClick={() =>
-                openForm(
-                  {
-                    name: "",
-                    species: "",
-                    category: categoryView,
-                    tankId: "",
-                    price: "",
-                    costPrice: "",
-                    quantity: "",
-                    description: "",
-                    photoUrl: "",
-                  },
-                  null,
-                )
-              }
-              className="mt-4 rounded-xl bg-[#73c4ca]/10 px-4 py-2.5 font-['Poppins'] text-xs font-semibold text-[#73c4ca] hover:bg-[#73c4ca]/20"
-            >
-              + Add {categoryView}
-            </button>
           </div>
         )}
       </div>
@@ -311,9 +274,7 @@ function Inventory({
                   id="fish-dialog-title"
                   className="mt-1 font-['Fraunces'] text-xl font-medium text-[#d9ecef]"
                 >
-                  {editingFishId
-                    ? "Edit Item"
-                    : "Add Fish / Fish Food"}
+                  {editingFishId ? "Edit Item" : "Add Fish / Fish Food"}
                 </h3>
               </div>
 
@@ -340,7 +301,6 @@ function Inventory({
               {/* NAME */}
               <label className="flex flex-col gap-1.5 font-['Poppins'] text-xs font-medium text-[#a9c8cf]">
                 Fish Name
-
                 {nameMode === "new" ? (
                   <input
                     className="min-h-[44px] rounded-xl border border-sky-100/10 bg-white/[.06] px-3 text-sm text-[#d9ecef] outline-none focus:border-[#73c4ca]"
@@ -356,16 +316,10 @@ function Inventory({
                     className="min-h-[44px] rounded-xl border border-sky-100/10 bg-[#062d48] px-3 text-sm text-[#d9ecef] outline-none focus:border-[#73c4ca]"
                     name="name"
                     value={
-                      existingNames.includes(
-                        fishForm.name,
-                      )
-                        ? fishForm.name
-                        : ""
+                      existingNames.includes(fishForm.name) ? fishForm.name : ""
                     }
                     onChange={(event) => {
-                      if (
-                        event.target.value === NEW_OPTION
-                      ) {
+                      if (event.target.value === NEW_OPTION) {
                         setNameMode("new");
 
                         setFishForm((previous) => ({
@@ -380,9 +334,7 @@ function Inventory({
                     }}
                     required
                   >
-                    <option value="">
-                      Choose a name
-                    </option>
+                    <option value="">Choose a name</option>
 
                     {existingNames.map((name) => (
                       <option key={name} value={name}>
@@ -390,35 +342,30 @@ function Inventory({
                       </option>
                     ))}
 
-                    <option value={NEW_OPTION}>
-                      + Add new name
-                    </option>
+                    <option value={NEW_OPTION}>+ Add new name</option>
                   </select>
                 )}
+                {nameMode === "new" && existingNames.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNameMode("select");
 
-                {nameMode === "new" &&
-                  existingNames.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setNameMode("select");
-
-                        setFishForm((previous) => ({
-                          ...previous,
-                          name: "",
-                        }));
-                      }}
-                      className="mt-1 w-fit bg-transparent p-0 text-left font-['Poppins'] text-xs text-[#73c4ca] underline"
-                    >
-                      Choose existing name
-                    </button>
-                  )}
+                      setFishForm((previous) => ({
+                        ...previous,
+                        name: "",
+                      }));
+                    }}
+                    className="mt-1 w-fit bg-transparent p-0 text-left font-['Poppins'] text-xs text-[#73c4ca] underline"
+                  >
+                    Choose existing name
+                  </button>
+                )}
               </label>
 
               {/* CATEGORY */}
               <label className="flex flex-col gap-1.5 font-['Poppins'] text-xs font-medium text-[#a9c8cf]">
                 Category
-
                 <select
                   className="min-h-[44px] rounded-xl border border-sky-100/10 bg-[#062d48] px-3 text-sm text-[#d9ecef] outline-none focus:border-[#73c4ca]"
                   name="category"
@@ -427,9 +374,7 @@ function Inventory({
                   required
                 >
                   <option value="Fish">Fish</option>
-                  <option value="Fish Food">
-                    Fish Food
-                  </option>
+                  <option value="Fish Food">Fish Food</option>
                 </select>
               </label>
 
@@ -437,7 +382,6 @@ function Inventory({
               {fishForm.category !== "Fish Food" && (
                 <label className="flex flex-col gap-1.5 font-['Poppins'] text-xs font-medium text-[#a9c8cf]">
                   Tank
-
                   <select
                     className="min-h-[44px] rounded-xl border border-sky-100/10 bg-[#062d48] px-3 text-sm text-[#d9ecef] outline-none focus:border-[#73c4ca]"
                     name="tankId"
@@ -445,22 +389,16 @@ function Inventory({
                     onChange={updateField}
                     required
                   >
-                    <option value="">
-                      Choose a tank first
-                    </option>
+                    <option value="">Choose a tank first</option>
 
                     {tanks.map((tank) => (
                       <option
                         key={tank._id}
                         value={tank._id}
-                        disabled={
-                          tank.status ===
-                          "Under Maintenance"
-                        }
+                        disabled={tank.status === "Under Maintenance"}
                       >
                         {tank.name} ({tank.status})
-                        {tank.status ===
-                        "Under Maintenance"
+                        {tank.status === "Under Maintenance"
                           ? " - unavailable"
                           : ""}
                       </option>
@@ -473,7 +411,6 @@ function Inventory({
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <label className="flex flex-col gap-1.5 font-['Poppins'] text-xs font-medium text-[#a9c8cf]">
                   Selling Price
-
                   <input
                     className="min-h-[44px] rounded-xl border border-sky-100/10 bg-white/[.06] px-3 text-sm text-[#d9ecef] outline-none focus:border-[#73c4ca]"
                     type="number"
@@ -489,7 +426,6 @@ function Inventory({
 
                 <label className="flex flex-col gap-1.5 font-['Poppins'] text-xs font-medium text-[#a9c8cf]">
                   Cost Price
-
                   <input
                     className="min-h-[44px] rounded-xl border border-sky-100/10 bg-white/[.06] px-3 text-sm text-[#d9ecef] outline-none focus:border-[#73c4ca]"
                     type="number"
@@ -507,7 +443,6 @@ function Inventory({
               {/* SPECIES */}
               <label className="flex flex-col gap-1.5 font-['Poppins'] text-xs font-medium text-[#a9c8cf]">
                 Species
-
                 {speciesMode === "new" ? (
                   <input
                     className="min-h-[44px] rounded-xl border border-sky-100/10 bg-white/[.06] px-3 text-sm text-[#d9ecef] outline-none focus:border-[#73c4ca]"
@@ -522,16 +457,12 @@ function Inventory({
                     className="min-h-[44px] rounded-xl border border-sky-100/10 bg-[#062d48] px-3 text-sm text-[#d9ecef] outline-none focus:border-[#73c4ca]"
                     name="species"
                     value={
-                      existingSpecies.includes(
-                        fishForm.species,
-                      )
+                      existingSpecies.includes(fishForm.species)
                         ? fishForm.species
                         : ""
                     }
                     onChange={(event) => {
-                      if (
-                        event.target.value === NEW_OPTION
-                      ) {
+                      if (event.target.value === NEW_OPTION) {
                         setSpeciesMode("new");
 
                         setFishForm((previous) => ({
@@ -546,9 +477,7 @@ function Inventory({
                     }}
                     required
                   >
-                    <option value="">
-                      Choose a species
-                    </option>
+                    <option value="">Choose a species</option>
 
                     {existingSpecies.map((species) => (
                       <option key={species} value={species}>
@@ -556,35 +485,30 @@ function Inventory({
                       </option>
                     ))}
 
-                    <option value={NEW_OPTION}>
-                      + Add new species
-                    </option>
+                    <option value={NEW_OPTION}>+ Add new species</option>
                   </select>
                 )}
+                {speciesMode === "new" && existingSpecies.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSpeciesMode("select");
 
-                {speciesMode === "new" &&
-                  existingSpecies.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSpeciesMode("select");
-
-                        setFishForm((previous) => ({
-                          ...previous,
-                          species: "",
-                        }));
-                      }}
-                      className="mt-1 w-fit bg-transparent p-0 text-left font-['Poppins'] text-xs text-[#73c4ca] underline"
-                    >
-                      Choose existing species
-                    </button>
-                  )}
+                      setFishForm((previous) => ({
+                        ...previous,
+                        species: "",
+                      }));
+                    }}
+                    className="mt-1 w-fit bg-transparent p-0 text-left font-['Poppins'] text-xs text-[#73c4ca] underline"
+                  >
+                    Choose existing species
+                  </button>
+                )}
               </label>
 
               {/* QUANTITY */}
               <label className="flex flex-col gap-1.5 font-['Poppins'] text-xs font-medium text-[#a9c8cf]">
                 Quantity
-
                 <input
                   className="min-h-[44px] rounded-xl border border-sky-100/10 bg-white/[.06] px-3 text-sm text-[#d9ecef] outline-none focus:border-[#73c4ca]"
                   type="number"
@@ -600,7 +524,6 @@ function Inventory({
               {/* DESCRIPTION */}
               <label className="flex flex-col gap-1.5 font-['Poppins'] text-xs font-medium text-[#a9c8cf]">
                 Description
-
                 <textarea
                   className="min-h-[90px] resize-none rounded-xl border border-sky-100/10 bg-white/[.06] px-3 py-2.5 text-sm text-[#d9ecef] outline-none focus:border-[#73c4ca]"
                   name="description"
@@ -616,7 +539,6 @@ function Inventory({
                 <span className="text-[10px] font-normal text-[#789faa]">
                   Optional · JPG or PNG · maximum 3 MB
                 </span>
-
                 <div className="flex flex-col gap-3 rounded-2xl border border-sky-100/15 bg-[#052235] p-3 sm:flex-row sm:items-center">
                   {fishForm.photoUrl ? (
                     <img
