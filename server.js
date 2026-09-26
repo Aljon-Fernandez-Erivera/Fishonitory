@@ -10,6 +10,7 @@ const app = express();
 const DB_RETRY_DELAY_MS = 10_000;
 let reconnectTimer = null;
 let connectionAttemptInProgress = false;
+let payrollBackfillRan = false;
 
 if (config.nodeEnv === "production") {
   const required = ["EMAIL_USER", "EMAIL_PASS", "CLIENT_URL"];
@@ -21,6 +22,9 @@ if (config.nodeEnv === "production") {
   }
 }
 
+// TLS is terminated by the deployment proxy in production. These headers keep
+// browser traffic HTTPS-only and prevent confidential API responses from being
+// retained in intermediary caches.
 app.set("trust proxy", 1);
 app.use(
   helmet({
@@ -56,6 +60,15 @@ app.use(express.json({ limit: "2mb" }));
 // Monitor Mongoose connection events globally
 mongoose.connection.on("connected", () => {
   console.log(">>> Mongoose event: Connected to MongoDB Atlas <<<");
+  // Runs once, the first time a connection actually succeeds — not blocking
+  // server startup, so a slow or temporarily-unreachable Atlas cluster can
+  // never delay app.listen() (and therefore Render's port scan) again.
+  if (!payrollBackfillRan) {
+    payrollBackfillRan = true;
+    Payroll.backfillMissingBenefitTypes().catch((err) => {
+      console.error("Payroll backfill failed:", err.message);
+    });
+  }
 });
 
 mongoose.connection.on("error", (err) => {
@@ -149,28 +162,14 @@ app.use((error, req, res, next) => {
   return res.status(error.statusCode || 500).json({ message: error.statusCode ? error.message : "An unexpected server error occurred." });
 });
 
-// LEGACY STARTUP ORDER (saved for easy rollback):
-// app.listen(config.port, () => {
-//   console.log(`Server running on http://localhost:${config.port}`);
-//   console.log("Connecting to MongoDB Atlas...");
-//   connectToDatabase();
-// });
-
-async function startServer() {
+// Port binding happens immediately and unconditionally. Render's port scan
+// only waits so long — if it doesn't see an open port in that window, the
+// deploy is declared failed, regardless of anything else going on in the
+// process. The database connection (and everything that depends on it, like
+// the Payroll backfill above) happens in the background afterward and can
+// retry indefinitely without ever blocking the port from being bound.
+app.listen(config.port, () => {
+  console.log(`Server running on http://localhost:${config.port}`);
   console.log("Connecting to MongoDB Atlas...");
-
-  try {
-    await connectToDatabase();
-    await Payroll.backfillMissingBenefitTypes();
-    app.listen(config.port, () => {
-      console.log(`Server running on http://localhost:${config.port}`);
-    });
-  } catch (error) {
-    console.error("MongoDB connection failed during startup. Starting server in degraded mode.");
-    app.listen(config.port, () => {
-      console.log(`Server running on http://localhost:${config.port}`);
-    });
-  }
-}
-
-startServer();
+  connectToDatabase();
+});
