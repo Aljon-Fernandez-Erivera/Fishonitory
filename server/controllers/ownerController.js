@@ -1,5 +1,4 @@
 const bcrypt = require("bcryptjs");
-const { Resend } = require("resend");
 const { randomInt } = require("crypto");
 const crypto = require("crypto");
 const User = require("../models/User");
@@ -49,11 +48,43 @@ const decryptPendingPassword = (ciphertext) => {
   ]).toString("utf8");
 };
 
-// Same Resend client/env vars as authController.js — see the comment there
-// for why this replaced Nodemailer/Gmail SMTP (Render blocks SMTP ports on
-// its free tier; Resend sends over HTTPS instead).
-const resend = new Resend(process.env.RESEND_API_KEY);
-const EMAIL_FROM = process.env.EMAIL_FROM || "onboarding@resend.dev";
+// Same Brevo setup as authController.js -- see the comment there for why
+// this replaced Nodemailer/Gmail SMTP (Render blocks SMTP ports on its free
+// tier) and Resend (shared sender restricted to your own email until domain
+// verification). Brevo's Single Sender Verification lets a plain Gmail
+// address send to any recipient on the free tier, over plain HTTPS.
+const BREVO_API_KEY = process.env.BREVO_API_KEY;
+const EMAIL_FROM = process.env.EMAIL_FROM;
+const EMAIL_FROM_NAME = process.env.EMAIL_FROM_NAME || "Fishonitory";
+
+async function sendEmail({ to, subject, html, text }) {
+  const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+    method: "POST",
+    headers: {
+      "api-key": BREVO_API_KEY,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({
+      sender: { name: EMAIL_FROM_NAME, email: EMAIL_FROM },
+      to: [{ email: to }],
+      subject,
+      htmlContent: html,
+      textContent: text,
+    }),
+  });
+
+  if (!response.ok) {
+    let details;
+    try {
+      details = await response.json();
+    } catch {
+      details = await response.text();
+    }
+    return { error: { status: response.status, details } };
+  }
+  return { error: null };
+}
 
 function normaliseBusinessFeatures(input) {
   if (!input || typeof input !== "object" || Array.isArray(input)) {
@@ -73,7 +104,6 @@ function normaliseBusinessFeatures(input) {
     }
   }
 
-  // Payroll needs staff records and attendance data to calculate pay safely.
   if (!features.staff) {
     features.attendance = false;
     features.payroll = false;
@@ -183,8 +213,7 @@ exports.sendStaffOtp = async (req, res) => {
     { upsert: true, new: true, runValidators: true },
   );
 
-  const { error: sendErr } = await resend.emails.send({
-    from: `Fishonitory <${EMAIL_FROM}>`,
+  const { error: sendErr } = await sendEmail({
     to: email,
     subject: "Fishonitory - Staff Registration OTP",
     text: `Your Fishonitory staff registration code is ${otp}. It expires in 5 minutes.`,
@@ -212,7 +241,7 @@ exports.sendStaffOtp = async (req, res) => {
   });
 
   if (sendErr) {
-    console.error("Resend failed to send the staff OTP email.", sendErr);
+    console.error("Brevo failed to send the staff OTP email.", sendErr);
     await PendingStaffRegistration.deleteOne({ ownerId: req.user.userId, email });
     return res.status(500).json({ message: "OTP could not be sent." });
   }
@@ -380,15 +409,14 @@ exports.sendStaffDeletionOtp = async (req, res) => {
     expiresAt: Date.now() + 5 * 60 * 1000,
   });
 
-  const { error: sendErr } = await resend.emails.send({
-    from: `Fishonitory <${EMAIL_FROM}>`,
+  const { error: sendErr } = await sendEmail({
     to: owner.email,
     subject: "Fishonitory - Staff Account Deletion Verification",
     text: `Your deletion verification code for ${staff.staffName}'s staff account is ${otp}. It expires in 5 minutes. Do not share this code.`,
   });
 
   if (sendErr) {
-    console.error("Resend failed to send the staff deletion OTP email.", sendErr);
+    console.error("Brevo failed to send the staff deletion OTP email.", sendErr);
     pendingStaffDeletionOTPs.delete(key);
     return res.status(503).json({ message: "We could not send the deletion verification code. Please try again." });
   }
