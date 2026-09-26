@@ -498,7 +498,11 @@ exports.resetPassword = async (req, res) => {
     user.password = req.body.password;
     user.failedLoginAttempts = 0;
     user.loginLockedUntil = null;
-    await user.save();
+    // Skip full-document validation here: this endpoint is only changing the
+    // password, and revalidating unrelated fields (like a phoneNumber saved
+    // before E.164 formatting was enforced) would otherwise block a
+    // legitimate password reset over pre-existing, unrelated data.
+    await user.save({ validateBeforeSave: false });
     pendingPasswordResets.delete(email);
     clearAuthCookie(res);
     return res.json({
