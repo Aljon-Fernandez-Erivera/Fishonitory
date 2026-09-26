@@ -21,6 +21,7 @@
     "mongoose": "^9.9.4",
     "multer": "^2.2.0",
     "multer-storage-cloudinary": "^4.0.0",
+    "resend": "^6.30.0",
     "sequelize": "^6.37.8",
     "sqlite3": "^6.0.1",
     "validator": "^13.15.35"

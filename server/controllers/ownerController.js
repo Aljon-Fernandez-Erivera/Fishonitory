@@ -1,5 +1,6 @@
 const bcrypt = require("bcryptjs");
-const nodemailer = require("nodemailer");
+const { Resend } = require("resend");
+const resend = new Resend(process.env.RESEND_API_KEY);
 const { randomInt } = require("crypto");
 const crypto = require("crypto");
 const User = require("../models/User");
@@ -49,15 +50,17 @@ const decryptPendingPassword = (ciphertext) => {
   ]).toString("utf8");
 };
 
-const createTransporter = () =>
-  nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 587,
-    secure: false,
-    requireTLS: true,
-    family: 4,
-    auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
-  });
+await resend.emails.send({
+  from: "Fishonitory <onboarding@resend.dev>",
+  to: email,
+  subject: "Fishonitory - Staff Registration OTP",
+  text: `Your Fishonitory staff verification code is ${otp}. It expires in 5 minutes.`,
+  html: `
+    <p>Your Fishonitory staff verification code is:</p>
+    <h2>${otp}</h2>
+    <p>This code will expire in 5 minutes.</p>
+  `,
+});
 
 function normaliseBusinessFeatures(input) {
   if (!input || typeof input !== "object" || Array.isArray(input)) {
