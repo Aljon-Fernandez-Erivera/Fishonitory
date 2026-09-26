@@ -20,8 +20,6 @@ const DEFAULT_BUSINESS_FEATURES = Object.freeze(
   Object.fromEntries(FEATURE_KEYS.map((key) => [key, true])),
 );
 
-// Kept separate from staff-registration, owner-registration, and password-reset
-// codes so a code issued for one action can never authorize another action.
 const pendingStaffDeletionOTPs = new Map();
 
 const deletionOtpKey = (ownerId, staffId) => `${ownerId}:${staffId}`;
@@ -60,7 +58,7 @@ const createTransporter = () =>
     family: 4,
     auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
   });
-  
+
 function normaliseBusinessFeatures(input) {
   if (!input || typeof input !== "object" || Array.isArray(input)) {
     throw new Error("Business features must be a valid settings object.");
