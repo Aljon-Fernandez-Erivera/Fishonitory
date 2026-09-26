@@ -1,8 +1,10 @@
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const { randomInt } = require("crypto");
-const { Resend } = require("resend");
-const resend = new Resend(process.env.RESEND_API_KEY);
+const getResend = async () => {
+  const { Resend } = await import("resend");
+  return new Resend(process.env.RESEND_API_KEY);
+};
 const User = require("../models/User");
 const Attendance = require("../models/Attendance");
 const LoginAttempt = require("../models/LoginAttempt");
@@ -300,6 +302,8 @@ exports.sendOtp = async (req, res) => {
 
     // Try sending email via Nodemailer
     try {
+      const resend = await getResend();
+
       await resend.emails.send({
         from: "Fishonitory <onboarding@resend.dev>",
         to: email,
@@ -420,8 +424,10 @@ exports.requestPasswordReset = async (req, res) => {
         expiresAt: Date.now() + 5 * 60 * 1000,
       });
       try {
-        await createTransporter().sendMail({
-          from: `"Fishonitory" <${process.env.EMAIL_USER}>`,
+        const resend = await getResend();
+
+        await resend.emails.send({
+          from: "Fishonitory <onboarding@resend.dev>",
           to: email,
           subject: "Fishonitory - Password Reset Code",
           text: `Your Fishonitory password reset code is ${otp}. It expires in 5 minutes. If you did not request this, you can ignore this email.`,
@@ -707,8 +713,10 @@ exports.startTotpReset = async (req, res) => {
       expiresAt: Date.now() + 5 * 60 * 1000,
       role: challenge.role,
     });
-    await createTransporter().sendMail({
-      from: `"Fishonitory" <${process.env.EMAIL_USER}>`,
+    const resend = await getResend();
+
+    await resend.emails.send({
+      from: "Fishonitory <onboarding@resend.dev>",
       to: user.email,
       subject: "Fishonitory - Authenticator Reset Code",
       text: `Your authenticator reset code is ${code}. It expires in 5 minutes. If you did not request this, change your password immediately.`,
