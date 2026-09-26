@@ -1,10 +1,7 @@
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const { randomInt } = require("crypto");
-const getResend = async () => {
-  const { Resend } = await import("resend");
-  return new Resend(process.env.RESEND_API_KEY);
-};
+const nodemailer = require("nodemailer");
 const User = require("../models/User");
 const Attendance = require("../models/Attendance");
 const LoginAttempt = require("../models/LoginAttempt");
@@ -37,7 +34,7 @@ const IP_LOCK_MS = 15 * 60 * 1000; //15mins
 
 //TOTP limit, totp limit ng 5 attempts
 const TOTP_ATTEMPT_LIMIT = 5; // 5 attempt totp
-const TOTP_LOCK_MS = 5 * 60 * 1000;
+const TOTP_LOCK_MS = 5 * 60 * 1000; 
 
 function getClientIp(req) {
   return req.ip || req.socket.remoteAddress || "unknown";
@@ -232,27 +229,21 @@ async function verifyRecoveryCode(user, recoveryCode) {
 }
 
 // Helper ng function para makapag create ng Nodemailer transporter
-//const createTransporter = () => {
-//  return nodemailer.createTransport({
-//    host: "smtp.gmail.com",
-//    port: 587,
-//    secure: false,
-//    requireTLS: true,
-//    family: 4,
-//    auth: {
-//      user: process.env.EMAIL_USER,
-//      pass: process.env.EMAIL_PASS,
-//    },
-//  });
-//};
+const createTransporter = () => {
+  return nodemailer.createTransport({
+    host: "smtp.gmail.com",
+    port: 587,
+    secure: false, 
+    requireTLS: true,
+    family: 4,
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+  });
+};
 
-const buildCodeEmailHtml = ({
-  title,
-  subtitle,
-  code,
-  helperText,
-  footerText,
-}) => `
+const buildCodeEmailHtml = ({ title, subtitle, code, helperText, footerText }) => `
   <div style="margin:0;padding:32px 16px;background:#edf7fb;font-family:Arial,Helvetica,sans-serif;color:#12314a;">
     <div style="max-width:560px;margin:0 auto;border:1px solid #d8ebf3;border-radius:18px;overflow:hidden;background:#ffffff;box-shadow:0 10px 30px rgba(16, 76, 98, 0.08);">
       <div style="background:linear-gradient(135deg,#0d4a5f,#0a6c7d);padding:22px 28px;color:#ffffff;">
@@ -302,35 +293,22 @@ exports.sendOtp = async (req, res) => {
 
     // Try sending email via Nodemailer
     try {
-      const resend = await getResend();
-
-      const { data, error } = await resend.emails.send({
-        from: "Fishonitory <onboarding@resend.dev>",
+      const transporter = createTransporter();
+      await transporter.sendMail({
+        from: `"Fishonitory" <${process.env.EMAIL_USER}>`,
         to: email,
         subject: "Fishonitory - Registration Verification OTP",
         text: `Your Fishonitory verification code is ${generatedOTP}. It expires in 5 minutes.`,
         html: buildCodeEmailHtml({
           title: "Verify your account",
-          subtitle:
-            "Use the code below to continue creating your Fishonitory account.",
+          subtitle: "Use the code below to continue creating your Fishonitory account.",
           code: String(generatedOTP).padStart(6, "0"),
-          helperText:
-            "This code will expire in 5 minutes. For your security, never share it with anyone.",
+          helperText: "This code will expire in 5 minutes. For your security, never share it with anyone.",
           footerText: "Fishonitory · Secure account verification",
         }),
       });
-
-      if (error) {
-        console.error("RESEND ERROR:", error);
-
-        return res.status(500).json({
-          message: "We could not send the verification code right now.",
-        });
-      }
-
-      console.log("RESEND SUCCESS:", data);
     } catch (emailErr) {
-      console.error("Resend failed to send the OTP email.");
+      console.error("Nodemailer failed to send the OTP email.");
       console.error("Email error:", emailErr.message || emailErr);
       console.error(
         "Check EMAIL_USER / EMAIL_PASS, and make sure Gmail App Passwords are being used.",
@@ -412,9 +390,11 @@ exports.verifyAndRegister = async (req, res) => {
     console.error("--- VERIFY / REGISTER ERROR DETAILS ---");
     console.error(err);
     console.error("----------------------------------------");
-    res.status(500).json({
-      message: "We could not create your account. Please try again later.",
-    });
+    res
+      .status(500)
+      .json({
+        message: "We could not create your account. Please try again later.",
+      });
   }
 };
 
@@ -434,20 +414,16 @@ exports.requestPasswordReset = async (req, res) => {
         expiresAt: Date.now() + 5 * 60 * 1000,
       });
       try {
-        const resend = await getResend();
-
-        await resend.emails.send({
-          from: "Fishonitory <onboarding@resend.dev>",
+        await createTransporter().sendMail({
+          from: `"Fishonitory" <${process.env.EMAIL_USER}>`,
           to: email,
           subject: "Fishonitory - Password Reset Code",
           text: `Your Fishonitory password reset code is ${otp}. It expires in 5 minutes. If you did not request this, you can ignore this email.`,
           html: buildCodeEmailHtml({
             title: "Reset your password",
-            subtitle:
-              "A password reset request was made for your Fishonitory account.",
+            subtitle: "A password reset request was made for your Fishonitory account.",
             code: String(otp).padStart(6, "0"),
-            helperText:
-              "Use this code to continue with your password reset. If you did not request it, you can safely ignore this email.",
+            helperText: "Use this code to continue with your password reset. If you did not request it, you can safely ignore this email.",
             footerText: "This reset code expires in 5 minutes.",
           }),
         });
@@ -457,10 +433,12 @@ exports.requestPasswordReset = async (req, res) => {
           "Password-reset email could not be sent.",
           mailError.message,
         );
-        return res.status(503).json({
-          message:
-            "We could not send a reset code right now. Please try again later.",
-        });
+        return res
+          .status(503)
+          .json({
+            message:
+              "We could not send a reset code right now. Please try again later.",
+          });
       }
     }
 
@@ -470,9 +448,11 @@ exports.requestPasswordReset = async (req, res) => {
     });
   } catch (error) {
     console.error("Password-reset request failed.", error);
-    return res.status(500).json({
-      message: "We could not process your request. Please try again later.",
-    });
+    return res
+      .status(500)
+      .json({
+        message: "We could not process your request. Please try again later.",
+      });
   }
 };
 
@@ -483,9 +463,11 @@ exports.resetPassword = async (req, res) => {
     const pending = pendingPasswordResets.get(email);
     if (!pending || Date.now() > pending.expiresAt) {
       pendingPasswordResets.delete(email);
-      return res.status(400).json({
-        message: "That reset code has expired. Please request a new one.",
-      });
+      return res
+        .status(400)
+        .json({
+          message: "That reset code has expired. Please request a new one.",
+        });
     }
     if (code !== String(pending.otp)) {
       return res
@@ -496,10 +478,12 @@ exports.resetPassword = async (req, res) => {
     const user = await User.findOne({ email }).select("+totpLockedUntil");
     if (!user || user.accountStatus === "Disabled") {
       pendingPasswordResets.delete(email);
-      return res.status(400).json({
-        message:
-          "This password cannot be reset right now. Please contact your business owner.",
-      });
+      return res
+        .status(400)
+        .json({
+          message:
+            "This password cannot be reset right now. Please contact your business owner.",
+        });
     }
 
     user.password = req.body.password;
@@ -513,9 +497,11 @@ exports.resetPassword = async (req, res) => {
     });
   } catch (error) {
     console.error("Password reset failed.", error);
-    return res.status(500).json({
-      message: "We could not reset your password. Please try again later.",
-    });
+    return res
+      .status(500)
+      .json({
+        message: "We could not reset your password. Please try again later.",
+      });
   }
 };
 
@@ -692,9 +678,11 @@ exports.verifyTotpLogin = async (req, res) => {
     await user.save({ validateBeforeSave: false });
     return completeLogin(req, res, user, challenge.role);
   } catch (error) {
-    return res.status(401).json({
-      message: "The login verification expired. Please sign in again.",
-    });
+    return res
+      .status(401)
+      .json({
+        message: "The login verification expired. Please sign in again.",
+      });
   }
 };
 
@@ -723,20 +711,16 @@ exports.startTotpReset = async (req, res) => {
       expiresAt: Date.now() + 5 * 60 * 1000,
       role: challenge.role,
     });
-    const resend = await getResend();
-
-    await resend.emails.send({
-      from: "Fishonitory <onboarding@resend.dev>",
+    await createTransporter().sendMail({
+      from: `"Fishonitory" <${process.env.EMAIL_USER}>`,
       to: user.email,
       subject: "Fishonitory - Authenticator Reset Code",
       text: `Your authenticator reset code is ${code}. It expires in 5 minutes. If you did not request this, change your password immediately.`,
       html: buildCodeEmailHtml({
         title: "Recover your authenticator",
-        subtitle:
-          "Use the code below to reset your Fishonitory authenticator setup.",
+        subtitle: "Use the code below to reset your Fishonitory authenticator setup.",
         code: String(code).padStart(6, "0"),
-        helperText:
-          "This code expires in 5 minutes. If you did not request this reset, change your password immediately.",
+        helperText: "This code expires in 5 minutes. If you did not request this reset, change your password immediately.",
         footerText: "Fishonitory security notice",
       }),
     });
@@ -745,9 +729,12 @@ exports.startTotpReset = async (req, res) => {
     });
   } catch (error) {
     console.error("MFA reset request failed:", error.message);
-    return res.status(400).json({
-      message: "We could not start authenticator reset. Please sign in again.",
-    });
+    return res
+      .status(400)
+      .json({
+        message:
+          "We could not start authenticator reset. Please sign in again.",
+      });
   }
 };
 
@@ -796,9 +783,11 @@ exports.confirmTotpReset = async (req, res) => {
     );
     return res.json({ mfaEnrollmentRequired: true, enrollmentToken });
   } catch (error) {
-    return res.status(400).json({
-      message: "We could not reset your authenticator. Please sign in again.",
-    });
+    return res
+      .status(400)
+      .json({
+        message: "We could not reset your authenticator. Please sign in again.",
+      });
   }
 };
 
@@ -822,9 +811,11 @@ exports.cancelTotpSetup = async (req, res) => {
     await user.save({ validateBeforeSave: false });
     return res.json({ message: "Authenticator setup cancelled." });
   } catch (error) {
-    return res.status(500).json({
-      message: "We could not cancel authenticator setup. Please try again.",
-    });
+    return res
+      .status(500)
+      .json({
+        message: "We could not cancel authenticator setup. Please try again.",
+      });
   }
 };
 
@@ -868,9 +859,11 @@ exports.startRequiredTotpEnrollment = async (req, res) => {
       expiresInSeconds: 600,
     });
   } catch (error) {
-    return res.status(401).json({
-      message: "The MFA enrollment request expired. Please sign in again.",
-    });
+    return res
+      .status(401)
+      .json({
+        message: "The MFA enrollment request expired. Please sign in again.",
+      });
   }
 };
 
@@ -927,10 +920,12 @@ exports.confirmRequiredTotpEnrollment = async (req, res) => {
     return completeLogin(req, res, user, challenge.role);
   } catch (error) {
     console.error("MFA enrollment confirmation failed:", error.message);
-    return res.status(401).json({
-      message:
-        "MFA enrollment could not be completed. Please sign in again and try a new current code.",
-    });
+    return res
+      .status(401)
+      .json({
+        message:
+          "MFA enrollment could not be completed. Please sign in again and try a new current code.",
+      });
   }
 };
 
@@ -1025,9 +1020,11 @@ exports.confirmTotpSetup = async (req, res) => {
 
 exports.disableTotp = async (req, res) => {
   try {
-    return res.status(403).json({
-      message: "MFA is required for all accounts and cannot be disabled.",
-    });
+    return res
+      .status(403)
+      .json({
+        message: "MFA is required for all accounts and cannot be disabled.",
+      });
     if (req.user.role !== "Owner")
       return res
         .status(403)

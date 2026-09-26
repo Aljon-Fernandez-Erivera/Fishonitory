@@ -1,8 +1,5 @@
 const bcrypt = require("bcryptjs");
-const getResend = async () => {
-  const { Resend } = await import("resend");
-  return new Resend(process.env.RESEND_API_KEY);
-};
+const nodemailer = require("nodemailer");
 const { randomInt } = require("crypto");
 const crypto = require("crypto");
 const User = require("../models/User");
@@ -34,10 +31,7 @@ const pendingPasswordKey = crypto
 const encryptPendingPassword = (password) => {
   const iv = crypto.randomBytes(12);
   const cipher = crypto.createCipheriv("aes-256-gcm", pendingPasswordKey, iv);
-  const encrypted = Buffer.concat([
-    cipher.update(password, "utf8"),
-    cipher.final(),
-  ]);
+  const encrypted = Buffer.concat([cipher.update(password, "utf8"), cipher.final()]);
   return `${iv.toString("hex")}:${cipher.getAuthTag().toString("hex")}:${encrypted.toString("hex")}`;
 };
 
@@ -55,16 +49,23 @@ const decryptPendingPassword = (ciphertext) => {
   ]).toString("utf8");
 };
 
+const createTransporter = () =>
+  nodemailer.createTransport({
+    host: "smtp.gmail.com",
+    port: 587,
+    secure: false,
+    requireTLS: true,
+    family: 4,
+    auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
+  });
+
 function normaliseBusinessFeatures(input) {
   if (!input || typeof input !== "object" || Array.isArray(input)) {
     throw new Error("Business features must be a valid settings object.");
   }
 
-  const unknownKeys = Object.keys(input).filter(
-    (key) => !FEATURE_KEYS.includes(key),
-  );
-  if (unknownKeys.length)
-    throw new Error("Business features contain an unsupported option.");
+  const unknownKeys = Object.keys(input).filter((key) => !FEATURE_KEYS.includes(key));
+  if (unknownKeys.length) throw new Error("Business features contain an unsupported option.");
 
   const features = { ...DEFAULT_BUSINESS_FEATURES };
   for (const key of FEATURE_KEYS) {
@@ -91,14 +92,10 @@ exports.getWorkspaceSettings = async (req, res) => {
   const owner = await User.findById(req.user.userId).select(
     "businessFeatures workspaceSetupCompleted",
   );
-  if (!owner)
-    return res.status(404).json({ message: "Owner account not found." });
+  if (!owner) return res.status(404).json({ message: "Owner account not found." });
 
   return res.json({
-    features: {
-      ...DEFAULT_BUSINESS_FEATURES,
-      ...(owner.businessFeatures?.toObject?.() || owner.businessFeatures || {}),
-    },
+    features: { ...DEFAULT_BUSINESS_FEATURES, ...(owner.businessFeatures?.toObject?.() || owner.businessFeatures || {}) },
     setupCompleted: Boolean(owner.workspaceSetupCompleted),
   });
 };
@@ -112,19 +109,15 @@ exports.updateWorkspaceSettings = async (req, res) => {
       { $set: { businessFeatures: features, workspaceSetupCompleted: true } },
       { new: true, runValidators: true },
     ).select("businessFeatures workspaceSetupCompleted");
-    if (!owner)
-      return res.status(404).json({ message: "Owner account not found." });
+    if (!owner) return res.status(404).json({ message: "Owner account not found." });
 
     return res.json({
-      message:
-        "Workspace settings saved. Your existing business records were kept.",
+      message: "Workspace settings saved. Your existing business records were kept.",
       features: owner.businessFeatures,
       setupCompleted: owner.workspaceSetupCompleted,
     });
   } catch (error) {
-    return res
-      .status(400)
-      .json({ message: error.message || "Workspace settings are invalid." });
+    return res.status(400).json({ message: error.message || "Workspace settings are invalid." });
   }
 };
 
@@ -172,9 +165,7 @@ exports.sendStaffOtp = async (req, res) => {
   if (!/^\+[1-9]\d{6,14}$/.test(staffPhoneNumber)) {
     return res
       .status(400)
-      .json({
-        message: "Staff phone number must use international E.164 format.",
-      });
+      .json({ message: "Staff phone number must use international E.164 format." });
   }
   if (await User.findOne({ email })) {
     return res.status(400).json({ message: "Email Already In Use" });
@@ -197,10 +188,8 @@ exports.sendStaffOtp = async (req, res) => {
   );
 
   try {
-    const resend = await getResend();
-
-    await resend.emails.send({
-      from: "Fishonitory <onboarding@resend.dev>",
+    await createTransporter().sendMail({
+      from: `"Fishonitory" <${process.env.EMAIL_USER}>`,
       to: email,
       subject: "Fishonitory - Staff Registration OTP",
       text: `Your Fishonitory staff registration code is ${otp}. It expires in 5 minutes.`,
@@ -228,10 +217,7 @@ exports.sendStaffOtp = async (req, res) => {
     });
     return res.json({ message: "OTP sent to the staff email." });
   } catch (error) {
-    await PendingStaffRegistration.deleteOne({
-      ownerId: req.user.userId,
-      email,
-    });
+    await PendingStaffRegistration.deleteOne({ ownerId: req.user.userId, email });
     return res.status(500).json({ message: "OTP could not be sent." });
   }
 };
@@ -246,10 +232,7 @@ exports.createStaff = async (req, res) => {
     email,
   });
   if (!pending || Date.now() > pending.expiresAt.getTime()) {
-    await PendingStaffRegistration.deleteOne({
-      ownerId: req.user.userId,
-      email,
-    });
+    await PendingStaffRegistration.deleteOne({ ownerId: req.user.userId, email });
     return res.status(400).json({ message: "OTP is missing or expired." });
   }
   if (String(otp) !== String(pending.otp)) {
@@ -334,9 +317,11 @@ exports.updateStaff = async (req, res) => {
     staffPhoneNumber,
   } = req.body;
   if (!staffName || !staffPosition || !staffEmail || !staffPhoneNumber) {
-    return res.status(400).json({
-      message: "Staff name, position, email, and phone are required.",
-    });
+    return res
+      .status(400)
+      .json({
+        message: "Staff name, position, email, and phone are required.",
+      });
   }
   const email = staffEmail.trim().toLowerCase();
   const duplicate = await User.findOne({ email, _id: { $ne: req.params.id } });
@@ -345,9 +330,7 @@ exports.updateStaff = async (req, res) => {
   if (!/^\+[1-9]\d{6,14}$/.test(staffPhoneNumber)) {
     return res
       .status(400)
-      .json({
-        message: "Staff phone number must use international E.164 format.",
-      });
+      .json({ message: "Staff phone number must use international E.164 format." });
   }
 
   const updates = {
@@ -391,9 +374,7 @@ exports.sendStaffDeletionOtp = async (req, res) => {
 
   const owner = await User.findById(req.user.userId).select("email");
   if (!owner?.email)
-    return res
-      .status(400)
-      .json({ message: "Owner email address is unavailable." });
+    return res.status(400).json({ message: "Owner email address is unavailable." });
 
   const otp = randomInt(100000, 1000000);
   const key = deletionOtpKey(req.user.userId, staff._id);
@@ -403,26 +384,16 @@ exports.sendStaffDeletionOtp = async (req, res) => {
   });
 
   try {
-    const resend = await getResend();
-
-    await resend.emails.send({
-      from: "Fishonitory <onboarding@resend.dev>",
+    await createTransporter().sendMail({
+      from: `"Fishonitory" <${process.env.EMAIL_USER}>`,
       to: owner.email,
       subject: "Fishonitory - Staff Account Deletion Verification",
       text: `Your deletion verification code for ${staff.staffName}'s staff account is ${otp}. It expires in 5 minutes. Do not share this code.`,
     });
-    return res.json({
-      message:
-        "A deletion verification code has been sent to your owner email.",
-    });
+    return res.json({ message: "A deletion verification code has been sent to your owner email." });
   } catch (error) {
     pendingStaffDeletionOTPs.delete(key);
-    return res
-      .status(503)
-      .json({
-        message:
-          "We could not send the deletion verification code. Please try again.",
-      });
+    return res.status(503).json({ message: "We could not send the deletion verification code. Please try again." });
   }
 };
 
@@ -433,19 +404,10 @@ exports.deleteStaff = async (req, res) => {
   const pending = pendingStaffDeletionOTPs.get(key);
   if (!pending || Date.now() > pending.expiresAt) {
     pendingStaffDeletionOTPs.delete(key);
-    return res
-      .status(400)
-      .json({
-        message:
-          "Deletion verification code is missing or expired. Request a new code.",
-      });
+    return res.status(400).json({ message: "Deletion verification code is missing or expired. Request a new code." });
   }
   if (String(req.body.otp) !== String(pending.otp)) {
-    return res
-      .status(400)
-      .json({
-        message: "Incorrect deletion verification code. Please try again.",
-      });
+    return res.status(400).json({ message: "Incorrect deletion verification code. Please try again." });
   }
 
   const staff = await User.findOneAndDelete({
