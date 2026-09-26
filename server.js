@@ -1,3 +1,8 @@
+// Force IPv4 DNS resolution app-wide. On Render, smtp.gmail.com can resolve
+// to an IPv6 address that Render's network cannot route outbound to, which
+// causes Nodemailer to fail with "connect ENETUNREACH 2607:f8b0:...". This
+// must run before anything else (Express, Mongoose, Nodemailer) does any
+// DNS lookups. Requires Node.js 18+.
 const dns = require("dns");
 dns.setDefaultResultOrder("ipv4first");
 
