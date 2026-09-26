@@ -1,5 +1,5 @@
 const bcrypt = require("bcryptjs");
-const nodemailer = require("nodemailer");
+const { Resend } = require("resend");
 const { randomInt } = require("crypto");
 const crypto = require("crypto");
 const User = require("../models/User");
@@ -49,15 +49,11 @@ const decryptPendingPassword = (ciphertext) => {
   ]).toString("utf8");
 };
 
-const createTransporter = () =>
-  nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 587,
-    secure: false,
-    requireTLS: true,
-    family: 4,
-    auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
-  });
+// Same Resend client/env vars as authController.js — see the comment there
+// for why this replaced Nodemailer/Gmail SMTP (Render blocks SMTP ports on
+// its free tier; Resend sends over HTTPS instead).
+const resend = new Resend(process.env.RESEND_API_KEY);
+const EMAIL_FROM = process.env.EMAIL_FROM || "onboarding@resend.dev";
 
 function normaliseBusinessFeatures(input) {
   if (!input || typeof input !== "object" || Array.isArray(input)) {
@@ -187,39 +183,40 @@ exports.sendStaffOtp = async (req, res) => {
     { upsert: true, new: true, runValidators: true },
   );
 
-  try {
-    await createTransporter().sendMail({
-      from: `"Fishonitory" <${process.env.EMAIL_USER}>`,
-      to: email,
-      subject: "Fishonitory - Staff Registration OTP",
-      text: `Your Fishonitory staff registration code is ${otp}. It expires in 5 minutes.`,
-      html: `
-        <div style="margin:0;padding:32px 16px;background:#edf7fb;font-family:Arial,Helvetica,sans-serif;color:#12314a;">
-          <div style="max-width:560px;margin:0 auto;border:1px solid #d8ebf3;border-radius:18px;overflow:hidden;background:#ffffff;box-shadow:0 10px 30px rgba(16, 76, 98, 0.08);">
-            <div style="background:linear-gradient(135deg,#0d4a5f,#0a6c7d);padding:22px 28px;color:#ffffff;">
-              <div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;opacity:0.9;">Fishonitory</div>
-              <div style="margin-top:8px;font-size:28px;font-weight:700;line-height:1.2;">Complete staff setup</div>
+  const { error: sendErr } = await resend.emails.send({
+    from: `Fishonitory <${EMAIL_FROM}>`,
+    to: email,
+    subject: "Fishonitory - Staff Registration OTP",
+    text: `Your Fishonitory staff registration code is ${otp}. It expires in 5 minutes.`,
+    html: `
+      <div style="margin:0;padding:32px 16px;background:#edf7fb;font-family:Arial,Helvetica,sans-serif;color:#12314a;">
+        <div style="max-width:560px;margin:0 auto;border:1px solid #d8ebf3;border-radius:18px;overflow:hidden;background:#ffffff;box-shadow:0 10px 30px rgba(16, 76, 98, 0.08);">
+          <div style="background:linear-gradient(135deg,#0d4a5f,#0a6c7d);padding:22px 28px;color:#ffffff;">
+            <div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;opacity:0.9;">Fishonitory</div>
+            <div style="margin-top:8px;font-size:28px;font-weight:700;line-height:1.2;">Complete staff setup</div>
+          </div>
+          <div style="padding:28px 24px 20px;">
+            <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#3d5d6b;">Use the one-time code below to finish registering your staff account.</p>
+            <div style="margin:18px 0 8px;text-align:center;padding:20px 16px;border-radius:12px;background:#f3fafb;border:1px solid #d4edf2;">
+              <div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#4d7b88;margin-bottom:10px;font-weight:700;">Verification code</div>
+              <div style="font-size:36px;letter-spacing:8px;font-weight:800;color:#0a4c63;">${String(otp).padStart(6, "0")}</div>
             </div>
-            <div style="padding:28px 24px 20px;">
-              <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#3d5d6b;">Use the one-time code below to finish registering your staff account.</p>
-              <div style="margin:18px 0 8px;text-align:center;padding:20px 16px;border-radius:12px;background:#f3fafb;border:1px solid #d4edf2;">
-                <div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#4d7b88;margin-bottom:10px;font-weight:700;">Verification code</div>
-                <div style="font-size:36px;letter-spacing:8px;font-weight:800;color:#0a4c63;">${String(otp).padStart(6, "0")}</div>
-              </div>
-              <p style="margin:16px 0 0;font-size:14px;line-height:1.7;color:#496a76;">This code expires in 5 minutes. Keep it private and do not share it with anyone.</p>
-            </div>
-            <div style="padding:0 24px 24px;font-size:12px;color:#6b8591;">
-              <div style="border-top:1px solid #e5edf1;padding-top:14px;">Fishonitory · Staff registration</div>
-            </div>
+            <p style="margin:16px 0 0;font-size:14px;line-height:1.7;color:#496a76;">This code expires in 5 minutes. Keep it private and do not share it with anyone.</p>
+          </div>
+          <div style="padding:0 24px 24px;font-size:12px;color:#6b8591;">
+            <div style="border-top:1px solid #e5edf1;padding-top:14px;">Fishonitory · Staff registration</div>
           </div>
         </div>
-      `,
-    });
-    return res.json({ message: "OTP sent to the staff email." });
-  } catch (error) {
+      </div>
+    `,
+  });
+
+  if (sendErr) {
+    console.error("Resend failed to send the staff OTP email.", sendErr);
     await PendingStaffRegistration.deleteOne({ ownerId: req.user.userId, email });
     return res.status(500).json({ message: "OTP could not be sent." });
   }
+  return res.json({ message: "OTP sent to the staff email." });
 };
 
 exports.createStaff = async (req, res) => {
@@ -383,18 +380,19 @@ exports.sendStaffDeletionOtp = async (req, res) => {
     expiresAt: Date.now() + 5 * 60 * 1000,
   });
 
-  try {
-    await createTransporter().sendMail({
-      from: `"Fishonitory" <${process.env.EMAIL_USER}>`,
-      to: owner.email,
-      subject: "Fishonitory - Staff Account Deletion Verification",
-      text: `Your deletion verification code for ${staff.staffName}'s staff account is ${otp}. It expires in 5 minutes. Do not share this code.`,
-    });
-    return res.json({ message: "A deletion verification code has been sent to your owner email." });
-  } catch (error) {
+  const { error: sendErr } = await resend.emails.send({
+    from: `Fishonitory <${EMAIL_FROM}>`,
+    to: owner.email,
+    subject: "Fishonitory - Staff Account Deletion Verification",
+    text: `Your deletion verification code for ${staff.staffName}'s staff account is ${otp}. It expires in 5 minutes. Do not share this code.`,
+  });
+
+  if (sendErr) {
+    console.error("Resend failed to send the staff deletion OTP email.", sendErr);
     pendingStaffDeletionOTPs.delete(key);
     return res.status(503).json({ message: "We could not send the deletion verification code. Please try again." });
   }
+  return res.json({ message: "A deletion verification code has been sent to your owner email." });
 };
 
 exports.deleteStaff = async (req, res) => {

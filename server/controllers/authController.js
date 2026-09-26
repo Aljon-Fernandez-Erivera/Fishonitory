@@ -1,7 +1,7 @@
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const { randomInt } = require("crypto");
-const nodemailer = require("nodemailer");
+const { Resend } = require("resend");
 const User = require("../models/User");
 const Attendance = require("../models/Attendance");
 const LoginAttempt = require("../models/LoginAttempt");
@@ -228,20 +228,18 @@ async function verifyRecoveryCode(user, recoveryCode) {
   return false;
 }
 
-// Helper ng function para makapag create ng Nodemailer transporter
-const createTransporter = () => {
-  return nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 587,
-    secure: false, 
-    requireTLS: true,
-    family: 4,
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
-  });
-};
+// Resend client. This replaces the old Nodemailer/Gmail SMTP transporter:
+// Render blocks outbound SMTP ports (25/465/587) on its free web-service
+// tier, so a raw SMTP connection to smtp.gmail.com never gets a chance to
+// authenticate — it fails at the network layer. Resend sends over a normal
+// HTTPS API call instead, which is unaffected by that block.
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+// Until a custom domain is verified in the Resend dashboard, you can only
+// send from Resend's shared address. Set EMAIL_FROM once a domain (e.g.
+// notifications@fishonitory.com) is verified, and this switches over
+// automatically with no code changes needed.
+const EMAIL_FROM = process.env.EMAIL_FROM || "onboarding@resend.dev";
 
 const buildCodeEmailHtml = ({ title, subtitle, code, helperText, footerText }) => `
   <div style="margin:0;padding:32px 16px;background:#edf7fb;font-family:Arial,Helvetica,sans-serif;color:#12314a;">
@@ -291,27 +289,26 @@ exports.sendOtp = async (req, res) => {
       expiresAt: Date.now() + 5 * 60 * 1000,
     });
 
-    // Try sending email via Nodemailer
-    try {
-      const transporter = createTransporter();
-      await transporter.sendMail({
-        from: `"Fishonitory" <${process.env.EMAIL_USER}>`,
-        to: email,
-        subject: "Fishonitory - Registration Verification OTP",
-        text: `Your Fishonitory verification code is ${generatedOTP}. It expires in 5 minutes.`,
-        html: buildCodeEmailHtml({
-          title: "Verify your account",
-          subtitle: "Use the code below to continue creating your Fishonitory account.",
-          code: String(generatedOTP).padStart(6, "0"),
-          helperText: "This code will expire in 5 minutes. For your security, never share it with anyone.",
-          footerText: "Fishonitory · Secure account verification",
-        }),
-      });
-    } catch (emailErr) {
-      console.error("Nodemailer failed to send the OTP email.");
-      console.error("Email error:", emailErr.message || emailErr);
+    // Try sending email via Resend
+    const { error: emailErr } = await resend.emails.send({
+      from: `Fishonitory <${EMAIL_FROM}>`,
+      to: email,
+      subject: "Fishonitory - Registration Verification OTP",
+      text: `Your Fishonitory verification code is ${generatedOTP}. It expires in 5 minutes.`,
+      html: buildCodeEmailHtml({
+        title: "Verify your account",
+        subtitle: "Use the code below to continue creating your Fishonitory account.",
+        code: String(generatedOTP).padStart(6, "0"),
+        helperText: "This code will expire in 5 minutes. For your security, never share it with anyone.",
+        footerText: "Fishonitory · Secure account verification",
+      }),
+    });
+
+    if (emailErr) {
+      console.error("Resend failed to send the OTP email.");
+      console.error("Email error:", emailErr);
       console.error(
-        "Check EMAIL_USER / EMAIL_PASS, and make sure Gmail App Passwords are being used.",
+        "Check RESEND_API_KEY, and confirm EMAIL_FROM uses a verified Resend domain (or leave unset to use onboarding@resend.dev).",
       );
       return res.status(500).json({
         message:
@@ -413,25 +410,26 @@ exports.requestPasswordReset = async (req, res) => {
         otp,
         expiresAt: Date.now() + 5 * 60 * 1000,
       });
-      try {
-        await createTransporter().sendMail({
-          from: `"Fishonitory" <${process.env.EMAIL_USER}>`,
-          to: email,
-          subject: "Fishonitory - Password Reset Code",
-          text: `Your Fishonitory password reset code is ${otp}. It expires in 5 minutes. If you did not request this, you can ignore this email.`,
-          html: buildCodeEmailHtml({
-            title: "Reset your password",
-            subtitle: "A password reset request was made for your Fishonitory account.",
-            code: String(otp).padStart(6, "0"),
-            helperText: "Use this code to continue with your password reset. If you did not request it, you can safely ignore this email.",
-            footerText: "This reset code expires in 5 minutes.",
-          }),
-        });
-      } catch (mailError) {
+
+      const { error: mailError } = await resend.emails.send({
+        from: `Fishonitory <${EMAIL_FROM}>`,
+        to: email,
+        subject: "Fishonitory - Password Reset Code",
+        text: `Your Fishonitory password reset code is ${otp}. It expires in 5 minutes. If you did not request this, you can ignore this email.`,
+        html: buildCodeEmailHtml({
+          title: "Reset your password",
+          subtitle: "A password reset request was made for your Fishonitory account.",
+          code: String(otp).padStart(6, "0"),
+          helperText: "Use this code to continue with your password reset. If you did not request it, you can safely ignore this email.",
+          footerText: "This reset code expires in 5 minutes.",
+        }),
+      });
+
+      if (mailError) {
         pendingPasswordResets.delete(email);
         console.error(
           "Password-reset email could not be sent.",
-          mailError.message,
+          mailError,
         );
         return res
           .status(503)
@@ -711,8 +709,9 @@ exports.startTotpReset = async (req, res) => {
       expiresAt: Date.now() + 5 * 60 * 1000,
       role: challenge.role,
     });
-    await createTransporter().sendMail({
-      from: `"Fishonitory" <${process.env.EMAIL_USER}>`,
+
+    const { error: sendErr } = await resend.emails.send({
+      from: `Fishonitory <${EMAIL_FROM}>`,
       to: user.email,
       subject: "Fishonitory - Authenticator Reset Code",
       text: `Your authenticator reset code is ${code}. It expires in 5 minutes. If you did not request this, change your password immediately.`,
@@ -724,6 +723,12 @@ exports.startTotpReset = async (req, res) => {
         footerText: "Fishonitory security notice",
       }),
     });
+    if (sendErr) {
+      console.error("MFA reset email failed to send:", sendErr);
+      return res
+        .status(500)
+        .json({ message: "We could not send the reset code. Please try again." });
+    }
     return res.json({
       message: "A reset code was sent to your account email.",
     });
