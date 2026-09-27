@@ -310,7 +310,9 @@ function RegisterBusinessPage() {
       {loading && (
         <LoadingOverlay
           label={
-            step === 1 ? "Sending verification code" : "Submitting your registration"
+            step === 1
+              ? "Sending verification code"
+              : "Submitting your registration"
           }
         />
       )}
@@ -543,24 +545,38 @@ function RegisterBusinessPage() {
                   </button>
                   {countryOpen && (
                     <div
-                      className={`absolute z-20 w-[260px] overflow-hidden rounded-md border border-[#76b6bd]/45 bg-white shadow-xl ${countryMenuUp ? "bottom-full mb-1" : "top-full mt-1"}`}
+                      className={`absolute z-50 w-[280px] overflow-hidden rounded-xl border border-[#4dccca]/30 bg-[#073b52] shadow-[0_12px_35px_rgba(0,0,0,0.35)] ${
+                        countryMenuUp ? "bottom-full mb-2" : "top-full mt-2"
+                      }`}
                     >
-                      <div className="border-b border-slate-200 p-2">
-                        <input
-                          className="box-border w-full rounded border border-slate-300 px-2 py-1.5 font-['Poppins'] text-xs text-slate-900 outline-none placeholder:text-slate-400 focus:border-[#279b9c]"
-                          type="search"
-                          value={countrySearch}
-                          onChange={(event) =>
-                            setCountrySearch(event.target.value)
-                          }
-                          placeholder="Search country"
-                          aria-label="Search country"
-                        />
+                      {/* Search */}
+                      <div className="border-b border-white/[.08] bg-[#06364c] p-2.5">
+                        <div className="relative">
+                          <span
+                            className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[#7faab0]"
+                            aria-hidden="true"
+                          >
+                            ⌕
+                          </span>
+
+                          <input
+                            className="box-border w-full rounded-lg border border-white/[.08] bg-white/[.07] py-2 pl-8 pr-3 font-['Poppins'] text-xs text-[#d8f1f1] outline-none transition placeholder:text-[#719aa1] focus:border-[#4dccca]/60 focus:bg-white/[.09]"
+                            type="search"
+                            value={countrySearch}
+                            onChange={(event) =>
+                              setCountrySearch(event.target.value)
+                            }
+                            placeholder="Search country..."
+                            aria-label="Search country"
+                          />
+                        </div>
                       </div>
+
+                      {/* Country list */}
                       <ul
                         role="listbox"
                         aria-label="Country code"
-                        className="max-h-48 overflow-y-auto py-1"
+                        className="max-h-56 overflow-y-auto p-1.5"
                       >
                         {countryOptions
                           .filter(({ country, name, callingCode }) =>
@@ -568,32 +584,56 @@ function RegisterBusinessPage() {
                               .toLowerCase()
                               .includes(countrySearch.trim().toLowerCase()),
                           )
-                          .map(({ country, name, callingCode }) => (
-                            <li
-                              key={country}
-                              role="option"
-                              aria-selected={country === countryIso}
-                            >
-                              <button
-                                className="w-full px-3 py-2 text-left font-['Poppins'] text-xs text-[#082941] transition hover:bg-[#c8f0ee]"
-                                type="button"
-                                onClick={() => {
-                                  setCountryIso(country);
-                                  setCountryOpen(false);
-                                }}
+                          .map(({ country, name, callingCode }) => {
+                            const isSelected = country === countryIso;
+
+                            return (
+                              <li
+                                key={country}
+                                role="option"
+                                aria-selected={isSelected}
                               >
-                                {name} (+{callingCode})
-                              </button>
-                            </li>
-                          ))}
+                                <button
+                                  className={`flex border-0 w-full items-center justify-between rounded-lg px-3 py-2.5 text-left font-['Poppins'] text-xs transition ${
+                                    isSelected
+                                      ? "bg-[#4dccca]/15 text-[#73d9d5]"
+                                      : "text-[#c7e6e8] bg-transparent hover:bg-white/10 hover:text-[#4dccca] hover:font-bold hover:text-lg"
+                                  }`}
+                                  type="button"
+                                  onClick={() => {
+                                    setCountryIso(country);
+                                    setCountryOpen(false);
+                                  }}
+                                >
+                                  <span className="min-w-0 truncate">
+                                    {name}
+                                  </span>
+
+                                  <span
+                                    className={`ml-3 shrink-0 ${
+                                      isSelected
+                                        ? "text-[#4dccca]"
+                                        : "text-[#c7e6e8]"
+                                    }`}
+                                  >
+                                    +{callingCode}
+                                    {isSelected && (
+                                      <span className="ml-2">✓</span>
+                                    )}
+                                  </span>
+                                </button>
+                              </li>
+                            );
+                          })}
+
                         {!countryOptions.some(
                           ({ country, name, callingCode }) =>
                             `${name} ${country} ${callingCode}`
                               .toLowerCase()
                               .includes(countrySearch.trim().toLowerCase()),
                         ) && (
-                          <li className="px-3 py-3 font-['Poppins'] text-xs text-slate-500">
-                            No country found.
+                          <li className="px-3 py-6 text-center font-['Poppins'] text-xs text-[#719aa1]">
+                            No country found
                           </li>
                         )}
                       </ul>
@@ -625,9 +665,17 @@ function RegisterBusinessPage() {
                 BUSINESS PERMIT (JPEG, PNG, OR PDF — MAX 8MB)
               </label>
               <p className="mt-1 font-['Poppins'] text-[11px] leading-relaxed text-[#8fb7be]">
-                Upload your DTI/SEC registration, Mayor's/Business Permit, or
-                other proof your business is registered to operate. A team
-                member will review this before your account is activated.
+                Upload any of the following:
+              </p>
+
+              <ol className="ml-4 list-decimal font-['Poppins'] text-[11px] leading-relaxed text-[#8fb7be]">
+                <li>DTI/SEC registration</li>
+                <li>Mayor's/Business Permit</li>
+                <li>or other proof your business is registered to operate.</li>
+              </ol>
+
+              <p className="font-['Poppins'] text-[11px] leading-relaxed text-[#8fb7be]">
+                Fishonitory will review this before your account is activated.
               </p>
               <label className="mt-1.5 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-md border border-dashed border-[#7bc9ce]/40 bg-white/[.05] px-3 py-5 text-center transition hover:border-[#4dccca] hover:bg-white/[.08]">
                 <input
@@ -661,7 +709,7 @@ function RegisterBusinessPage() {
             </div>
 
             <div className="sm:col-span-2">
-              <label className="flex items-start gap-3 rounded-md border border-[#7bc9ce]/30 bg-white/[0.03] px-3 py-3 text-left font-['Poppins'] text-xs text-[#dfeef0]">
+              <label className="flex items-start gap-3 rounded-md px-3 py-3 text-left font-['Poppins'] text-xs text-[#dfeef0]">
                 <input
                   type="checkbox"
                   name="acceptedTerms"
@@ -671,10 +719,9 @@ function RegisterBusinessPage() {
                   required
                 />
                 <span>
-                  I have read and agree to the{" "}
+                  By signing up, I agree to Fishonitory's{" "}
                   <span className="text-[#79d7d7]">Terms of Service</span> and{" "}
-                  <span className="text-[#79d7d7]">Privacy Policy</span>. This
-                  is required before I can register.
+                  <span className="text-[#79d7d7]">Privacy Policy</span>.
                 </span>
               </label>
               {errors.acceptedTerms && (
@@ -685,17 +732,17 @@ function RegisterBusinessPage() {
             </div>
 
             <button
-              className="w-full rounded-md bg-[#4dccca] py-2.5 font-['Poppins'] text-sm font-normal text-[#082941] transition hover:bg-[#67d9d5] disabled:cursor-not-allowed disabled:opacity-60 sm:col-span-2"
+              className="w-full rounded-full bg-[#4dccca] border-0 py-2.5 font-['Poppins'] text-sm font-bold text-[#082941] transition hover:bg-[#67d9d5] disabled:cursor-not-allowed disabled:opacity-60 sm:col-span-2"
               type="submit"
               disabled={loading}
             >
-              {loading ? "Sending OTP..." : "Get OTP"}
+              {loading ? "Sending OTP..." : "Continue"}
             </button>
           </form>
         ) : (
           /* ENTER OTP & REGISTER */
           <form
-            className="mt-7 space-y-4"
+            className="mt-7 space-y-4 bg-blend-overlay blur-lg"
             onSubmit={handleVerifyAndRegister}
             noValidate
           >
