@@ -74,7 +74,7 @@ function LandingPage() {
         </section>
 
         <nav aria-label="Fishonitory actions" className="mx-auto mb-6 flex w-full max-w-6xl flex-col justify-center gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
-          <Link to="/login" className="rounded-full border border-sky-100/20 px-5 py-2.5 text-center font-['Poppins'] text-sm font-medium text-sky-50 no-underline transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-[#73c4ca]">LOGIN</Link>
+          <Link to="/login" className="rounded-full border border-sky-100/20 px-5 py-2.5 text-center font-['Poppins'] text-sm font-medium text-sky-50 no-underline transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-[#73c4ca]">Login</Link>
           <Link to="/register" className="rounded-full bg-[#75bec4] px-5 py-2.5 text-center font-['Poppins'] text-sm font-semibold text-[#052d45] no-underline shadow-[0_10px_24px_rgba(77,190,196,.16)] transition hover:-translate-y-0.5 hover:bg-[#91d2d5] focus:outline-none focus:ring-2 focus:ring-[#d5eef0] focus:ring-offset-2 focus:ring-offset-[#063047]">Register&nbsp; Business</Link>
         </nav>
 

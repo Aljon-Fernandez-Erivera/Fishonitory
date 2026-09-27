@@ -3,13 +3,19 @@ const router = express.Router();
 const authController = require("../controllers/authController");
 const validateRegistration = require("../middleware/validateRegistration");
 const authMiddleware = require("../middleware/authMiddleware");
+const { uploadBusinessPermit, uploadErrorHandler } = require("../middleware/uploadPermit");
 
 // Step 1: Send OTP
 router.post("/send-otp", validateRegistration, authController.sendOtp);
 
-// Step 2: Verify OTP and Register
+// Step 2: Verify OTP and Register — now multipart/form-data, since the
+// business permit file rides alongside the registration fields. multer runs
+// first to parse the fields onto req.body and the file onto req.file, then
+// the existing field validation runs exactly as before.
 router.post(
   "/verify-and-register",
+  uploadBusinessPermit,
+  uploadErrorHandler,
   validateRegistration,
   authController.verifyAndRegister,
 );

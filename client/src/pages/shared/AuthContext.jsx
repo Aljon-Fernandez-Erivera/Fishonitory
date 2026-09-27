@@ -5,7 +5,7 @@ import { AuthContext } from "./authContext.js";
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [authReady, setAuthReady] = useState(false);
-  const [setToastMessage] = useState("");
+  const [, setToastMessage] = useState("");
 
   const refreshSession = useCallback(async () => {
     const tabSessionKey = "fishonitory_tab_session";
@@ -26,7 +26,9 @@ export function AuthProvider({ children }) {
         ? "Owner"
         : pathname === "/staff-dashboard"
           ? "masterStaff"
-          : "");
+          : pathname === "/admin-dashboard"
+            ? "superAdmin"
+            : "");
 
     try {
       const response = await fetch(`${API_URL}/auth/session`, {
@@ -58,9 +60,13 @@ export function AuthProvider({ children }) {
       sessionStorage.setItem("fishonitory_tab_session", "fresh");
     }
 
-    refreshSession().finally(() => {
-      if (active) setAuthReady(true);
-    });
+    (async () => {
+      try {
+        await refreshSession();
+      } finally {
+        if (active) setAuthReady(true);
+      }
+    })();
 
     const handlePageShow = (event) => {
       if (event.persisted) {

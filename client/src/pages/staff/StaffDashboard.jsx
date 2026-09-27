@@ -659,7 +659,7 @@ function StaffDashboard() {
           {/* 1. OVERVIEW */}
           {activePage === "overview" && (
             <div className="space-y-6">
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <article className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-5 shadow-[0_14px_35px_rgba(0,12,31,.14)]">
                   <span className="font-['Poppins'] text-xs font-medium uppercase tracking-[0.12em] text-[#91b5bf]">
                     Fish Species
@@ -708,18 +708,6 @@ function StaffDashboard() {
                   </strong>
                   <small className="font-['Poppins'] text-[11px] text-[#6f9ca5]">
                     Active store tanks
-                  </small>
-                </article>
-
-                <article className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-5 shadow-[0_14px_35px_rgba(0,12,31,.14)]">
-                  <span className="font-['Poppins'] text-xs text-[#89afb9]">
-                    Cart Total
-                  </span>
-                  <strong className="mt-1 block font-['Fraunces'] text-4xl font-bold text-[#73c4ca]">
-                    {formatPeso(total)}
-                  </strong>
-                  <small className="font-['Poppins'] text-[11px] text-[#6f9ca5]">
-                    Current transaction total
                   </small>
                 </article>
               </div>

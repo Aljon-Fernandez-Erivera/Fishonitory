@@ -181,7 +181,9 @@ function LoginPage() {
           ? "/staff-dashboard"
           : data.user.role === "Staff"
             ? "/login"
-            : "/owner-dashboard";
+            : data.user.role === "superAdmin"
+              ? "/admin-dashboard"
+              : "/owner-dashboard";
       setDialog({
         title:
           data.user.role === "Staff" ? "Attendance recorded" : "Welcome back",

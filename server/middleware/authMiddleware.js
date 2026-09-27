@@ -17,6 +17,7 @@ const authMiddleware = (req, res, next) => {
     "owner_access_token",
     "staff_access_token",
     "master_staff_access_token",
+    "super_admin_access_token",
     "access_token",
   ].filter(Boolean);
 

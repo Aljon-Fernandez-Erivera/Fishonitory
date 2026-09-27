@@ -1,6 +1,7 @@
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const { randomInt } = require("crypto");
+const cloudinary = require("cloudinary").v2;
 const User = require("../models/User");
 const Attendance = require("../models/Attendance");
 const LoginAttempt = require("../models/LoginAttempt");
@@ -16,6 +17,13 @@ const {
   generateSecret,
   verifyCode,
 } = require("../utils/totp");
+
+cloudinary.config({
+  cloud_name: config.cloudinaryCloudName,
+  api_key: config.cloudinaryApiKey,
+  api_secret: config.cloudinaryApiSecret,
+  secure: true,
+});
 
 // In-memory OTP storage
 const pendingOTPs = new Map();
@@ -44,6 +52,10 @@ function secondsUntil(date) {
 }
 
 function setAuthCookie(res, token, role) {
+  // Cross-site cookies (frontend and backend on different domains, as in
+  // production: Vercel + Render) require SameSite=None, which itself
+  // requires Secure. Locally, frontend and backend share "localhost" so
+  // Lax still works there.
   const sameSite = config.nodeEnv === "production" ? "None" : "Lax";
   const secure = config.nodeEnv === "production" ? "; Secure" : "";
   res.setHeader("Set-Cookie", [
@@ -223,14 +235,12 @@ async function verifyRecoveryCode(user, recoveryCode) {
   return false;
 }
 
-// Brevo transactional email. This replaced Nodemailer/Gmail SMTP (Render
-// blocks outbound SMTP ports on its free tier) and then Resend (its shared
-// sender address only accepts recipients matching your own Resend account
-// email until a domain is verified). Brevo's Single Sender Verification lets
-// a plain Gmail address send to any recipient on the free tier, over a plain
-// HTTPS POST -- no SMTP socket involved, so Render's port block never applies.
+// Brevo transactional email — see the note further down where it's used for
+// why this replaced Nodemailer/Gmail SMTP (Render blocks SMTP ports on its
+// free tier) and Resend (shared sender restricted to your own email until
+// domain verification).
 const BREVO_API_KEY = process.env.BREVO_API_KEY;
-const EMAIL_FROM = process.env.EMAIL_FROM; // the Gmail address verified as a Sender in Brevo
+const EMAIL_FROM = process.env.EMAIL_FROM;
 const EMAIL_FROM_NAME = process.env.EMAIL_FROM_NAME || "Fishonitory";
 
 async function sendEmail({ to, subject, html, text }) {
@@ -346,6 +356,32 @@ exports.sendOtp = async (req, res) => {
   }
 };
 
+const permitSignatures = {
+  "image/jpeg": Buffer.from([0xff, 0xd8, 0xff]),
+  "image/png": Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+  "application/pdf": Buffer.from([0x25, 0x50, 0x44, 0x46]), // "%PDF"
+};
+const hasValidPermitSignature = (file) => {
+  const expected = permitSignatures[file.mimetype];
+  return expected ? file.buffer?.subarray(0, expected.length).equals(expected) : false;
+};
+
+async function uploadPermitToCloudinary(file) {
+  const isPdf = file.mimetype === "application/pdf";
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        folder: "fishonitory/permits",
+        resource_type: isPdf ? "raw" : "image",
+        allowed_formats: ["jpg", "png", "pdf"],
+        ...(isPdf ? {} : { format: "webp", transformation: [{ width: 1600, height: 1600, crop: "limit" }] }),
+      },
+      (error, uploadResult) => (error ? reject(error) : resolve(uploadResult)),
+    );
+    stream.end(file.buffer);
+  });
+}
+
 // Verify OTP and Register
 exports.verifyAndRegister = async (req, res) => {
   try {
@@ -379,6 +415,28 @@ exports.verifyAndRegister = async (req, res) => {
         .json({ message: "Invalid OTP code. Please try again." });
     }
 
+    // A registered business needs proof of legitimacy — a business permit
+    // (or equivalent registration document) — before a Super Admin can
+    // approve the account. This is required at registration time rather
+    // than added later, so no Owner account ever reaches "Active" without
+    // having submitted one.
+    if (!req.file || !hasValidPermitSignature(req.file)) {
+      return res.status(400).json({
+        message: "Upload a valid business permit (JPEG, PNG, or PDF) to continue.",
+      });
+    }
+    if (!config.cloudinaryCloudName || !config.cloudinaryApiKey || !config.cloudinaryApiSecret) {
+      return res.status(503).json({ message: "Document uploads are not configured right now." });
+    }
+
+    let uploadResult;
+    try {
+      uploadResult = await uploadPermitToCloudinary(req.file);
+    } catch (uploadError) {
+      console.error("Business permit upload failed:", uploadError.message);
+      return res.status(502).json({ message: "We could not upload your business permit. Please try again." });
+    }
+
     const newUser = new User({
       businessName,
       ownerName,
@@ -388,13 +446,16 @@ exports.verifyAndRegister = async (req, res) => {
       phoneNumber,
       otp: record.otp,
       role: "Owner",
+      accountStatus: "Pending Verification",
+      businessPermitUrl: uploadResult.secure_url,
     });
 
     await newUser.save();
     pendingOTPs.delete(email);
 
     res.status(201).json({
-      message: "OTP verified! Business Owner account successfully created.",
+      message:
+        "Your business permit has been submitted. Your account will be reviewed and you'll be able to log in once it's approved.",
     });
   } catch (err) {
     console.error("--- VERIFY / REGISTER ERROR DETAILS ---");
@@ -408,7 +469,8 @@ exports.verifyAndRegister = async (req, res) => {
   }
 };
 
-// Send a password-reset code.
+// Send a password-reset code. The response is deliberately the same whether
+// or not an account exists, so email addresses cannot be discovered from this endpoint.
 exports.requestPasswordReset = async (req, res) => {
   try {
     const email = req.body.email.trim().toLowerCase();
@@ -416,7 +478,7 @@ exports.requestPasswordReset = async (req, res) => {
       .select("_id accountStatus")
       .exec();
 
-    if (user && user.accountStatus !== "Disabled") {
+    if (user && user.accountStatus === "Active") {
       const otp = randomInt(100000, 1000000);
       pendingPasswordResets.set(email, {
         otp,
@@ -485,7 +547,7 @@ exports.resetPassword = async (req, res) => {
     }
 
     const user = await User.findOne({ email }).select("+totpLockedUntil");
-    if (!user || user.accountStatus === "Disabled") {
+    if (!user || user.accountStatus !== "Active") {
       pendingPasswordResets.delete(email);
       return res
         .status(400)
@@ -561,6 +623,27 @@ exports.login = async (req, res) => {
         .json({ message: "This account has been disabled." });
     }
 
+    // A new Owner account cannot sign in until a Super Admin has reviewed
+    // its uploaded business permit. This check runs before the password
+    // check so a pending owner gets a clear, specific reason rather than a
+    // generic invalid-credentials message.
+    if (user.accountStatus === "Pending Verification") {
+      return res.status(403).json({
+        code: "PENDING_VERIFICATION",
+        message:
+          "Your business registration is still under review. You'll be able to log in once it's approved.",
+      });
+    }
+
+    if (user.accountStatus === "Rejected") {
+      return res.status(403).json({
+        code: "REGISTRATION_REJECTED",
+        message: user.rejectionReason
+          ? `Your business registration was not approved: ${user.rejectionReason}`
+          : "Your business registration was not approved. Please contact support.",
+      });
+    }
+
     if (user.loginLockedUntil && user.loginLockedUntil > new Date()) {
       return res.status(423).json({
         code: "ACCOUNT_LOCKED",
@@ -575,6 +658,7 @@ exports.login = async (req, res) => {
       await user.save({ validateBeforeSave: false });
     }
 
+    // Older accounts may still have role Staff while their position is Master Staff.
     const loginRole =
       user.role === "masterStaff" || user.staffPosition === "Master Staff"
         ? "masterStaff"
@@ -606,6 +690,9 @@ exports.login = async (req, res) => {
       return res.status(401).json({ message: "Invalid email or password." });
     }
 
+    // MFA is a required part of every session, regardless of the account role.
+    // Accounts created before MFA was introduced are enrolled here, after their
+    // password has been verified, rather than being granted a password-only session.
     if (!user.totpEnabled) {
       const enrollmentToken = jwt.sign(
         { userId: user._id, role: loginRole, purpose: "totp-enroll" },
@@ -652,7 +739,7 @@ exports.verifyTotpLogin = async (req, res) => {
     const user = await User.findById(challenge.userId).select(
       "+totpSecretCiphertext +totpRecoveryCodeHashes +totpLastUsedCounter +totpFailedAttempts +totpLockedUntil",
     );
-    if (!user || user.accountStatus === "Disabled" || !user.totpEnabled) {
+    if (!user || user.accountStatus !== "Active" || !user.totpEnabled) {
       return res
         .status(401)
         .json({ message: "This TOTP login request is no longer valid." });
@@ -695,6 +782,9 @@ exports.verifyTotpLogin = async (req, res) => {
   }
 };
 
+// Losing an authenticator must not reduce MFA to password-only access. A
+// password-verified login challenge plus a short-lived code sent to the
+// account email is required before a new authenticator can be enrolled.
 exports.startTotpReset = async (req, res) => {
   try {
     const challenge = jwt.verify(
@@ -706,7 +796,7 @@ exports.startTotpReset = async (req, res) => {
     const user = await User.findById(challenge.userId).select(
       "email accountStatus totpEnabled",
     );
-    if (!user || user.accountStatus === "Disabled" || !user.totpEnabled) {
+    if (!user || user.accountStatus !== "Active" || !user.totpEnabled) {
       return res
         .status(401)
         .json({ message: "This reset request is no longer valid." });
@@ -831,6 +921,10 @@ exports.cancelTotpSetup = async (req, res) => {
   }
 };
 
+// These endpoints complete the first-time MFA enrollment initiated after a
+// successful password check. They deliberately accept only a short-lived,
+// purpose-bound token and never create an authenticated browser session until
+// the authenticator code is verified.
 exports.startRequiredTotpEnrollment = async (req, res) => {
   try {
     const challenge = jwt.verify(
@@ -842,7 +936,7 @@ exports.startRequiredTotpEnrollment = async (req, res) => {
     const user = await User.findById(challenge.userId).select(
       "+totpSetupCiphertext +totpSetupExpiresAt",
     );
-    if (!user || user.accountStatus === "Disabled")
+    if (!user || user.accountStatus !== "Active")
       return res
         .status(401)
         .json({ message: "This enrollment request is no longer valid." });
@@ -853,6 +947,7 @@ exports.startRequiredTotpEnrollment = async (req, res) => {
         config.totpEncryptionKey,
       );
       user.totpSetupExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+      // Do not block MFA enrollment on unrelated legacy profile data.
       await user.save({ validateBeforeSave: false });
     }
     const secret = decryptSecret(
@@ -913,6 +1008,8 @@ exports.confirmRequiredTotpEnrollment = async (req, res) => {
       recoveryCodes.map((value) => bcrypt.hash(value, 10)),
     );
     await user.save({ validateBeforeSave: false });
+    // This endpoint is intentionally unauthenticated until MFA succeeds, so
+    // supply the verified challenge identity to the audit helper explicitly.
     const auditRequest = Object.create(req);
     auditRequest.user = { userId: user._id, role: challenge.role };
     await writeAudit(
@@ -1096,7 +1193,7 @@ exports.getSession = async (req, res) => {
     "businessName ownerName businessAddress phoneNumber email role staffName staffPosition accountStatus",
   );
 
-  if (!user || user.accountStatus === "Disabled") {
+  if (!user || user.accountStatus !== "Active") {
     clearAuthCookie(res, req.headers["x-session-role"]);
     return res.status(401).json({ message: "Session is no longer valid." });
   }

@@ -1,17 +1,14 @@
 const jwt = require("jsonwebtoken");
 const config = require("../config/config");
 
-// Map each user role to its dedicated auth cookie so the server can verify
-// the correct token for Owner, Staff, and masterStaff sessions.
 const cookieNameForRole = (role) => {
   if (role === "Owner") return "owner_access_token";
   if (role === "Staff") return "staff_access_token";
   if (role === "masterStaff") return "master_staff_access_token";
+  if (role === "superAdmin") return "super_admin_access_token";
   return null;
 };
 
-// Read the raw token value from a cookie header without exposing the auth flow
-// to the rest of the application. This keeps the validation logic centralized.
 const getCookieToken = (cookieHeader, cookieName = "access_token") => {
   const tokenCookie = cookieHeader
     ?.split(";")

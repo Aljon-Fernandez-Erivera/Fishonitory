@@ -14,6 +14,7 @@ import RegisterBusinessPage from "./pages/RegisterBusinessPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import OwnerDashboard from "./pages/owner/OwnerDashboard.jsx";
 import StaffDashboard from "./pages/staff/StaffDashboard.jsx";
+import AdminDashboard from "./pages/admin/AdminDashboard.jsx";
 import AboutPage from "./pages/shared/AboutPage.jsx";
 import HelpPage from "./pages/shared/HelpPage.jsx";
 import AccountPage from "./pages/shared/AccountPage.jsx";
@@ -25,6 +26,7 @@ import "./utils/oceanicSwal.js";
 const protectedRoutes = new Set([
   "/owner-dashboard",
   "/staff-dashboard",
+  "/admin-dashboard",
   "/account",
 ]);
 
@@ -35,7 +37,12 @@ function PublicRoute({ children }) {
 
   if (!authReady) return null;
   if (user && !sessionStorage.getItem("fishonitory_login_success")) {
-    const destination = user.role === "masterStaff" ? "/staff-dashboard" : "/owner-dashboard";
+    const destination =
+      user.role === "masterStaff"
+        ? "/staff-dashboard"
+        : user.role === "superAdmin"
+          ? "/admin-dashboard"
+          : "/owner-dashboard";
     return <Navigate to={destination} replace />;
   }
 
@@ -143,6 +150,10 @@ function AppRoutes() {
       <Route
         path="/staff-dashboard"
         element={<ProtectedRoute allowedRoles={["masterStaff"]}><StaffDashboard /></ProtectedRoute>}
+      />
+      <Route
+        path="/admin-dashboard"
+        element={<ProtectedRoute allowedRoles={["superAdmin"]}><AdminDashboard /></ProtectedRoute>}
       />
       <Route path="/about" element={<AboutPage />} />
       <Route path="/help" element={<HelpPage />} />

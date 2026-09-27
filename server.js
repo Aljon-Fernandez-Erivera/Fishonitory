@@ -163,6 +163,7 @@ app.use("/api/sales", require("./server/routes/salesRoutes"));
 app.use("/api/orders", require("./server/routes/orderRoutes"));
 app.use("/api/operations", require("./server/routes/operationsRoutes"));
 app.use("/api/payroll", require("./server/routes/payrollRoutes"));
+app.use("/api/admin", require("./server/routes/adminRoutes"));
 
 app.use((error, req, res, next) => {
   console.error("Unhandled API error:", error.message);

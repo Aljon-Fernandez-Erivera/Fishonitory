@@ -22,6 +22,9 @@ const countryOptions = getCountries()
   }))
   .sort((first, second) => first.name.localeCompare(second.name));
 
+const ALLOWED_PERMIT_TYPES = ["image/jpeg", "image/png", "application/pdf"];
+const MAX_PERMIT_BYTES = 8 * 1024 * 1024; // matches server/middleware/uploadPermit.js
+
 function EyeIcon({ open }) {
   return open ? (
     <svg
@@ -66,6 +69,9 @@ function RegisterBusinessPage() {
     otp: "",
     acceptedTerms: false,
   });
+
+  const [businessPermit, setBusinessPermit] = useState(null);
+  const [permitError, setPermitError] = useState("");
 
   const [step, setStep] = useState(1); // 1 = Details, 2 = OTP Verification
   const [showPassword, setShowPassword] = useState(false);
@@ -127,6 +133,30 @@ function RegisterBusinessPage() {
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
+  const handlePermitChange = (event) => {
+    const file = event.target.files?.[0] || null;
+    setPermitError("");
+
+    if (!file) {
+      setBusinessPermit(null);
+      return;
+    }
+    if (!ALLOWED_PERMIT_TYPES.includes(file.type)) {
+      setPermitError("Upload a JPEG, PNG, or PDF file.");
+      event.target.value = "";
+      setBusinessPermit(null);
+      return;
+    }
+    if (file.size > MAX_PERMIT_BYTES) {
+      setPermitError("The file must be 8 MB or smaller.");
+      event.target.value = "";
+      setBusinessPermit(null);
+      return;
+    }
+
+    setBusinessPermit(file);
+  };
+
   const validateDetails = () => {
     const newErrors = {};
     const fullPhoneNumber = `+${getCountryCallingCode(countryIso)}${formData.phoneNumber}`;
@@ -160,6 +190,10 @@ function RegisterBusinessPage() {
     if (!formData.acceptedTerms) {
       newErrors.acceptedTerms =
         "You must agree to the Terms of Service and Privacy Policy before registering.";
+    }
+    if (!businessPermit) {
+      newErrors.businessPermit =
+        "Upload your business permit (or equivalent registration document) to continue.";
     }
 
     setErrors(newErrors);
@@ -207,7 +241,8 @@ function RegisterBusinessPage() {
     setStep(2);
   };
 
-  // Verify OTP & Create Account
+  // Verify OTP & Create Account — sent as multipart/form-data since the
+  // business permit file rides alongside the registration fields.
   const handleVerifyAndRegister = async (e) => {
     e.preventDefault();
     setServerMessage("");
@@ -222,16 +257,34 @@ function RegisterBusinessPage() {
       return;
     }
 
+    if (!businessPermit) {
+      setServerMessage(
+        "Your business permit upload was lost — please go back and re-select the file.",
+      );
+      return;
+    }
+
     setLoading(true);
 
     try {
+      const payload = new FormData();
+      payload.append("businessName", formData.businessName);
+      payload.append("ownerName", formData.ownerName);
+      payload.append("email", formData.email);
+      payload.append("password", formData.password);
+      payload.append("businessAddress", formData.businessAddress);
+      payload.append(
+        "phoneNumber",
+        `+${getCountryCallingCode(countryIso)}${formData.phoneNumber}`,
+      );
+      payload.append("otp", formData.otp);
+      payload.append("businessPermit", businessPermit);
+
       const response = await fetch(`${API_URL}/auth/verify-and-register`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...formData,
-          phoneNumber: `+${getCountryCallingCode(countryIso)}${formData.phoneNumber}`,
-        }),
+        body: payload,
+        // No Content-Type header here — the browser sets the correct
+        // multipart boundary automatically when the body is a FormData.
       });
 
       const data = await response.json();
@@ -241,7 +294,10 @@ function RegisterBusinessPage() {
       }
 
       setDialogMode("success");
-      setDialogMessage("Your business account is ready. You can now log in.");
+      setDialogMessage(
+        data.message ||
+          "Your business permit has been submitted for review. You'll be able to log in once it's approved.",
+      );
     } catch (err) {
       setServerMessage(err.message);
     } finally {
@@ -254,7 +310,7 @@ function RegisterBusinessPage() {
       {loading && (
         <LoadingOverlay
           label={
-            step === 1 ? "Sending verification code" : "Creating your account"
+            step === 1 ? "Sending verification code" : "Submitting your registration"
           }
         />
       )}
@@ -304,7 +360,7 @@ function RegisterBusinessPage() {
             id="otp-dialog-title"
             className="font-['Fraunces'] text-2xl text-[#d9ecef]"
           >
-            {dialogMode === "success" ? "Account created" : "OTP Sent"}
+            {dialogMode === "success" ? "Registration submitted" : "OTP Sent"}
           </h2>
           <p className="mt-3 font-['Poppins'] text-sm leading-relaxed text-[#a7c7cf]">
             {dialogMessage}
@@ -565,6 +621,46 @@ function RegisterBusinessPage() {
             </div>
 
             <div className="sm:col-span-2">
+              <label className="block font-['Poppins'] text-[10px] font-medium tracking-wider text-[#8abcc0]">
+                BUSINESS PERMIT (JPEG, PNG, OR PDF — MAX 8MB)
+              </label>
+              <p className="mt-1 font-['Poppins'] text-[11px] leading-relaxed text-[#8fb7be]">
+                Upload your DTI/SEC registration, Mayor's/Business Permit, or
+                other proof your business is registered to operate. A team
+                member will review this before your account is activated.
+              </p>
+              <label className="mt-1.5 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-md border border-dashed border-[#7bc9ce]/40 bg-white/[.05] px-3 py-5 text-center transition hover:border-[#4dccca] hover:bg-white/[.08]">
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,application/pdf"
+                  onChange={handlePermitChange}
+                  className="hidden"
+                />
+                <span className="font-['Poppins'] text-xs font-medium text-[#bce9e9]">
+                  {businessPermit
+                    ? businessPermit.name
+                    : "Click to choose a file"}
+                </span>
+                {businessPermit && (
+                  <span className="font-['Poppins'] text-[10px] text-[#7faab0]">
+                    {(businessPermit.size / (1024 * 1024)).toFixed(2)} MB ·
+                    Click to replace
+                  </span>
+                )}
+              </label>
+              {permitError && (
+                <span className="mt-1 block font-['Poppins'] text-xs text-[#ffd1d1]">
+                  {permitError}
+                </span>
+              )}
+              {errors.businessPermit && (
+                <span className="mt-1 block font-['Poppins'] text-xs text-[#ffd1d1]">
+                  {errors.businessPermit}
+                </span>
+              )}
+            </div>
+
+            <div className="sm:col-span-2">
               <label className="flex items-start gap-3 rounded-md border border-[#7bc9ce]/30 bg-white/[0.03] px-3 py-3 text-left font-['Poppins'] text-xs text-[#dfeef0]">
                 <input
                   type="checkbox"
@@ -629,12 +725,19 @@ function RegisterBusinessPage() {
               )}
             </div>
 
+            <div className="rounded-md border border-sky-100/15 bg-white/[.04] px-3 py-2.5 font-['Poppins'] text-xs text-[#a7c7cf]">
+              Business permit ready to submit:{" "}
+              <span className="font-medium text-[#bce9e9]">
+                {businessPermit ? businessPermit.name : "None selected"}
+              </span>
+            </div>
+
             <button
               className="w-full rounded-md bg-[#4dccca] py-2.5 font-['Poppins'] text-sm font-normal text-[#082941] transition hover:bg-[#67d9d5] disabled:cursor-not-allowed disabled:opacity-60"
               type="submit"
               disabled={loading || otpSeconds === 0}
             >
-              {loading ? "Verifying..." : "Verify OTP & Create Account"}
+              {loading ? "Submitting..." : "Verify OTP & Submit Registration"}
             </button>
             <button
               className="w-full rounded-md border border-[#9ac9cc] py-2.5 font-['Poppins'] text-sm text-[#d1e9e9] transition hover:bg-white/10"

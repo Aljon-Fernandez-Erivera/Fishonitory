@@ -201,7 +201,7 @@ function OwnerOperations({
                 ...auditLogs.map((log) => [
                   log.createdAt,
                   log.actorId?.email || "",
-                  log.action,
+                    log.action,
                   log.entityType,
                   log.details,
                 ]),

@@ -75,7 +75,10 @@ const userSchema = new mongoose.Schema(
     },
     otp: {
       type: Number,
-      required: [true, "OTP verification is required"],
+      required: function () {
+        // superAdmin accounts are seeded directly, never via the OTP flow.
+        return this.role !== "superAdmin";
+      },
     },
     staffName: {
       type: String,
@@ -100,10 +103,35 @@ const userSchema = new mongoose.Schema(
         return ["Staff", "masterStaff"].includes(this.role);
       },
     },
+    // Pending Verification: new Owner account, business permit uploaded,
+    // awaiting Super Admin review. The account cannot log in in this state.
+    // Rejected: Super Admin declined the permit; owner sees the reason and
+    // may be allowed to resubmit in a future iteration.
     accountStatus: {
       type: String,
-      enum: ["Active", "Disabled"],
+      enum: ["Active", "Disabled", "Pending Verification", "Rejected"],
       default: "Active",
+    },
+    // Business permit (or other proof-of-legitimacy document) uploaded at
+    // registration. Only ever set on Owner accounts.
+    businessPermitUrl: {
+      type: String,
+      default: "",
+    },
+    verifiedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+    verifiedAt: {
+      type: Date,
+      default: null,
+    },
+    rejectionReason: {
+      type: String,
+      trim: true,
+      maxlength: 500,
+      default: "",
     },
     failedLoginAttempts: {
       type: Number,
@@ -128,7 +156,7 @@ const userSchema = new mongoose.Schema(
     workspaceSetupCompleted: { type: Boolean, default: false },
     role: {
       type: String,
-      enum: ["Owner", "Staff", "masterStaff"],
+      enum: ["Owner", "Staff", "masterStaff", "superAdmin"],
       default: "Owner",
     },
     attendancePolicy: { type: attendancePolicySchema, default: () => ({}) },
