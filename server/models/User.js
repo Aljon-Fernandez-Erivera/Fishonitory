@@ -133,6 +133,10 @@ const userSchema = new mongoose.Schema(
       maxlength: 500,
       default: "",
     },
+    rejectedAt: {
+      type: Date,
+      default: null,
+    },
     failedLoginAttempts: {
       type: Number,
       min: 0,
@@ -186,6 +190,13 @@ const userSchema = new mongoose.Schema(
   },
   { timestamps: true },
 );
+
+userSchema.index({ role: 1, createdAt: -1 });
+userSchema.index({
+  role: 1,
+  accountStatus: 1,
+  createdAt: 1,
+});
 
 // Hash password via bcrypt before saving to MongoDB Atlas
 userSchema.pre("save", async function () {

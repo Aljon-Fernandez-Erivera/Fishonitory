@@ -81,4 +81,24 @@ finally {
   }
 }
 
+if (-not (Test-Path -LiteralPath $encryptedPath)) {
+  throw "Encrypted backup file was not created."
+}
+
+$encryptedFile = Get-Item -LiteralPath $encryptedPath
+
+if ($encryptedFile.Length -le 0) {
+  throw "Encrypted backup file is empty."
+}
+
+if (Test-Path -LiteralPath $archivePath) {
+  throw "Unencrypted backup still exists. Delete it securely before considering the backup complete."
+}
+
+Write-Host ""
+Write-Host "Backup verification passed."
+Write-Host "File: $encryptedPath"
+Write-Host "Size: $([math]::Round($encryptedFile.Length / 1MB, 2)) MB"
+Write-Host "Created: $($encryptedFile.LastWriteTime)"
+
 Write-Host "Encrypted backup created: $encryptedPath"

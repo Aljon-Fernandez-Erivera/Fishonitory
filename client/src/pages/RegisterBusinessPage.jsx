@@ -742,7 +742,7 @@ function RegisterBusinessPage() {
         ) : (
           /* ENTER OTP & REGISTER */
           <form
-            className="mt-7 space-y-4 bg-blend-overlay blur-lg"
+            className="mt-7 space-y-4 border border-white/10 bg-white/[.06] p-5 backdrop-blur-xl"
             onSubmit={handleVerifyAndRegister}
             noValidate
           >
