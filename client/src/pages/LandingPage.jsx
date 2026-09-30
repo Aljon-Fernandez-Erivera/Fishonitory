@@ -45,7 +45,7 @@ function LandingPage() {
         className="pointer-events-none absolute left-1/2 top-0 -z-10 h-[40rem] w-72 -translate-x-1/2 rotate-6 bg-gradient-to-b from-cyan-100/[0.06] via-cyan-100/[0.02] to-transparent blur-2xl"
       />
 
-      {/* NEW: small secondary glow, upper-left, breaks the symmetry */}
+      {/* NEW: small secondary glow sa upper-left, breaks the symmetry */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute -left-16 top-8 -z-10 h-64 w-64 rounded-full bg-teal-200/[0.05] blur-3xl"
