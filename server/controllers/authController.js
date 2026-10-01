@@ -41,7 +41,7 @@ const IP_LOCK_MS = 15 * 60 * 1000; //15mins
 
 //TOTP limit, totp limit ng 5 attempts
 const TOTP_ATTEMPT_LIMIT = 5; // 5 attempt totp
-const TOTP_LOCK_MS = 5 * 60 * 1000; 
+const TOTP_LOCK_MS = 5 * 60 * 1000;
 
 function getClientIp(req) {
   return req.ip || req.socket.remoteAddress || "unknown";
@@ -272,7 +272,13 @@ async function sendEmail({ to, subject, html, text }) {
   return { error: null };
 }
 
-const buildCodeEmailHtml = ({ title, subtitle, code, helperText, footerText }) => `
+const buildCodeEmailHtml = ({
+  title,
+  subtitle,
+  code,
+  helperText,
+  footerText,
+}) => `
   <div style="margin:0;padding:32px 16px;background:#edf7fb;font-family:Arial,Helvetica,sans-serif;color:#12314a;">
     <div style="max-width:560px;margin:0 auto;border:1px solid #d8ebf3;border-radius:18px;overflow:hidden;background:#ffffff;box-shadow:0 10px 30px rgba(16, 76, 98, 0.08);">
       <div style="background:linear-gradient(135deg,#0d4a5f,#0a6c7d);padding:22px 28px;color:#ffffff;">
@@ -322,9 +328,11 @@ exports.sendOtp = async (req, res) => {
       text: `Your Fishonitory verification code is ${generatedOTP}. It expires in 5 minutes.`,
       html: buildCodeEmailHtml({
         title: "Verify your account",
-        subtitle: "Use the code below to continue creating your Fishonitory account.",
+        subtitle:
+          "Use the code below to continue creating your Fishonitory account.",
         code: String(generatedOTP).padStart(6, "0"),
-        helperText: "This code will expire in 5 minutes. For your security, never share it with anyone.",
+        helperText:
+          "This code will expire in 5 minutes. For your security, never share it with anyone.",
         footerText: "Fishonitory · Secure account verification",
       }),
     });
@@ -363,7 +371,9 @@ const permitSignatures = {
 };
 const hasValidPermitSignature = (file) => {
   const expected = permitSignatures[file.mimetype];
-  return expected ? file.buffer?.subarray(0, expected.length).equals(expected) : false;
+  return expected
+    ? file.buffer?.subarray(0, expected.length).equals(expected)
+    : false;
 };
 
 async function uploadPermitToCloudinary(file) {
@@ -374,7 +384,12 @@ async function uploadPermitToCloudinary(file) {
         folder: "fishonitory/permits",
         resource_type: isPdf ? "raw" : "image",
         allowed_formats: ["jpg", "png", "pdf"],
-        ...(isPdf ? {} : { format: "webp", transformation: [{ width: 1600, height: 1600, crop: "limit" }] }),
+        ...(isPdf
+          ? {}
+          : {
+              format: "webp",
+              transformation: [{ width: 1600, height: 1600, crop: "limit" }],
+            }),
       },
       (error, uploadResult) => (error ? reject(error) : resolve(uploadResult)),
     );
@@ -422,19 +437,34 @@ exports.verifyAndRegister = async (req, res) => {
     // having submitted one.
     if (!req.file || !hasValidPermitSignature(req.file)) {
       return res.status(400).json({
-        message: "Upload a valid business permit (JPEG, PNG, or PDF) to continue.",
+        message:
+          "Upload a valid business permit (JPEG, PNG, or PDF) to continue.",
       });
     }
-    if (!config.cloudinaryCloudName || !config.cloudinaryApiKey || !config.cloudinaryApiSecret) {
-      return res.status(503).json({ message: "Document uploads are not configured right now." });
+    if (
+      !config.cloudinaryCloudName ||
+      !config.cloudinaryApiKey ||
+      !config.cloudinaryApiSecret
+    ) {
+      return res
+        .status(503)
+        .json({ message: "Document uploads are not configured right now." });
     }
 
     let uploadResult;
     try {
       uploadResult = await uploadPermitToCloudinary(req.file);
     } catch (uploadError) {
-      console.error("Business permit upload failed:", uploadError.message);
-      return res.status(502).json({ message: "We could not upload your business permit. Please try again." });
+      console.error("=== CLOUDINARY PERMIT UPLOAD ERROR ===");
+      console.error("message:", uploadError.message);
+      console.error("http_code:", uploadError.http_code);
+      console.error("name:", uploadError.name);
+      console.error("error:", uploadError);
+      console.error("======================================");
+
+      return res.status(502).json({
+        message: "We could not upload your business permit. Please try again.",
+      });
     }
 
     const newUser = new User({
@@ -461,11 +491,9 @@ exports.verifyAndRegister = async (req, res) => {
     console.error("--- VERIFY / REGISTER ERROR DETAILS ---");
     console.error(err);
     console.error("----------------------------------------");
-    res
-      .status(500)
-      .json({
-        message: "We could not create your account. Please try again later.",
-      });
+    res.status(500).json({
+      message: "We could not create your account. Please try again later.",
+    });
   }
 };
 
@@ -491,25 +519,22 @@ exports.requestPasswordReset = async (req, res) => {
         text: `Your Fishonitory password reset code is ${otp}. It expires in 5 minutes. If you did not request this, you can ignore this email.`,
         html: buildCodeEmailHtml({
           title: "Reset your password",
-          subtitle: "A password reset request was made for your Fishonitory account.",
+          subtitle:
+            "A password reset request was made for your Fishonitory account.",
           code: String(otp).padStart(6, "0"),
-          helperText: "Use this code to continue with your password reset. If you did not request it, you can safely ignore this email.",
+          helperText:
+            "Use this code to continue with your password reset. If you did not request it, you can safely ignore this email.",
           footerText: "This reset code expires in 5 minutes.",
         }),
       });
 
       if (mailError) {
         pendingPasswordResets.delete(email);
-        console.error(
-          "Password-reset email could not be sent.",
-          mailError,
-        );
-        return res
-          .status(503)
-          .json({
-            message:
-              "We could not send a reset code right now. Please try again later.",
-          });
+        console.error("Password-reset email could not be sent.", mailError);
+        return res.status(503).json({
+          message:
+            "We could not send a reset code right now. Please try again later.",
+        });
       }
     }
 
@@ -519,11 +544,9 @@ exports.requestPasswordReset = async (req, res) => {
     });
   } catch (error) {
     console.error("Password-reset request failed.", error);
-    return res
-      .status(500)
-      .json({
-        message: "We could not process your request. Please try again later.",
-      });
+    return res.status(500).json({
+      message: "We could not process your request. Please try again later.",
+    });
   }
 };
 
@@ -534,11 +557,9 @@ exports.resetPassword = async (req, res) => {
     const pending = pendingPasswordResets.get(email);
     if (!pending || Date.now() > pending.expiresAt) {
       pendingPasswordResets.delete(email);
-      return res
-        .status(400)
-        .json({
-          message: "That reset code has expired. Please request a new one.",
-        });
+      return res.status(400).json({
+        message: "That reset code has expired. Please request a new one.",
+      });
     }
     if (code !== String(pending.otp)) {
       return res
@@ -549,12 +570,10 @@ exports.resetPassword = async (req, res) => {
     const user = await User.findOne({ email }).select("+totpLockedUntil");
     if (!user || user.accountStatus !== "Active") {
       pendingPasswordResets.delete(email);
-      return res
-        .status(400)
-        .json({
-          message:
-            "This password cannot be reset right now. Please contact your business owner.",
-        });
+      return res.status(400).json({
+        message:
+          "This password cannot be reset right now. Please contact your business owner.",
+      });
     }
 
     user.password = req.body.password;
@@ -572,11 +591,9 @@ exports.resetPassword = async (req, res) => {
     });
   } catch (error) {
     console.error("Password reset failed.", error);
-    return res
-      .status(500)
-      .json({
-        message: "We could not reset your password. Please try again later.",
-      });
+    return res.status(500).json({
+      message: "We could not reset your password. Please try again later.",
+    });
   }
 };
 
@@ -774,11 +791,9 @@ exports.verifyTotpLogin = async (req, res) => {
     await user.save({ validateBeforeSave: false });
     return completeLogin(req, res, user, challenge.role);
   } catch (error) {
-    return res
-      .status(401)
-      .json({
-        message: "The login verification expired. Please sign in again.",
-      });
+    return res.status(401).json({
+      message: "The login verification expired. Please sign in again.",
+    });
   }
 };
 
@@ -814,9 +829,11 @@ exports.startTotpReset = async (req, res) => {
       text: `Your authenticator reset code is ${code}. It expires in 5 minutes. If you did not request this, change your password immediately.`,
       html: buildCodeEmailHtml({
         title: "Recover your authenticator",
-        subtitle: "Use the code below to reset your Fishonitory authenticator setup.",
+        subtitle:
+          "Use the code below to reset your Fishonitory authenticator setup.",
         code: String(code).padStart(6, "0"),
-        helperText: "This code expires in 5 minutes. If you did not request this reset, change your password immediately.",
+        helperText:
+          "This code expires in 5 minutes. If you did not request this reset, change your password immediately.",
         footerText: "Fishonitory security notice",
       }),
     });
@@ -824,19 +841,18 @@ exports.startTotpReset = async (req, res) => {
       console.error("MFA reset email failed to send:", sendErr);
       return res
         .status(500)
-        .json({ message: "We could not send the reset code. Please try again." });
+        .json({
+          message: "We could not send the reset code. Please try again.",
+        });
     }
     return res.json({
       message: "A reset code was sent to your account email.",
     });
   } catch (error) {
     console.error("MFA reset request failed:", error.message);
-    return res
-      .status(400)
-      .json({
-        message:
-          "We could not start authenticator reset. Please sign in again.",
-      });
+    return res.status(400).json({
+      message: "We could not start authenticator reset. Please sign in again.",
+    });
   }
 };
 
@@ -885,11 +901,9 @@ exports.confirmTotpReset = async (req, res) => {
     );
     return res.json({ mfaEnrollmentRequired: true, enrollmentToken });
   } catch (error) {
-    return res
-      .status(400)
-      .json({
-        message: "We could not reset your authenticator. Please sign in again.",
-      });
+    return res.status(400).json({
+      message: "We could not reset your authenticator. Please sign in again.",
+    });
   }
 };
 
@@ -913,11 +927,9 @@ exports.cancelTotpSetup = async (req, res) => {
     await user.save({ validateBeforeSave: false });
     return res.json({ message: "Authenticator setup cancelled." });
   } catch (error) {
-    return res
-      .status(500)
-      .json({
-        message: "We could not cancel authenticator setup. Please try again.",
-      });
+    return res.status(500).json({
+      message: "We could not cancel authenticator setup. Please try again.",
+    });
   }
 };
 
@@ -961,11 +973,9 @@ exports.startRequiredTotpEnrollment = async (req, res) => {
       expiresInSeconds: 600,
     });
   } catch (error) {
-    return res
-      .status(401)
-      .json({
-        message: "The MFA enrollment request expired. Please sign in again.",
-      });
+    return res.status(401).json({
+      message: "The MFA enrollment request expired. Please sign in again.",
+    });
   }
 };
 
@@ -1022,12 +1032,10 @@ exports.confirmRequiredTotpEnrollment = async (req, res) => {
     return completeLogin(req, res, user, challenge.role);
   } catch (error) {
     console.error("MFA enrollment confirmation failed:", error.message);
-    return res
-      .status(401)
-      .json({
-        message:
-          "MFA enrollment could not be completed. Please sign in again and try a new current code.",
-      });
+    return res.status(401).json({
+      message:
+        "MFA enrollment could not be completed. Please sign in again and try a new current code.",
+    });
   }
 };
 
@@ -1122,11 +1130,9 @@ exports.confirmTotpSetup = async (req, res) => {
 
 exports.disableTotp = async (req, res) => {
   try {
-    return res
-      .status(403)
-      .json({
-        message: "MFA is required for all accounts and cannot be disabled.",
-      });
+    return res.status(403).json({
+      message: "MFA is required for all accounts and cannot be disabled.",
+    });
     if (req.user.role !== "Owner")
       return res
         .status(403)

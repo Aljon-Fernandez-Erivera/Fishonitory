@@ -4,7 +4,11 @@ const mongoose = require("mongoose");
 // a new staff account. MongoDB removes it automatically at expiresAt.
 const pendingStaffRegistrationSchema = new mongoose.Schema(
   {
-    ownerId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    ownerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
     email: { type: String, required: true, lowercase: true, trim: true },
     staffName: { type: String, required: true, trim: true },
     staffPosition: { type: String, required: true, trim: true },
@@ -16,8 +20,14 @@ const pendingStaffRegistrationSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-pendingStaffRegistrationSchema.index({ ownerId: 1, email: 1 }, { unique: true });
-pendingStaffRegistrationSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+pendingStaffRegistrationSchema.index(
+  { ownerId: 1, email: 1 },
+  { unique: true },
+);
+pendingStaffRegistrationSchema.index(
+  { expiresAt: 1 },
+  { expireAfterSeconds: 0 },
+);
 
 module.exports = mongoose.model(
   "PendingStaffRegistration",
