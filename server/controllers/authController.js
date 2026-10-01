@@ -421,7 +421,7 @@ exports.verifyAndRegister = async (req, res) => {
       pendingOTPs.delete(email);
       return res
         .status(400)
-        .json({ message: "OTP code has expired. Please request a new one." });
+        .json({ message: "OTP code has expired. Please request a new one by going back to the details." });
     }
 
     if (parseInt(otp, 10) !== record.otp) {
