@@ -216,7 +216,7 @@ function OwnerOperations({
         </div>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-2">
+      <div className="grid items-start gap-6 xl:grid-cols-2">
         <form
           className={`${formClass} [&_h3]:col-span-full [&_h3]:mb-1 [&_h3]:font-['Fraunces'] [&_h3]:text-2xl [&_h3]:font-medium [&_h3]:text-[#d9ecef]`}
           onSubmit={submitPurchase}

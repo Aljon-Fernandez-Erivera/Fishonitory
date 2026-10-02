@@ -1112,6 +1112,7 @@ function OwnerDashboard() {
             staff={staff}
             attendance={attendance}
             payroll={payroll}
+            owner={user}
             onSave={handleSavePayroll}
             onDelete={handleDeletePayroll}
             toast={payrollToast}

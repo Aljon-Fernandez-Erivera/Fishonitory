@@ -119,10 +119,7 @@ function normalizePeriodStart(value, type) {
   return dateKey(startOfWeek);
 }
 
-function printSlip(entry, owner, attendance, staff) {
-  const popup = window.open("", "_blank", "width=980,height=980");
-  if (!popup) return;
-
+function buildPayrollSlipDocument(entry, owner, attendance, staff) {
   const businessName = owner?.businessName || "Payroll Slip";
   const ownerName = owner?.ownerName || owner?.email || "";
   const printedOn = new Date().toLocaleDateString("en-PH", {
@@ -197,7 +194,7 @@ function printSlip(entry, owner, attendance, staff) {
     )
     .join("");
 
-  popup.document.write(`
+  return `
     <!doctype html>
     <title>${escapeHtml(businessName)} Payroll Slip</title>
     <style>
@@ -250,7 +247,14 @@ function printSlip(entry, owner, attendance, staff) {
         <tr class="total"><td>Net pay</td><td>${peso.format(netPay)}</td></tr>
       </table>
     </div>
-  `);
+  `;
+}
+
+function printSlip(entry, owner, attendance, staff) {
+  const popup = window.open("", "_blank", "width=980,height=980");
+  if (!popup) return;
+
+  popup.document.write(buildPayrollSlipDocument(entry, owner, attendance, staff));
   popup.document.close();
   popup.focus();
   popup.print();
@@ -267,7 +271,7 @@ function Field({ children }) {
 const input =
   "min-h-10 rounded-xl border border-sky-100/10 bg-white/[.06] px-3 font-['Poppins'] text-sm text-[#d9ecef] [color-scheme:dark] outline-none focus:border-[#73c4ca]";
 
-function Payroll({ staff, attendance, payroll, onSave, onDelete, toast, owner }) {
+function Payroll({ staff, attendance, payroll, onSave, onDelete, toast, owner = null }) {
   const [form, setForm] = useState({
     staffId: "",
     periodType: "monthly",
@@ -290,10 +294,14 @@ function Payroll({ staff, attendance, payroll, onSave, onDelete, toast, owner })
   const canAddItem = draft.name.trim().length > 0 && Number.isFinite(Number(draft.amount)) && Number(draft.amount) > 0;
   const [editingIndex, setEditingIndex] = useState(null);
   const [editDraft, setEditDraft] = useState({ name: "", amount: "", type: "addition" });
+  const [previewHeight, setPreviewHeight] = useState(560);
 
   const selectedRecords = useMemo(
     () => getSelectedStaffRecords(attendance, form.staffId, range.start, range.end),
     [attendance, form.staffId, range.end, range.start],
+  );
+  const selectedWorker = workers.find(
+    (person) => String(person._id) === String(form.staffId),
   );
 
   const autoLateItem = useMemo(() => {
@@ -346,6 +354,29 @@ function Payroll({ staff, attendance, payroll, onSave, onDelete, toast, owner })
       lateDeduction: autoLateItem ? Number(autoLateItem.amount) : 0,
     };
   }, [autoLateItem, form.dailyRate, selectedRecords, visibleItems]);
+
+  const previewEntry = {
+    staffId: form.staffId,
+    staffName: selectedWorker?.staffName || "Select staff",
+    period: `${range.start} to ${range.end}`,
+    periodType: form.periodType,
+    periodStart: range.start,
+    periodEnd: range.end,
+    dailyRate: asNumber(form.dailyRate, 0),
+    payableDays: summary.payableDays,
+    baseGross: summary.baseGross,
+    benefits: summary.totalAdditions,
+    benefitItems: visibleItems,
+    grossPay: summary.grossPay,
+    deductions: summary.deductions,
+    netPay: summary.netPay,
+  };
+  const previewDocument = buildPayrollSlipDocument(
+    previewEntry,
+    owner,
+    selectedRecords,
+    workers,
+  );
 
   const update = (event) => {
     const { name, value } = event.target;
@@ -503,7 +534,7 @@ const handleSubmit = (event) => {
           Choose a pay schedule and calculate payroll from recorded attendance.
         </p>
       </div>
-      <div className="grid gap-6 xl:grid-cols-[1.1fr_.9fr]">
+      <div className="grid items-start gap-6 xl:grid-cols-[1.1fr_.9fr]">
         <form
           className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-5 shadow-[0_14px_35px_rgba(0,12,31,.14)] sm:p-6"
           onSubmit={handleSubmit}
@@ -849,69 +880,32 @@ const handleSubmit = (event) => {
           </button>
         </form>
 
-        <aside className="rounded-2xl border border-sky-100/10 bg-white/[.035] p-5 sm:p-6">
-          <p className="font-['Poppins'] text-xs font-semibold uppercase tracking-[.14em] text-[#73c4ca]">
-            Payroll preview
-          </p>
-          <h3 className="m-0 mt-2 font-['Fraunces'] text-2xl text-[#d9ecef]">
-            {form.periodType === "monthly"
-              ? "Monthly"
-              : form.periodType === "weekly"
-                ? "Weekly"
-                : "15-day"}{" "}
-            summary
-          </h3>
-          <dl className="mt-5 grid gap-3 font-['Poppins'] text-sm">
-            <div className="flex justify-between border-b border-sky-100/[.08] pb-3 text-[#a9c8cf]">
-              <dt>Payable days</dt>
-              <dd>{summary.payableDays}</dd>
-            </div>
-            <div className="flex justify-between border-b border-sky-100/[.08] pb-3 text-[#a9c8cf]">
-              <dt>Late days</dt>
-              <dd>{summary.lateRecords.length}</dd>
-            </div>
-            <div className="flex justify-between border-b border-sky-100/[.08] pb-3 text-[#a9c8cf]">
-              <dt>Base Pay</dt>
-              <dd>{peso.format(summary.baseGross)}</dd>
-            </div>
-            <div className="flex justify-between border-b border-sky-100/[.08] pb-3 text-emerald-300">
-              <dt>Additions (Overtime / Bonuses)</dt>
-              <dd>+{peso.format(summary.totalAdditions)}</dd>
-            </div>
-            {autoLateItem && (
-              <div className="flex justify-between border-b border-sky-100/[.08] pb-3 text-amber-300">
-                <dt>{autoLateItem.name}</dt>
-                <dd>-{peso.format(autoLateItem.amount)}</dd>
-              </div>
-            )}
-            <div className="flex justify-between border-b border-sky-100/[.08] pb-3 text-[#a9c8cf]">
-              <dt>Gross Pay</dt>
-              <dd className="font-semibold text-[#d9ecef]">
-                {peso.format(summary.grossPay)}
-              </dd>
-            </div>
-            <div className="flex justify-between border-b border-sky-100/[.08] pb-3 text-[#a9c8cf]">
-              <dt>Deductions</dt>
-              <dd>-{peso.format(summary.deductions)}</dd>
-            </div>
-            <div className="flex justify-between pt-2 text-lg font-medium text-[#d9ecef]">
-              <dt>Net pay</dt>
-              <dd
-                className={
-                  summary.netPay < 0 ? "text-red-400" : "text-[#d9ecef]"
-                }
-              >
-                {peso.format(summary.netPay)}
-              </dd>
-            </div>
-          </dl>
+        <aside className="min-w-0 overflow-hidden rounded-2xl border border-[#cbd9dc] bg-white shadow-[0_14px_35px_rgba(0,12,31,.14)]">
+          <div className="border-b border-[#d9e5e6] px-4 py-3">
+            <p className="m-0 font-['Poppins'] text-xs font-semibold uppercase tracking-[.14em] text-[#135867]">
+              Print preview
+            </p>
+          </div>
+          <iframe
+            title="Payroll slip print preview"
+            srcDoc={previewDocument}
+            onLoad={(event) => {
+              const document = event.currentTarget.contentDocument;
+              if (!document) return;
 
-          {summary.netPay < 0 && (
-            <div className="mt-4 rounded-xl border border-red-400/20 bg-red-400/10 p-3 font-['Poppins'] text-xs text-red-200">
-              Total deductions exceed total gross pay. Net pay cannot be
-              negative.
-            </div>
-          )}
+              const contentHeight = Math.ceil(
+                Math.max(
+                  document.documentElement.scrollHeight,
+                  document.body?.scrollHeight || 0,
+                ),
+              );
+              setPreviewHeight((current) =>
+                current === contentHeight ? current : contentHeight,
+              );
+            }}
+            style={{ height: `${previewHeight}px` }}
+            className="block w-full bg-white"
+          />
         </aside>
       </div>
 
