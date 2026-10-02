@@ -399,11 +399,7 @@ function StaffDashboard() {
   }
 
   const navButtonClass = (page) =>
-    `shrink-0 rounded-md border-0 bg-clip-padding px-3 py-2 text-left font-['Poppins'] text-[0.78rem] leading-tight outline-none transition [-webkit-appearance:none] [appearance:none] [box-shadow:none] focus:outline-none focus:ring-0 focus-visible:outline-none cursor-pointer ${
-      activePage === page
-        ? "bg-[#65c9c9] font-medium text-[#073047] hover:bg-[#75cccc]"
-        : "bg-transparent text-[#8fb7be] hover:text-[#d9ecef]"
-    }`;
+    `dashboard-nav-link ${activePage === page ? "is-active" : ""}`;
 
   const settingsTabClass = (tab) =>
     `rounded-xl px-4 py-2 font-['Poppins'] text-xs sm:text-sm font-medium transition cursor-pointer ${
@@ -433,7 +429,7 @@ function StaffDashboard() {
       />
 
       {/* SIDEBAR */}
-      <aside className={`owner-sidebar box-border flex w-full shrink-0 flex-col overflow-hidden border-b border-cyan-100/[.08] bg-[#062f43] px-4 py-3 md:h-full md:w-56 md:border-b-0 md:border-r md:px-3 md:pt-4 md:pb-4 ${sidebarOpen ? "is-open" : ""}`}>
+      <aside className={`owner-sidebar box-border flex w-full shrink-0 flex-col overflow-hidden border-b border-cyan-100/[.08] bg-[#021d2e] px-4 py-3 md:h-full md:w-56 md:border-b-0 md:border-r md:px-3 md:pt-4 md:pb-4 ${sidebarOpen ? "is-open" : ""}`}>
         {/* Brand */}
         <button
           type="button"

@@ -4,6 +4,45 @@ import { formatPeso } from "../shared/salesUtils.js";
 
 const NEW_OPTION = "__new__";
 
+function ViewModeIcon({ mode }) {
+  if (mode === "grid") {
+    return (
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 24 24"
+        className="h-4 w-4"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+      >
+        <rect x="4" y="4" width="6" height="6" rx="1" />
+        <rect x="14" y="4" width="6" height="6" rx="1" />
+        <rect x="4" y="14" width="6" height="6" rx="1" />
+        <rect x="14" y="14" width="6" height="6" rx="1" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className="h-4 w-4"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+    >
+      <line x1="5" y1="6" x2="19" y2="6" />
+      <line x1="5" y1="12" x2="19" y2="12" />
+      <line x1="5" y1="18" x2="19" y2="18" />
+      <circle cx="3" cy="6" r="0.5" fill="currentColor" />
+      <circle cx="3" cy="12" r="0.5" fill="currentColor" />
+      <circle cx="3" cy="18" r="0.5" fill="currentColor" />
+    </svg>
+  );
+}
+
 function Inventory({
   fish,
   tanks,
@@ -19,6 +58,8 @@ function Inventory({
   const [categoryView, setCategoryView] = useState("Fish");
   const [nameMode, setNameMode] = useState("select");
   const [speciesMode, setSpeciesMode] = useState("select");
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const [viewMode, setViewMode] = useState("grid");
 
   const existingNames = [
     ...new Set(fish.map((item) => item.name).filter(Boolean)),
@@ -74,6 +115,7 @@ function Inventory({
       return;
     }
 
+    setPhotoUploading(true);
     try {
       const photoUrl = await onPhotoUpload(file);
 
@@ -85,6 +127,8 @@ function Inventory({
       window.alert(error.message || "Could not upload the image.");
 
       event.target.value = "";
+    } finally {
+      setPhotoUploading(false);
     }
   };
 
@@ -130,35 +174,62 @@ function Inventory({
         </button>
       </div>
 
-      {/* CATEGORY TABS */}
-      <div className="flex items-center gap-2 rounded-xl border border-sky-100/10 p-1">
-        <button
-          type="button"
-          className={`min-h-42px rounded-xl px-5 py-2.5 font-['Poppins'] text-base font-medium transition ${
-            categoryView === "Fish"
-              ? "bg-[#73c4ca] text-[#052d45] shadow-sm"
-              : "bg-transparent text-[#89afb9] hover:bg-white/[.05] hover:text-[#d9ecef]"
-          }`}
-          onClick={() => setCategoryView("Fish")}
-        >
-          Fish
-        </button>
+      {/* CATEGORY AND VIEW CONTROLS */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2 rounded-xl border border-sky-100/10 p-1">
+          <button
+            type="button"
+            className={`min-h-[42px] rounded-xl px-5 py-2.5 font-['Poppins'] text-base font-medium transition ${
+              categoryView === "Fish"
+                ? "bg-[#73c4ca] text-[#052d45] shadow-sm"
+                : "bg-transparent text-[#89afb9] hover:bg-white/[.05] hover:text-[#d9ecef]"
+            }`}
+            onClick={() => setCategoryView("Fish")}
+          >
+            Fish
+          </button>
 
-        <button
-          type="button"
-          className={`min-h-[42px] rounded-xl px-5 py-2.5 font-['Poppins'] text-base font-medium transition ${
-            categoryView === "Fish Food"
-              ? "bg-[#73c4ca] text-[#052d45] shadow-sm"
-              : "bg-transparent text-[#89afb9] hover:bg-white/[.05] hover:text-[#d9ecef]"
-          }`}
-          onClick={() => setCategoryView("Fish Food")}
+          <button
+            type="button"
+            className={`min-h-[42px] rounded-xl px-5 py-2.5 font-['Poppins'] text-base font-medium transition ${
+              categoryView === "Fish Food"
+                ? "bg-[#73c4ca] text-[#052d45] shadow-sm"
+                : "bg-transparent text-[#89afb9] hover:bg-white/[.05] hover:text-[#d9ecef]"
+            }`}
+            onClick={() => setCategoryView("Fish Food")}
+          >
+            Fish Food
+          </button>
+        </div>
+
+        <div
+          className="flex items-center gap-1 self-start rounded-xl border border-sky-100/10 p-1 sm:self-auto"
+          aria-label="Inventory view"
         >
-          Fish Food
-        </button>
+          {["grid", "list"].map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              aria-pressed={viewMode === mode}
+              aria-label={mode === "grid" ? "Cards view" : "List view"}
+              title={mode === "grid" ? "Cards view" : "List view"}
+              className={`grid h-9 w-9 place-items-center rounded-lg transition ${
+                viewMode === mode
+                  ? "bg-[#73c4ca] text-[#052d45] shadow-sm"
+                  : "text-[#89afb9] hover:bg-white/[.05] hover:text-[#d9ecef]"
+              }`}
+              onClick={() => setViewMode(mode)}
+            >
+              <ViewModeIcon mode={mode} />
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* INVENTORY GRID */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
+      <div
+        className={`${viewMode === "grid" ? "grid" : "hidden"} grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4`}
+      >
         {visibleFish.map((item) => (
           <article
             key={item._id}
@@ -238,6 +309,111 @@ function Inventory({
           <div className="col-span-full rounded-2xl border border-dashed border-sky-100/15 bg-white/[.02] px-5 py-12 text-center">
             <div className="text-4xl">🐟</div>
 
+            <p className="mt-3 font-['Poppins'] text-sm text-[#9bbec7]">
+              No {categoryView.toLowerCase()} items yet.
+            </p>
+          </div>
+        )}
+      </div>
+
+      <div
+        className={`${viewMode === "list" ? "block" : "hidden"} overflow-x-auto rounded-2xl border border-sky-100/10 bg-[#062d48]/70`}
+      >
+        {visibleFish.length ? (
+          <table className="min-w-[720px] w-full border-separate border-spacing-0">
+            <thead>
+              <tr>
+                {[
+                  "Item",
+                  "Category",
+                  "Price",
+                  "Stock",
+                  "Tank",
+                  "Actions",
+                ].map((heading) => (
+                  <th
+                    key={heading}
+                    className="border-b border-sky-100/10 bg-white/[.025] px-4 py-3 text-left font-['Poppins'] text-[10px] font-semibold uppercase tracking-[.12em] text-[#89afb9]"
+                  >
+                    {heading}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {visibleFish.map((item) => (
+                <tr key={item._id} className="transition hover:bg-white/[.035]">
+                  <td className="border-b border-sky-100/[.07] px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      {item.photoUrl ? (
+                        <img
+                          className="h-12 w-12 rounded-lg object-cover"
+                          src={item.photoUrl}
+                          alt=""
+                        />
+                      ) : (
+                        <div className="grid h-12 w-12 place-items-center rounded-lg bg-[#0a4261] text-xl">
+                          🐟
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <p className="truncate font-['Poppins'] text-sm font-semibold text-[#d9ecef]">
+                          {item.name}
+                        </p>
+                        <p className="truncate font-['Poppins'] text-xs text-[#9bbec7]">
+                          {item.species || item.description || "No species"}
+                        </p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="border-b border-sky-100/[.07] px-4 py-3 font-['Poppins'] text-xs text-[#b7d2d7]">
+                    {item.category || "Fish"}
+                  </td>
+                  <td className="border-b border-sky-100/[.07] px-4 py-3 font-['Fraunces'] text-lg font-bold text-[#73c4ca]">
+                    {formatPeso(item.price)}
+                  </td>
+                  <td className="border-b border-sky-100/[.07] px-4 py-3 font-['Poppins'] text-sm text-[#d9ecef]">
+                    {item.quantity}
+                  </td>
+                  <td className="border-b border-sky-100/[.07] px-4 py-3 font-['Poppins'] text-xs text-[#b7d2d7]">
+                    {item.tankId?.name || "Unassigned"}
+                  </td>
+                  <td className="border-b border-sky-100/[.07] px-4 py-3">
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        className="rounded-lg border border-sky-100/15 bg-white/[.04] px-3 py-2 font-['Poppins'] text-xs text-[#b7d2d7] transition hover:border-[#73c4ca]/50 hover:text-[#d9ecef]"
+                        onClick={() =>
+                          openForm(
+                            {
+                              ...item,
+                              tankId: item.tankId?._id || item.tankId || "",
+                              price: item.price ?? "",
+                              costPrice: item.costPrice ?? "",
+                              category: item.category || "Fish",
+                            },
+                            item._id,
+                          )
+                        }
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        className="rounded-lg border border-red-300/15 bg-red-400/[.06] px-3 py-2 font-['Poppins'] text-xs text-[#e9a7a7] transition hover:border-red-300/40 hover:bg-red-400/15 hover:text-[#ffd0d0]"
+                        onClick={() => onDelete(item._id)}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <div className="px-5 py-12 text-center">
+            <div className="text-4xl">🐟</div>
             <p className="mt-3 font-['Poppins'] text-sm text-[#9bbec7]">
               No {categoryView.toLowerCase()} items yet.
             </p>
@@ -556,8 +732,14 @@ function Inventory({
                     type="file"
                     accept="image/jpeg,image/png"
                     onChange={handlePhoto}
+                    disabled={photoUploading}
                     className="block w-full text-xs text-[#a8c6cc] file:mr-3 file:rounded-xl file:border-0 file:bg-[#75bec4] file:px-3 file:py-2.5 file:text-xs file:font-semibold file:text-[#052d45] hover:file:bg-[#86d0d6]"
                   />
+                  {photoUploading && (
+                    <span className="font-['Poppins'] text-[10px] text-[#9bbec7]">
+                      Uploading photo...
+                    </span>
+                  )}
                 </div>
               </label>
 
@@ -565,9 +747,14 @@ function Inventory({
               <div className="grid grid-cols-2 gap-2 border-t border-white/[.07] pt-4">
                 <button
                   type="submit"
+                  disabled={photoUploading}
                   className="min-h-[46px] rounded-xl bg-[#75bec4] px-4 py-2.5 font-['Poppins'] text-sm font-bold text-[#052d45] transition active:scale-[.98] hover:bg-[#91d2d5]"
                 >
-                  {editingFishId ? "Update Item" : "Add Item"}
+                  {photoUploading
+                    ? "Uploading photo..."
+                    : editingFishId
+                      ? "Update Item"
+                      : "Add Item"}
                 </button>
 
                 <button

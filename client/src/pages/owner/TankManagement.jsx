@@ -17,14 +17,6 @@ const frequencyOptions = [
 const fieldClass =
   "mt-1.5 box-border w-full rounded-xl border border-sky-100/10 bg-white/[.06] px-3 py-2.5 font-['Poppins'] text-sm text-[#d9ecef] outline-none [color-scheme:dark] focus:border-[#73c4ca]";
 
-const todayISODate = () => {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
-
 function TankManagement({
   tanks,
   fish = [],
@@ -187,15 +179,21 @@ function TankManagement({
           </p>
         )}
       </div>
-      <dialog
-        open={formOpen}
-        aria-labelledby="tank-dialog-title"
-        onClick={(event) => {
-          if (event.target === event.currentTarget) setFormOpen(false);
-        }}
-        className="w-[min(560px,calc(100%-2rem))] rounded-2xl border border-sky-100/15 bg-[#062d48] p-0 text-[#d9ecef] shadow-2xl backdrop:bg-[#021a31]/75"
-      >
-        <div className="p-5 ">
+      {formOpen && (
+        <div
+          className="fixed inset-0 z-50 grid place-items-center bg-[#021a31]/75 p-4 backdrop-blur-sm"
+          role="presentation"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) setFormOpen(false);
+          }}
+        >
+          <div
+            aria-labelledby="tank-dialog-title"
+            aria-modal="true"
+            className="w-[min(560px,calc(100%-2rem))] rounded-2xl border border-sky-100/15 bg-[#062d48] p-0 text-[#d9ecef] shadow-2xl"
+            role="dialog"
+          >
+        <div className="p-5">
           <h3 id="tank-dialog-title" className="m-0 font-['Fraunces'] text-2xl">
             {editingTankId ? "Edit Tank" : "Add Tank"}
           </h3>
@@ -210,11 +208,12 @@ function TankManagement({
               Tank Name
               <input
                 className={fieldClass}
-                type="date"
-                name="nextMaintenance"
-                min={todayISODate()}
-                value={tankForm.nextMaintenance}
+                type="text"
+                name="name"
+                value={tankForm.name}
+                placeholder="e.g. Display Tank A"
                 onChange={updateField}
+                required
               />
             </label>
             <label className="font-['Poppins'] text-xs font-medium text-[#a9c8cf]">
@@ -289,7 +288,9 @@ function TankManagement({
             </div>
           </form>
         </div>
-      </dialog>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

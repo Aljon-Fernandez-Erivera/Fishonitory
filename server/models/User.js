@@ -64,6 +64,8 @@ const userSchema = new mongoose.Schema(
       trim: true,
       maxlength: [255, "Business address cannot exceed 255 characters"],
     },
+    businessLatitude: { type: Number, min: -90, max: 90 },
+    businessLongitude: { type: Number, min: -180, max: 180 },
     phoneNumber: {
       type: String, // Stored in E.164 format, e.g. +639171234567
       required: [true, "Phone number is required"],

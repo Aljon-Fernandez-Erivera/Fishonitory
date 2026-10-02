@@ -286,6 +286,7 @@ function OwnerDashboard() {
       title: "Remove shift assignment?",
       text: "This will delete the assigned shift for the selected date.",
       confirmButtonText: "Remove assignment",
+      danger: true,
     });
     if (!confirmation.isConfirmed) return;
 
@@ -749,6 +750,7 @@ function OwnerDashboard() {
         method: editingFishId ? "PATCH" : "POST",
         body: JSON.stringify({
           ...fishForm,
+          photoUrl: String(fishForm.photoUrl || "").trim(),
           price,
           costPrice,
           quantity,
@@ -785,6 +787,7 @@ function OwnerDashboard() {
       title: "Delete fish item?",
       text: "This action will remove the fish record from inventory.",
       confirmButtonText: "Delete item",
+      danger: true,
     });
     if (!confirmation.isConfirmed) return;
 
@@ -825,6 +828,7 @@ function OwnerDashboard() {
       title: "Delete tank?",
       text: "This will remove the selected tank and its stored data.",
       confirmButtonText: "Delete tank",
+      danger: true,
     });
     if (!confirmation.isConfirmed) return;
 
@@ -897,15 +901,11 @@ function OwnerDashboard() {
   };
 
   const handleDeletePayroll = async (id) => {
-    const confirmation = await Swal.fire({
+    const confirmation = await confirmOceanicAction({
       title: "Delete payroll record?",
       text: "This cannot be undone.",
-      icon: "warning",
-      showCancelButton: true,
       confirmButtonText: "Delete",
-      confirmButtonColor: "#d33",
-      background: "#062d48",
-      color: "#d9ecef",
+      danger: true,
     });
     if (!confirmation.isConfirmed) return;
     try {
@@ -937,6 +937,7 @@ function OwnerDashboard() {
       title: "Delete announcement?",
       text: "This announcement will be removed immediately for everyone.",
       confirmButtonText: "Delete announcement",
+      danger: true,
     });
     if (!confirmation.isConfirmed) return;
 
@@ -1165,13 +1166,7 @@ function OwnerDashboard() {
     );
 
   const navButtonClass = (page) => {
-    const isActive = activePage === page;
-
-    if (isActive) {
-      return "shrink-0 rounded-md border-0 bg-[#65c9c9] bg-clip-padding px-3 py-2 text-left font-['Poppins'] text-[0.78rem] font-medium leading-tight text-[#073047] outline-none transition hover:bg-[#75cccc] [-webkit-appearance:none] [appearance:none] [box-shadow:none] focus:outline-none focus:ring-0 focus-visible:outline-none cursor-pointer";
-    }
-
-    return "shrink-0 rounded-md border-0 bg-transparent bg-clip-padding px-3 py-2 text-left font-['Poppins'] text-[0.78rem] leading-tight text-[#8fb7be] outline-none transition hover:text-[#d9ecef] [-webkit-appearance:none] [appearance:none] [box-shadow:none] focus:outline-none focus:ring-0 focus-visible:outline-none cursor-pointer";
+    return `dashboard-nav-link ${activePage === page ? "is-active" : ""}`;
   };
 
   return (
@@ -1197,7 +1192,7 @@ function OwnerDashboard() {
       />
 
       <aside
-        className={`owner-sidebar box-border flex w-full shrink-0 flex-col overflow-hidden border-b border-cyan-100/[.08] bg-[#062f43] px-4 py-3 md:h-full md:w-56 md:border-b-0 md:border-r md:px-3 md:pt-4 md:pb-4 ${sidebarOpen ? "is-open" : ""}`}
+        className={`owner-sidebar box-border flex w-full shrink-0 flex-col overflow-hidden border-b border-cyan-100/[.08] bg-[#021d2e] px-4 py-3 md:h-full md:w-56 md:border-b-0 md:border-r md:px-3 md:pt-4 md:pb-4 ${sidebarOpen ? "is-open" : ""}`}
       >
         <button
           type="button"

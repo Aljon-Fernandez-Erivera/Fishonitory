@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import Swal from "sweetalert2";
+import { confirmOceanicAction } from "../../utils/oceanicSwal.js";
 
 const MAX_NOTE_LENGTH = 1000;
 
@@ -261,15 +262,11 @@ function Notes({
   };
 
   const remove = async (item) => {
-    const result = await Swal.fire({
+    const result = await confirmOceanicAction({
       title: "Delete note?",
       text: "This cannot be undone.",
-      icon: "warning",
-      showCancelButton: true,
       confirmButtonText: "Delete",
-      confirmButtonColor: "#d33",
-      background: "#062d48",
-      color: "#d9ecef",
+      danger: true,
     });
     if (result.isConfirmed) onDeleteNote(item._id);
   };

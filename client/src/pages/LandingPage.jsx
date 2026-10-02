@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { BrandLogo } from "./shared/AuthLayout.jsx";
 
 const features = [
   [
@@ -29,7 +30,7 @@ const features = [
 
 function LandingPage() {
   return (
-    <main className="box-border relative isolate h-screen w-full max-w-full flex-1 overflow-x-clip overflow-y-auto bg-[radial-gradient(circle_at_88%_22%,#0a5267_0%,#08465d_35%,#053751_68%,#021a31_100%)] px-4 py-4 text-[#c9e1e5] sm:px-7 sm:py-6 lg:px-10 lg:py-8">
+    <main className="ocean-background box-border relative isolate h-screen w-full max-w-full flex-1 overflow-x-clip overflow-y-auto px-4 py-4 text-[#c9e1e5] sm:px-7 sm:py-6 lg:px-10 lg:py-8">
       <div
         aria-hidden="true"
         className="pointer-events-none absolute -right-24 top-44 -z-10 h-80 w-80 rounded-full border border-sky-100/10 bg-sky-300/5 blur-3xl"
@@ -53,17 +54,7 @@ function LandingPage() {
 
       <div className="mx-auto flex min-h-[calc(100vh-2rem)] w-full min-w-0 max-w-7xl flex-col sm:min-h-[calc(100vh-3rem)]">
         <header className="flex min-w-0 items-center justify-between gap-4">
-          <Link
-            to="/"
-            aria-label="Fishonitory home"
-            className="flex min-w-0 shrink-0 items-center gap-2.5 no-underline"
-          >
-            <img
-              src="/LOGO.svg"
-              alt=""
-              className="block h-9 w-5 shrink-0 sm:h-11 sm:w-6"
-            />
-          </Link>
+          <BrandLogo />
         </header>
 
         <section

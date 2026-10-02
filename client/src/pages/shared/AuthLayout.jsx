@@ -1,5 +1,21 @@
 import { Link } from "react-router-dom";
 
+export function BrandLogo() {
+  return (
+    <Link
+      to="/"
+      aria-label="Fishonitory home"
+      className="block h-11 w-6 shrink-0 sm:h-14 sm:w-8"
+    >
+      <img
+        src="/LOGO.svg"
+        alt="Fishonitory"
+        className="block h-full w-full"
+      />
+    </Link>
+  );
+}
+
 export function AuthLayout({
   children,
   actionLabel,
@@ -17,17 +33,7 @@ export function AuthLayout({
         className="pointer-events-none absolute -bottom-32 -left-20 -z-10 h-80 w-80 rounded-full bg-cyan-300/[0.07] blur-3xl"
       />
       <header className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4">
-          <Link
-            to="/"
-            aria-label="Fishonitory home"
-            className="block h-11 w-6 shrink-0 sm:h-14 sm:w-8"
-          >
-            <img
-              src="/LOGO.svg"
-              alt="Fishonitory"
-              className="block h-full w-full"
-            />
-          </Link>
+          <BrandLogo />
         <Link
           to={actionTo}
           className="no-underline rounded-full border border-sky-100/15 bg-white/[0.06] px-4 py-2 font-['Poppins'] text-xs font-medium text-sky-50 transition hover:bg-white/[0.12] focus:outline-none focus:ring-2 focus:ring-[#73c4ca] sm:px-5 sm:text-sm"

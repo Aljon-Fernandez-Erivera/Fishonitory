@@ -19,6 +19,7 @@ export function applyOceanicSwalTheme() {
     background: "#062d48",
     color: "#dff6f9",
     borderRadius: "20px",
+    backdropClass: "oceanic-modal-backdrop",
     backdrop: true,
     customClass: sharedPopupClass,
     buttonsStyling: false,
@@ -46,7 +47,14 @@ export function applyOceanicSwalTheme() {
 }
 
 export function confirmOceanicAction(options = {}) {
-  const { title = "Are you sure?", text = "This action cannot be undone.", confirmButtonText = "Continue", cancelButtonText = "Cancel", icon = "warning" } = options;
+  const {
+    title = "Are you sure?",
+    text = "This action cannot be undone.",
+    confirmButtonText = "Continue",
+    cancelButtonText = "Cancel",
+    icon = "warning",
+    danger = false,
+  } = options;
 
   return Swal.fire({
     title,
@@ -57,9 +65,15 @@ export function confirmOceanicAction(options = {}) {
     cancelButtonText,
     background: "#062d48",
     color: "#dff6f9",
+    backdropClass: "oceanic-modal-backdrop",
     confirmButtonColor: "#75bec4",
     cancelButtonColor: "#102f46",
-    customClass: sharedPopupClass,
+    customClass: {
+      ...sharedPopupClass,
+      confirmButton: danger
+        ? "oceanic-swal-confirm oceanic-swal-danger"
+        : sharedPopupClass.confirmButton,
+    },
     buttonsStyling: false,
     reverseButtons: true,
   });
@@ -82,6 +96,7 @@ export function showOceanicLogoutConfirm(onConfirmed) {
     cancelButtonText: "Stay signed in",
     background: "#062d48",
     color: "#dff6f9",
+    backdropClass: "oceanic-modal-backdrop",
     confirmButtonColor: "#75bec4",
     cancelButtonColor: "#102f46",
     customClass: {

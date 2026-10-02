@@ -448,6 +448,16 @@ function AdminDashboard() {
       confirmButtonColor: "#d33",
       background: "#062d48",
       color: "#d9ecef",
+      backdropClass: "oceanic-modal-backdrop",
+      customClass: {
+        confirmButton: "oceanic-swal-confirm oceanic-swal-danger",
+        cancelButton: "oceanic-swal-cancel",
+        popup: "oceanic-swal-popup",
+        title: "oceanic-swal-title",
+        htmlContainer: "oceanic-swal-text",
+        actions: "oceanic-swal-actions",
+      },
+      buttonsStyling: false,
       inputValidator: (value) =>
         !value.trim() ? "A reason is required." : undefined,
     });
@@ -524,11 +534,7 @@ function AdminDashboard() {
   ========================================================= */
 
   const navButtonClass = (page) => {
-    const isActive = activePage === page;
-
-    return isActive
-      ? "shrink-0 rounded-md border-0 bg-[#65c9c9] bg-clip-padding px-3 py-2 text-left font-['Poppins'] text-[0.78rem] font-medium leading-tight text-[#073047] outline-none transition hover:bg-[#75cccc] cursor-pointer"
-      : "shrink-0 rounded-md border-0 bg-transparent bg-clip-padding px-3 py-2 text-left font-['Poppins'] text-[0.78rem] leading-tight text-[#8fb7be] outline-none transition hover:text-[#d9ecef] cursor-pointer";
+    return `dashboard-nav-link ${activePage === page ? "is-active" : ""}`;
   };
 
   /* =========================================================
@@ -586,7 +592,7 @@ function AdminDashboard() {
       ===================================================== */}
 
       <aside
-        className={`owner-sidebar box-border flex w-full shrink-0 flex-col overflow-hidden border-b border-cyan-100/[.08] bg-[#062f43] px-4 py-3 md:h-full md:w-56 md:border-b-0 md:border-r md:px-3 md:pt-4 md:pb-4 ${
+        className={`owner-sidebar box-border flex w-full shrink-0 flex-col overflow-hidden border-b border-cyan-100/[.08] bg-[#021d2e] px-4 py-3 md:h-full md:w-56 md:border-b-0 md:border-r md:px-3 md:pt-4 md:pb-4 ${
           sidebarOpen ? "is-open" : ""
         }`}
       >

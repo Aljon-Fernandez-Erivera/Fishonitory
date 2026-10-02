@@ -89,6 +89,18 @@ function PendingVerifications({
                     {owner.businessAddress}
                   </div>
 
+                  {Number.isFinite(owner.businessLatitude) &&
+                    Number.isFinite(owner.businessLongitude) && (
+                      <a
+                        href={`https://www.openstreetmap.org/?mlat=${owner.businessLatitude}&mlon=${owner.businessLongitude}#map=17/${owner.businessLatitude}/${owner.businessLongitude}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="font-medium text-[#73c4ca] underline underline-offset-2 hover:text-[#bce9e9]"
+                      >
+                        View pinned location on OpenStreetMap
+                      </a>
+                    )}
+
                   <div>
                     <span className="text-[#6f9ca5]">Submitted: </span>
                     {new Date(owner.createdAt).toLocaleString()}

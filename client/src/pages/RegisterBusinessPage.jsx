@@ -1,12 +1,12 @@
 import PasswordRequirements from "./shared/passwordRequirements.jsx";
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import {
   getCountries,
   getCountryCallingCode,
   isValidPhoneNumber,
 } from "libphonenumber-js";
 import { API_URL } from "../config.js";
-import { LoadingOverlay } from "./shared/AuthLayout.jsx";
+import { BrandLogo, LoadingOverlay } from "./shared/AuthLayout.jsx";
 import { Link } from "react-router-dom";
 import {
   sanitizePhoneDigits,
@@ -24,6 +24,15 @@ const countryOptions = getCountries()
 
 const ALLOWED_PERMIT_TYPES = ["image/jpeg", "image/png", "application/pdf"];
 const MAX_PERMIT_BYTES = 8 * 1024 * 1024; // matches server/middleware/uploadPermit.js
+const BusinessLocationPicker = lazy(
+  () => import("../components/BusinessLocationPicker.jsx"),
+);
+
+function maskEmail(email) {
+  const [localPart, domain] = email.split("@");
+  if (!localPart || !domain) return "your email address";
+  return `${localPart[0]}***@${domain}`;
+}
 
 function EyeIcon({ open }) {
   return open ? (
@@ -71,6 +80,11 @@ function RegisterBusinessPage() {
   });
 
   const [businessPermit, setBusinessPermit] = useState(null);
+  const [businessLocation, setBusinessLocation] = useState(null);
+  const [businessLocationConfirmed, setBusinessLocationConfirmed] =
+    useState(false);
+  const [showBusinessLocation, setShowBusinessLocation] = useState(false);
+  const locationDialogRef = useRef(null);
   const [permitError, setPermitError] = useState("");
 
   const [step, setStep] = useState(1); // 1 = Details, 2 = OTP Verification
@@ -85,6 +99,37 @@ function RegisterBusinessPage() {
   const [countryOpen, setCountryOpen] = useState(false);
   const [countryMenuUp, setCountryMenuUp] = useState(false);
   const [countrySearch, setCountrySearch] = useState("");
+
+  const openBusinessLocation = () => {
+    const dialog = locationDialogRef.current;
+    if (dialog && !dialog.open) dialog.showModal();
+    setShowBusinessLocation(true);
+  };
+
+  useEffect(() => {
+    const dialog = locationDialogRef.current;
+    if (!dialog) return;
+
+    if (showBusinessLocation && !dialog.open) {
+      dialog.showModal();
+    } else if (!showBusinessLocation && dialog.open) {
+      dialog.close();
+    }
+  }, [showBusinessLocation]);
+
+  useEffect(() => {
+    if (!showBusinessLocation) return undefined;
+
+    const closeOnEscape = (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setShowBusinessLocation(false);
+      }
+    };
+
+    window.addEventListener("keydown", closeOnEscape, true);
+    return () => window.removeEventListener("keydown", closeOnEscape, true);
+  }, [showBusinessLocation]);
 
   useEffect(() => {
     if (step !== 2 || otpSeconds <= 0) return undefined;
@@ -175,6 +220,10 @@ function RegisterBusinessPage() {
     }
     if (!formData.businessAddress) {
       newErrors.businessAddress = "Business Address is required.";
+    }
+    if (!businessLocation || !businessLocationConfirmed) {
+      newErrors.businessLocation = "Pin your business location on the map.";
+      openBusinessLocation();
     }
     if (
       !isValidLocalPhoneForCountry(formData.phoneNumber, countryIso) ||
@@ -273,6 +322,8 @@ function RegisterBusinessPage() {
       payload.append("email", formData.email);
       payload.append("password", formData.password);
       payload.append("businessAddress", formData.businessAddress);
+      payload.append("businessLatitude", String(businessLocation.latitude));
+      payload.append("businessLongitude", String(businessLocation.longitude));
       payload.append(
         "phoneNumber",
         `+${getCountryCallingCode(countryIso)}${formData.phoneNumber}`,
@@ -316,14 +367,8 @@ function RegisterBusinessPage() {
           }
         />
       )}
-      <header className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4">
-        <Link
-          to="/"
-          className="block h-11 w-6 sm:h-14 sm:w-8"
-          aria-label="Fishonitory home"
-        >
-          <img src="/LOGO.svg" alt="Fishonitory" className="h-full w-full" />
-        </Link>
+      <header className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4">
+        <BrandLogo />
         <Link
           to="/login"
           className="no-underline rounded-full border border-sky-100/15 bg-white/[0.06] px-4 py-2 font-['Poppins'] text-xs font-medium text-sky-50 transition hover:bg-white/[0.12] sm:px-5 sm:text-sm"
@@ -353,32 +398,42 @@ function RegisterBusinessPage() {
         </div>
 
         {/* OTP Dialog */}
-        <dialog
-          open={Boolean(dialogMessage)}
-          aria-labelledby="otp-dialog-title"
-          className="w-full max-w-sm rounded-2xl border border-sky-100/15 bg-[#062d48] p-6 text-center text-[#c9e1e5] shadow-2xl backdrop:bg-[#021a31]/75"
-        >
-          <h2
-            id="otp-dialog-title"
-            className="font-['Fraunces'] text-2xl text-[#d9ecef]"
+        {dialogMessage && (
+          <div
+            className="fixed inset-0 z-50 grid place-items-center bg-[#021a31]/75 p-4 backdrop-blur-sm"
+            role="presentation"
           >
-            {dialogMode === "success" ? "Registration submitted" : "OTP Sent"}
-          </h2>
-          <p className="mt-3 font-['Poppins'] text-sm leading-relaxed text-[#a7c7cf]">
-            {dialogMessage}
-          </p>
-          <button
-            className="mt-6 w-full rounded-full bg-[#75bec4] px-4 py-2.5 font-['Poppins'] text-sm font-medium text-[#052d45] transition hover:bg-[#91d2d5]"
-            type="button"
-            onClick={() =>
-              dialogMode === "success"
-                ? (window.location.href = "/login")
-                : closeOtpDialog()
-            }
-          >
-            {dialogMode === "success" ? "Go to Login" : "Continue"}
-          </button>
-        </dialog>
+            <div
+              aria-labelledby="otp-dialog-title"
+              aria-modal="true"
+              className="w-full max-w-sm rounded-2xl border border-sky-100/15 bg-[#062d48] p-6 text-center text-[#c9e1e5] shadow-2xl"
+              role="dialog"
+            >
+              <h2
+                id="otp-dialog-title"
+                className="font-['Fraunces'] text-2xl text-[#d9ecef]"
+              >
+                {dialogMode === "success"
+                  ? "Registration submitted"
+                  : "OTP Sent"}
+              </h2>
+              <p className="mt-3 font-['Poppins'] text-sm leading-relaxed text-[#a7c7cf]">
+                {dialogMessage}
+              </p>
+              <button
+                className="mt-6 w-full rounded-full bg-[#75bec4] px-4 py-2.5 font-['Poppins'] text-sm font-medium text-[#052d45] transition hover:bg-[#91d2d5]"
+                type="button"
+                onClick={() =>
+                  dialogMode === "success"
+                    ? (window.location.href = "/login")
+                    : closeOtpDialog()
+                }
+              >
+                {dialogMode === "success" ? "Go to Login" : "Continue"}
+              </button>
+            </div>
+          </div>
+        )}
 
         {serverMessage && (
           <p
@@ -495,19 +550,149 @@ function RegisterBusinessPage() {
               <label className="block font-['Poppins'] text-[10px] font-medium tracking-wider text-[#8abcc0]">
                 BUSINESS ADDRESS
               </label>
-              <input
-                className="mt-1.5 box-border w-full rounded-md border border-transparent bg-white/[.09] px-3 py-2.5 font-['Poppins'] text-sm text-[#d8f1f1] outline-none transition placeholder:text-[#7faab0] focus:border-[#4dccca]"
-                type="text"
-                name="businessAddress"
-                value={formData.businessAddress}
-                onChange={handleInputChange}
-                maxLength={255}
-                placeholder="e.g. 123 Aqua St., Fishville, PH"
-                required
-              />
+              <div className="relative mt-1.5">
+                <input
+                  className="box-border w-full rounded-md border border-transparent bg-white/[.09] px-3 py-2.5 pr-12 font-['Poppins'] text-sm text-[#d8f1f1] outline-none transition placeholder:text-[#7faab0] focus:border-[#4dccca]"
+                  type="text"
+                  name="businessAddress"
+                  value={formData.businessAddress}
+                  onChange={handleInputChange}
+                  maxLength={255}
+                  placeholder="e.g. 123 Aqua St., Fishville, PH"
+                  required
+                />
+                <button
+                  type="button"
+                  aria-label={
+                    showBusinessLocation
+                      ? "Close location map"
+                      : "Choose location on map"
+                  }
+                  aria-expanded={showBusinessLocation}
+                  aria-controls="business-location-dialog"
+                  title={
+                    showBusinessLocation
+                      ? "Close location map"
+                      : "Choose location on map"
+                  }
+                  onClick={() => {
+                    if (showBusinessLocation) {
+                      setShowBusinessLocation(false);
+                    } else {
+                      openBusinessLocation();
+                    }
+                  }}
+                  disabled={loading}
+                  className="absolute inset-y-0 right-0 grid w-11 place-items-center rounded-r-md border-0 bg-transparent p-0 text-[#9ebfc8] transition hover:bg-white/[.08] hover:text-[#d9ecef] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#4dccca] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <svg
+                    aria-hidden="true"
+                    className="h-5 w-5"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z" />
+                    <circle cx="12" cy="10" r="2.5" />
+                  </svg>
+                  {businessLocation && (
+                    <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-[#73c4ca]" />
+                  )}
+                </button>
+              </div>
               {errors.businessAddress && (
                 <span className="mt-1 block font-['Poppins'] text-xs text-[#ffd1d1]">
                   {errors.businessAddress}
+                </span>
+              )}
+              <dialog
+                ref={locationDialogRef}
+                id="business-location-dialog"
+                aria-labelledby="business-location-heading"
+                className="location-map-dialog fixed m-auto max-h-[calc(100dvh-2rem)] w-[min(760px,calc(100vw-2rem))] max-w-none overflow-y-auto rounded-xl border border-[#73c4ca]/30 bg-[#062d48] p-4 text-[#d9ecef] shadow-2xl sm:p-5"
+                onClose={() => setShowBusinessLocation(false)}
+                onCancel={(event) => {
+                  event.preventDefault();
+                  setShowBusinessLocation(false);
+                }}
+                onClick={(event) => {
+                  if (event.target === event.currentTarget) {
+                    setShowBusinessLocation(false);
+                  }
+                }}
+              >
+                <div className="mb-3 flex items-start justify-between gap-4">
+                  <div>
+                    <p
+                      id="business-location-heading"
+                      className="font-['Poppins'] text-xs font-semibold uppercase tracking-[0.12em] text-[#73c4ca]"
+                    >
+                      Business location
+                    </p>
+                    <p className="mt-1 font-['Poppins'] text-sm text-[#a9c8cf]">
+                      Place the pin at your store.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    aria-label="Close location map"
+                    onClick={() => setShowBusinessLocation(false)}
+                    className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-sky-100/10 bg-white/[.04] p-0 text-[#a9c8cf] transition hover:bg-white/[.1] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4dccca]"
+                  >
+                    <svg
+                      aria-hidden="true"
+                      className="h-5 w-5"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                    >
+                      <path d="m18 6-12 12M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                {showBusinessLocation && (
+                  <Suspense
+                    fallback={
+                      <div className="grid h-[55vh] min-h-[280px] max-h-[520px] place-items-center rounded-xl border border-sky-100/10 bg-[#001523] font-['Poppins'] text-xs text-[#91b5bf]">
+                        Loading map...
+                      </div>
+                    }
+                  >
+                    <BusinessLocationPicker
+                      value={businessLocation}
+                      isOpen={showBusinessLocation}
+                      onChange={(location) => {
+                        setBusinessLocation(location);
+                        setBusinessLocationConfirmed(false);
+                      }}
+                      onConfirm={(location) => {
+                        const { address, ...coordinates } = location;
+                        setBusinessLocation(coordinates);
+                        setBusinessLocationConfirmed(true);
+                        setFormData((previous) => ({
+                          ...previous,
+                          businessAddress: address,
+                        }));
+                        setErrors((previous) => ({
+                          ...previous,
+                          businessLocation: "",
+                        }));
+                        setShowBusinessLocation(false);
+                      }}
+                      mapClassName="h-[55vh] min-h-[280px] max-h-[520px]"
+                      disabled={loading}
+                    />
+                  </Suspense>
+                )}
+              </dialog>
+              {errors.businessLocation && (
+                <span className="mt-1 block font-['Poppins'] text-xs text-[#ffd1d1]">
+                  {errors.businessLocation}
                 </span>
               )}
             </div>
@@ -742,21 +927,21 @@ function RegisterBusinessPage() {
         ) : (
           /* ENTER OTP & REGISTER */
           <form
-            className="mt-7 space-y-4 border border-white/10 bg-white/[.06] p-5 backdrop-blur-xl"
+            className="mt-7 space-y-4 p-1 sm:p-2"
             onSubmit={handleVerifyAndRegister}
             noValidate
           >
             <div>
-              <label className="block font-['Poppins'] text-[10px] font-medium tracking-wider text-[#8abcc0]">
-                ENTER 6-DIGIT OTP SENT TO {formData.email}
+              <label className="block text-center font-['Poppins'] text-[10px] font-medium tracking-wider text-[#8abcc0]">
+                ENTER 6-DIGIT OTP SENT TO {maskEmail(formData.email)}
               </label>
-              <p className="mt-2 font-['Poppins'] text-xs text-[#a7d2d4]">
+              <p className="mt-2 text-center font-['Poppins'] text-xs text-[#a7d2d4]">
                 OTP expires in{" "}
                 {String(Math.floor(otpSeconds / 60)).padStart(2, "0")}:
                 {String(otpSeconds % 60).padStart(2, "0")}
               </p>
               <input
-                className="mt-2 box-border w-full rounded-md border border-transparent bg-white/[.09] px-3 py-2.5 font-['Poppins'] text-sm text-[#d8f1f1] outline-none transition placeholder:text-[#7faab0] focus:border-[#4dccca]"
+                className="mt-3 box-border w-full rounded-lg border border-[#4dccca]/40 bg-white/[.12] px-4 py-4 text-center font-['Poppins'] text-2xl tracking-[0.35em] text-[#d8f1f1] outline-none transition placeholder:text-[#7faab0] focus:border-[#4dccca]"
                 type="number"
                 name="otp"
                 value={formData.otp}

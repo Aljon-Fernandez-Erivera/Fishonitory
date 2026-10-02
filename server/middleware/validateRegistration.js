@@ -1,4 +1,4 @@
-const { email, password, phone, string, validate } = require("./validateInput");
+const { email, number, password, phone, string, validate } = require("./validateInput");
 
 module.exports = validate((req) => {
   const body = req.body || {};
@@ -41,4 +41,10 @@ module.exports = validate((req) => {
       statusCode: 400,
     });
   }
+
+  number(body.businessLatitude, "Business latitude", { min: -90, max: 90 });
+  number(body.businessLongitude, "Business longitude", {
+    min: -180,
+    max: 180,
+  });
 });

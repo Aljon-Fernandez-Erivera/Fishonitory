@@ -84,7 +84,7 @@ function AdminOverview({
             className={`rounded-2xl border p-5 shadow-[0_14px_35px_rgba(0,12,31,.14)] transition ${
               card.highlight
                 ? "border-amber-300/30 bg-amber-400/10"
-                : "border-sky-100/10 bg-[#062d48]/80 hover:border-[#73c4ca]/20"
+                : "border-sky-100/10   bg-[#062d48]/80 hover:border-[#73c4ca]/20"
             }`}
           >
             <span className="font-['Poppins'] text-xs font-medium uppercase tracking-[0.12em] text-[#91b5bf]">
@@ -113,7 +113,7 @@ function AdminOverview({
 
       {/* Verification Summary */}
       <div className="grid gap-3 lg:grid-cols-2">
-        <article className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-5">
+        <article className="rounded-2xl border border-sky-100/10 bg-[#001523] p-5">
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="font-['Poppins'] text-xs font-semibold uppercase tracking-[0.12em] text-[#73c4ca]">

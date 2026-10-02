@@ -405,6 +405,8 @@ exports.verifyAndRegister = async (req, res) => {
       ownerName,
       password,
       businessAddress,
+      businessLatitude,
+      businessLongitude,
       phoneNumber,
       otp,
     } = req.body;
@@ -473,6 +475,8 @@ exports.verifyAndRegister = async (req, res) => {
       email,
       password,
       businessAddress,
+      businessLatitude: Number(businessLatitude),
+      businessLongitude: Number(businessLongitude),
       phoneNumber,
       otp: record.otp,
       role: "Owner",

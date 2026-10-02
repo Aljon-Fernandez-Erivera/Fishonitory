@@ -103,6 +103,9 @@ function OwnerOperations({
   const visiblePurchases = purchaseRows;
   const visibleMortality = mortalityRows;
   const visibleAuditLogs = auditRows;
+  const defaultPurchaseFishId = purchase.fishId || fish[0]?._id || "";
+  const defaultMortalityFishId =
+    death.fishId || fish.find((item) => item.category !== "Fish Food")?._id || "";
 
   const submitPurchase = (event) => {
     event.preventDefault();
@@ -113,7 +116,7 @@ function OwnerOperations({
       notes: purchase.notes,
       items: [
         {
-          fishId: purchase.fishId,
+          fishId: defaultPurchaseFishId,
           quantity: Number(purchase.quantity),
           unitCost: Number(purchase.unitCost),
         },
@@ -125,7 +128,7 @@ function OwnerOperations({
   const submitMortality = (event) => {
     event.preventDefault();
     onMortality({
-      fishId: death.fishId,
+      fishId: defaultMortalityFishId,
       quantity: Number(death.quantity),
       reason: death.reason,
     });
@@ -258,7 +261,7 @@ function OwnerOperations({
             <select
               className={selectClass}
               required
-              value={purchase.fishId}
+              value={defaultPurchaseFishId}
               onChange={(event) =>
                 setPurchase({ ...purchase, fishId: event.target.value })
               }
@@ -328,7 +331,7 @@ function OwnerOperations({
             <select
               className={selectClass}
               required
-              value={death.fishId}
+              value={defaultMortalityFishId}
               onChange={(event) =>
                 setDeath({ ...death, fishId: event.target.value })
               }
@@ -626,7 +629,7 @@ function OwnerOperations({
                 ) : (
                   <tr>
                     <td
-                      colSpan="4"
+                      colSpan="5"
                       className="px-3 py-4 text-sm text-[#789faa]"
                     >
                       No audit activity in this range.

@@ -23,7 +23,7 @@ exports.listPendingOwners = async (req, res) => {
     const [pending, total] = await Promise.all([
       User.find(filter)
         .select(
-          "businessName ownerName email businessAddress phoneNumber businessPermitUrl createdAt",
+          "businessName ownerName email businessAddress businessLatitude businessLongitude phoneNumber businessPermitUrl createdAt",
         )
         .sort({ createdAt: 1 })
         .skip(skip)
