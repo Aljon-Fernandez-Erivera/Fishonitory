@@ -140,6 +140,17 @@ function LoginPage() {
       if (!response.ok) {
         if (["ACCOUNT_LOCKED", "IP_RATE_LIMITED"].includes(data.code))
           setLockSeconds(Number(data.retryAfterSeconds) || 300);
+        if (mfaEnrollment && data.code === "MFA_ENROLLMENT_EXPIRED") {
+          setMfaEnrollment(null);
+          setTotpCode("");
+          setErrors({});
+          setDialog({
+            title: "MFA setup expired",
+            message: "This QR code has expired. Sign in again to start a fresh setup; your password is still filled in.",
+            buttonLabel: "Sign in again",
+          });
+          return;
+        }
         throw new Error(data.message);
       }
       if (data.totpRequired) {
@@ -465,6 +476,10 @@ function LoginPage() {
 
           {mfaEnrollment && (
             <div className="relative space-y-3">
+              <p className="rounded-lg border border-sky-100/10 bg-white/[.04] px-3 py-2 font-['Poppins'] text-xs text-[#b9d8dd]">
+                Setting up the authenticator for <strong className="text-white">{formData.email}</strong>.
+                This QR code expires after 10 minutes.
+              </p>
               <div className="rounded-2xl border border-sky-100/10 bg-white/[.04] p-4 text-center">
                 <img
                   src={mfaEnrollment.qrDataUrl}

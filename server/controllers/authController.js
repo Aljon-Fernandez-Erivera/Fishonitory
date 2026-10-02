@@ -977,6 +977,12 @@ exports.startRequiredTotpEnrollment = async (req, res) => {
       expiresInSeconds: 600,
     });
   } catch (error) {
+    if (error.name === "TokenExpiredError") {
+      return res.status(401).json({
+        code: "MFA_ENROLLMENT_EXPIRED",
+        message: "Your MFA enrollment expired. Sign in again to generate a fresh QR code.",
+      });
+    }
     return res.status(401).json({
       message: "The MFA enrollment request expired. Please sign in again.",
     });
@@ -1001,7 +1007,10 @@ exports.confirmRequiredTotpEnrollment = async (req, res) => {
     ) {
       return res
         .status(400)
-        .json({ message: "Your MFA setup has expired. Please sign in again." });
+        .json({
+          code: "MFA_ENROLLMENT_EXPIRED",
+          message: "Your MFA setup expired. Sign in again to generate a fresh QR code.",
+        });
     }
     const secret = decryptSecret(
       user.totpSetupCiphertext,
@@ -1036,6 +1045,12 @@ exports.confirmRequiredTotpEnrollment = async (req, res) => {
     return completeLogin(req, res, user, challenge.role);
   } catch (error) {
     console.error("MFA enrollment confirmation failed:", error.message);
+    if (error.name === "TokenExpiredError") {
+      return res.status(401).json({
+        code: "MFA_ENROLLMENT_EXPIRED",
+        message: "Your MFA enrollment expired. Sign in again to generate a fresh QR code.",
+      });
+    }
     return res.status(401).json({
       message:
         "MFA enrollment could not be completed. Please sign in again and try a new current code.",
