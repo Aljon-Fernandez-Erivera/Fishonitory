@@ -8,6 +8,7 @@ import {
 import { API_URL } from "../config.js";
 import { BrandLogo, LoadingOverlay } from "./shared/AuthLayout.jsx";
 import { Link } from "react-router-dom";
+import LegalDocumentsDialog from "../components/LegalDocumentsDialog.jsx";
 import {
   sanitizePhoneDigits,
   maxLocalDigitsForCountry,
@@ -94,6 +95,7 @@ function RegisterBusinessPage() {
   const [loading, setLoading] = useState(false);
   const [dialogMessage, setDialogMessage] = useState("");
   const [dialogMode, setDialogMode] = useState("otp");
+  const [activeLegalDocument, setActiveLegalDocument] = useState(null);
   const [otpSeconds, setOtpSeconds] = useState(0);
   const [countryIso, setCountryIso] = useState("PH");
   const [countryOpen, setCountryOpen] = useState(false);
@@ -894,8 +896,9 @@ function RegisterBusinessPage() {
             </div>
 
             <div className="sm:col-span-2">
-              <label className="flex items-start gap-3 rounded-md px-3 py-3 text-left font-['Poppins'] text-xs text-[#dfeef0]">
+              <div className="flex items-start gap-3 rounded-md px-3 py-3 text-left font-['Poppins'] text-xs text-[#dfeef0]">
                 <input
+                  id="accepted-terms"
                   type="checkbox"
                   name="acceptedTerms"
                   checked={formData.acceptedTerms}
@@ -903,12 +906,14 @@ function RegisterBusinessPage() {
                   className="mt-0.5 h-4 w-4 accent-[#4dccca]"
                   required
                 />
-                <span>
-                  By signing up, I agree to Fishonitory's{" "}
-                  <span className="text-[#79d7d7]">Terms of Service</span> and{" "}
-                  <span className="text-[#79d7d7]">Privacy Policy</span>.
-                </span>
-              </label>
+                <p className="m-0">
+                  <label className="sr-only" htmlFor="accepted-terms">Agree to the legal documents</label>
+                  By signing up, I agree to Fishonitory&apos;s{" "}
+                  <button className="border-0 bg-transparent p-0 text-[#79d7d7] underline underline-offset-2" type="button" onClick={() => setActiveLegalDocument("terms")}>Terms of Service</button>
+                  {" and "}
+                  <button className="border-0 bg-transparent p-0 text-[#79d7d7] underline underline-offset-2" type="button" onClick={() => setActiveLegalDocument("privacy")}>Privacy Policy</button>.
+                </p>
+              </div>
               {errors.acceptedTerms && (
                 <span className="mt-1 block font-['Poppins'] text-xs text-[#ffd1d1]">
                   {errors.acceptedTerms}
@@ -981,6 +986,11 @@ function RegisterBusinessPage() {
           </form>
         )}
       </div>
+      <LegalDocumentsDialog
+        activeDocument={activeLegalDocument}
+        onChangeDocument={setActiveLegalDocument}
+        onClose={() => setActiveLegalDocument(null)}
+      />
     </div>
   );
 }

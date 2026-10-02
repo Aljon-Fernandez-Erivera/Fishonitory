@@ -320,12 +320,14 @@ function OwnerDashboard() {
     try {
       const data = await apiRequest("/operations/mortality", {
         method: "POST",
-        body: JSON.stringify(record),
+        body: record instanceof FormData ? record : JSON.stringify(record),
       });
       setMessage(data.message);
       await loadDashboardData();
+      return true;
     } catch (requestError) {
       setError(requestError.message);
+      return false;
     }
   };
 
@@ -1098,6 +1100,9 @@ function OwnerDashboard() {
         return (
           <OwnerOperations
             fish={fish}
+            tanks={tanks}
+            staff={staff}
+            user={user}
             purchases={purchases}
             mortality={mortality}
             auditLogs={auditLogs}

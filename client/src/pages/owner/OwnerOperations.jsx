@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { formatPeso } from "../shared/salesUtils.js";
+import MortalityReportForm from "../../components/MortalityReportForm.jsx";
 
 function downloadCsv(filename, rows) {
   const safeCell = (value) => {
@@ -22,6 +23,9 @@ function downloadCsv(filename, rows) {
 
 function OwnerOperations({
   fish,
+  tanks,
+  staff,
+  user,
   purchases,
   mortality,
   auditLogs,
@@ -37,11 +41,6 @@ function OwnerOperations({
     quantity: "",
     unitCost: "",
     notes: "",
-  });
-  const [death, setDeath] = useState({
-    fishId: fish[0]?._id || "",
-    quantity: "",
-    reason: "",
   });
   const [purchaseLimit] = useState(20);
   const [mortalityLimit] = useState(20);
@@ -104,9 +103,6 @@ function OwnerOperations({
   const visibleMortality = mortalityRows;
   const visibleAuditLogs = auditRows;
   const defaultPurchaseFishId = purchase.fishId || fish[0]?._id || "";
-  const defaultMortalityFishId =
-    death.fishId || fish.find((item) => item.category !== "Fish Food")?._id || "";
-
   const submitPurchase = (event) => {
     event.preventDefault();
     onPurchase({
@@ -123,16 +119,6 @@ function OwnerOperations({
       ],
     });
     setPurchase((previous) => ({ ...previous, quantity: "", unitCost: "" }));
-  };
-
-  const submitMortality = (event) => {
-    event.preventDefault();
-    onMortality({
-      fishId: defaultMortalityFishId,
-      quantity: Number(death.quantity),
-      reason: death.reason,
-    });
-    setDeath((previous) => ({ ...previous, quantity: "", reason: "" }));
   };
 
   const formClass =
@@ -321,64 +307,13 @@ function OwnerOperations({
           </div>
         </form>
 
-        <form
-          className={`${formClass} [&_h3]:col-span-full [&_h3]:mb-1 [&_h3]:font-['Fraunces'] [&_h3]:text-2xl [&_h3]:font-medium [&_h3]:text-[#d9ecef]`}
-          onSubmit={submitMortality}
-        >
-          <h3>Record Mortality</h3>
-          <label className={fieldLabelClass}>
-            Fish
-            <select
-              className={selectClass}
-              required
-              value={defaultMortalityFishId}
-              onChange={(event) =>
-                setDeath({ ...death, fishId: event.target.value })
-              }
-            >
-              {fish
-                .filter((item) => item.category !== "Fish Food")
-                .map((item) => (
-                  <option
-                    className="bg-[#062d48]"
-                    key={item._id}
-                    value={item._id}
-                  >
-                    {item.name} ({item.quantity} available)
-                  </option>
-                ))}
-            </select>
-          </label>
-          <label className={fieldLabelClass}>
-            Quantity
-            <input
-              className={inputClass}
-              required
-              type="number"
-              min="1"
-              value={death.quantity}
-              onChange={(event) =>
-                setDeath({ ...death, quantity: event.target.value })
-              }
-            />
-          </label>
-          <label className={`${fieldLabelClass} sm:col-span-2`}>
-            Reason
-            <textarea
-              className={textareaClass}
-              required
-              value={death.reason}
-              onChange={(event) =>
-                setDeath({ ...death, reason: event.target.value })
-              }
-            />
-          </label>
-          <div className="col-span-full flex flex-wrap justify-end gap-3 pt-1">
-            <button className={actionButtonClass} type="submit">
-              Save Mortality and Reduce Stock
-            </button>
-          </div>
-        </form>
+        <MortalityReportForm
+          fish={fish}
+          tanks={tanks}
+          staff={staff}
+          user={user}
+          onSubmit={onMortality}
+        />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
@@ -455,11 +390,16 @@ function OwnerOperations({
 
         <div className="overflow-hidden rounded-2xl border border-sky-100/10 bg-[#062d48]/80">
           <div className="flex items-center justify-between gap-4 border-b border-sky-100/10 px-5 py-4">
-            <h3 className="m-0 font-['Fraunces'] text-2xl text-[#d9ecef]">
-              Mortality History
-            </h3>
+            <div>
+              <h3 className="m-0 font-['Fraunces'] text-2xl text-[#d9ecef]">
+                Mortality Report
+              </h3>
+              <p className="mt-1 font-['Poppins'] text-xs text-[#9bbec7]">
+                {mortality.length} reports · {mortality.reduce((total, item) => total + Number(item.quantity || 0), 0)} fish recorded dead
+              </p>
+            </div>
             <span className="rounded-full border border-amber-400/30 bg-amber-500/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-300">
-              {mortality.length} logs
+              Owner report
             </span>
           </div>
           <div className="p-4 sm:p-5">
@@ -491,9 +431,11 @@ function OwnerOperations({
                 <thead className="sticky top-0 z-10">
                   <tr>
                     <th className={tableHeaderClass}>Date</th>
-                    <th className={tableHeaderClass}>Fish</th>
-                    <th className={tableHeaderClass}>Quantity</th>
-                    <th className={tableHeaderClass}>Reason</th>
+                    <th className={tableHeaderClass}>Recorded by</th>
+                    <th className={tableHeaderClass}>Facility</th>
+                    <th className={tableHeaderClass}>Species / stage</th>
+                    <th className={tableHeaderClass}>Dead / start</th>
+                    <th className={tableHeaderClass}>Cause / treatment</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -501,17 +443,43 @@ function OwnerOperations({
                     visibleMortality.map((item) => (
                       <tr key={item._id}>
                         <td className={tableCellClass}>
-                          {new Date(item.recordedAt).toLocaleDateString()}
+                          {new Date(item.recordedAt).toLocaleString()}
                         </td>
-                        <td className={tableCellClass}>{item.fishName}</td>
-                        <td className={tableCellClass}>{item.quantity}</td>
-                        <td className={tableCellClass}>{item.reason}</td>
+                        <td className={tableCellClass}>
+                          {item.recordedBy?.staffName || item.recordedBy?.ownerName || "Unknown"}
+                        </td>
+                        <td className={tableCellClass}>{item.tankId?.name || "—"}</td>
+                        <td className={tableCellClass}>
+                          {item.species || item.fishName} · {item.lifeStage || "—"}
+                        </td>
+                        <td className={tableCellClass}>
+                          {item.quantity} / {item.initialStockCount ?? "—"}
+                        </td>
+                        <td className={tableCellClass}>
+                          <span className="block">{item.suspectedCause || item.reason}</span>
+                          {item.treatmentGiven && item.treatmentGiven !== "None" && (
+                            <span className="mt-1 block text-xs text-[#89afb9]">{item.treatmentGiven}</span>
+                          )}
+                          {item.photoUrl && (
+                            <a className="mt-1 block text-xs text-[#73c4ca] underline" href={item.photoUrl} target="_blank" rel="noreferrer">View photo</a>
+                          )}
+                          <details className="mt-2 text-xs text-[#a9c8cf]">
+                            <summary className="cursor-pointer text-[#73c4ca]">Full report</summary>
+                            <dl className="mt-2 grid gap-1.5">
+                              <div><dt className="inline text-[#789faa]">Batch: </dt><dd className="inline">{item.batchNumber || "—"}</dd></div>
+                              <div><dt className="inline text-[#789faa]">Signs: </dt><dd className="inline">{item.signsObserved?.length ? item.signsObserved.join(", ") : "None reported"}</dd></div>
+                              <div><dt className="inline text-[#789faa]">Disposal: </dt><dd className="inline">{item.disposalMethod || "—"}</dd></div>
+                              <div><dt className="inline text-[#789faa]">Remarks: </dt><dd className="inline">{item.remarks || "—"}</dd></div>
+                              <div><dt className="inline text-[#789faa]">Photo: </dt><dd className="inline">{item.photoUrl ? "Attached" : "None"}</dd></div>
+                            </dl>
+                          </details>
+                        </td>
                       </tr>
                     ))
                   ) : (
                     <tr>
                       <td
-                        colSpan="4"
+                        colSpan="6"
                         className="px-3 py-4 text-sm text-[#789faa]"
                       >
                         No mortality records in this range.

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../shared/useAuth.js";
 import Sales from "../shared/Sales.jsx";
 import SalesSummary from "../shared/SalesSummary.jsx";
+import MortalityReportForm from "../../components/MortalityReportForm.jsx";
 import { formatPeso, getDefaultSalesRange } from "../shared/salesUtils.js";
 import { API_URL } from "../../config.js";
 import "../../css/owner-dashboard-layout.css";
@@ -28,7 +29,9 @@ async function apiRequest(path, options = {}) {
   const response = await fetch(`${API_URL}${path}`, {
     ...options,
     headers: {
-      "Content-Type": "application/json",
+      ...(options.body instanceof FormData
+        ? {}
+        : { "Content-Type": "application/json" }),
       "X-Session-Role": "masterStaff",
       ...(options.headers || {}),
     },
@@ -60,6 +63,7 @@ function StaffDashboard() {
   const [tanks, setTanks] = useState([]);
   const [notes, setNotes] = useState([]);
   const [sales, setSales] = useState([]);
+  const [mortality, setMortality] = useState([]);
   const [salesRange, setSalesRange] = useState({
     startDate: "",
     endDate: "",
@@ -129,17 +133,19 @@ function StaffDashboard() {
   // Load data from the server for fish, tanks, notes, and sales
   const loadData = async () => {
     try {
-      const [fishData, tankData, noteData, salesData] = await Promise.all([
+      const [fishData, tankData, noteData, salesData, mortalityData] = await Promise.all([
         apiRequest("/fish"),
         apiRequest("/store/tanks"),
         apiRequest("/notes"),
         apiRequest("/sales"),
+        apiRequest("/operations/mortality"),
       ]);
 
       setFish(fishData.fish);
       setTanks(tankData.tanks);
       setNotes(noteData.notes);
       setSales(salesData.sales);
+      setMortality(mortalityData.records || []);
       setSalesRange((currentRange) => {
         if (currentRange.startDate && currentRange.endDate) {
           return currentRange;
@@ -149,6 +155,21 @@ function StaffDashboard() {
       });
     } catch (requestError) {
       setError(requestError.message);
+    }
+  };
+
+  const submitMortality = async (payload) => {
+    try {
+      const result = await apiRequest("/operations/mortality", {
+        method: "POST",
+        body: payload,
+      });
+      setMessage(result.message);
+      await loadData();
+      return true;
+    } catch (requestError) {
+      setError(requestError.message);
+      return false;
     }
   };
 
@@ -499,6 +520,16 @@ function StaffDashboard() {
             Tank Updates
           </button>
           <button
+            className={navButtonClass("mortality")}
+            type="button"
+            onClick={() => {
+              setActivePage("mortality");
+              setSidebarOpen(false);
+            }}
+          >
+            Mortality Reports
+          </button>
+          <button
             className={navButtonClass("calculator")}
             type="button"
             onClick={() => {
@@ -721,6 +752,55 @@ function StaffDashboard() {
                   }
                 />
               </div>
+            </div>
+          )}
+
+          {activePage === "mortality" && (
+            <div className="space-y-6">
+              <MortalityReportForm
+                fish={fish}
+                tanks={tanks}
+                staff={[user]}
+                user={user}
+                onSubmit={submitMortality}
+              />
+              <section className="overflow-hidden rounded-2xl border border-sky-100/10 bg-[#062d48]/80">
+                <div className="flex items-center justify-between gap-3 border-b border-sky-100/10 px-5 py-4">
+                  <div>
+                    <h3 className="m-0 font-['Fraunces'] text-xl font-medium text-[#d9ecef]">Recent mortality reports</h3>
+                    <p className="mt-1 font-['Poppins'] text-xs text-[#9bbec7]">Reports for this store, newest first.</p>
+                  </div>
+                  <span className="rounded-full border border-amber-300/25 bg-amber-300/10 px-3 py-1 font-['Poppins'] text-xs text-amber-100">{mortality.length} reports</span>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[760px] border-collapse font-['Poppins'] text-sm">
+                    <thead className="bg-white/[.025] text-left text-xs uppercase tracking-[.08em] text-[#89afb9]">
+                      <tr>
+                        <th className="px-4 py-3">Date / time</th>
+                        <th className="px-4 py-3">Recorded by</th>
+                        <th className="px-4 py-3">Facility</th>
+                        <th className="px-4 py-3">Species / stage</th>
+                        <th className="px-4 py-3">Dead / start</th>
+                        <th className="px-4 py-3">Cause</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {mortality.length ? mortality.slice(0, 30).map((item) => (
+                        <tr className="border-t border-sky-100/[.07] text-[#b7d2d7]" key={item._id}>
+                          <td className="px-4 py-3">{new Date(item.recordedAt).toLocaleString()}</td>
+                          <td className="px-4 py-3">{item.recordedBy?.staffName || item.recordedBy?.ownerName || "Unknown"}</td>
+                          <td className="px-4 py-3">{item.tankId?.name || "—"}</td>
+                          <td className="px-4 py-3">{item.species || item.fishName} · {item.lifeStage || "—"}</td>
+                          <td className="px-4 py-3">{item.quantity} / {item.initialStockCount ?? "—"}</td>
+                          <td className="px-4 py-3">{item.suspectedCause || item.reason}</td>
+                        </tr>
+                      )) : (
+                        <tr><td colSpan="6" className="px-4 py-6 text-sm text-[#789faa]">No mortality reports have been recorded.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
             </div>
           )}
 

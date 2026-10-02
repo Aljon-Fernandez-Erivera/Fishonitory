@@ -2,9 +2,9 @@ const multer = require("multer");
 
 const allowedMimeTypes = new Set(["image/jpeg", "image/png"]);
 
-const uploadFishPhoto = multer({
+const createImageUpload = (fields) => multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 3 * 1024 * 1024, files: 1, fields: 0 },
+  limits: { fileSize: 3 * 1024 * 1024, files: 1, fields },
   fileFilter: (req, file, callback) => {
     if (!allowedMimeTypes.has(file.mimetype)) {
       return callback(new Error("Only JPEG and PNG images are allowed."));
@@ -12,6 +12,9 @@ const uploadFishPhoto = multer({
     callback(null, true);
   },
 }).single("photo");
+
+const uploadFishPhoto = createImageUpload(0);
+const uploadMortalityPhoto = createImageUpload(20);
 
 const uploadErrorHandler = (error, req, res, next) => {
   if (!error) return next();
@@ -21,4 +24,4 @@ const uploadErrorHandler = (error, req, res, next) => {
   return res.status(400).json({ message: error.message || "Invalid image upload." });
 };
 
-module.exports = { uploadFishPhoto, uploadErrorHandler };
+module.exports = { uploadFishPhoto, uploadMortalityPhoto, uploadErrorHandler };

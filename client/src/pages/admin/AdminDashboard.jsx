@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "../shared/useAuth.js";
+import { useSearchParams } from "react-router-dom";
 import { API_URL } from "../../config.js";
 import "../../css/owner-dashboard-layout.css";
 import Swal from "sweetalert2";
@@ -36,8 +37,19 @@ async function apiRequest(path, options = {}) {
 
 function AdminDashboard() {
   const { user, authReady, logout } = useAuth();
-
-  const [activePage, setActivePage] = useState("overview");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const adminPages = ["overview", "pending", "accounts", "logs"];
+  const requestedPage = searchParams.get("page");
+  const activePage = adminPages.includes(requestedPage) ? requestedPage : "overview";
+  const setActivePage = (page) => {
+    const nextPage = adminPages.includes(page) ? page : "overview";
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      if (nextPage === "overview") next.delete("page");
+      else next.set("page", nextPage);
+      return next;
+    });
+  };
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const [initialLoading, setInitialLoading] = useState(true);
@@ -787,18 +799,20 @@ function AdminDashboard() {
             ACCOUNTS
         =================================================== */}
 
-        <AllAccounts
-          accounts={accounts}
-          pagination={accountPagination}
-          onPageChange={(page) =>
-            loadAccounts(page, accountSearch, accountRoleFilter)
-          }
-          onSetStatus={handleSetStatus}
-          search={accountSearch}
-          onSearchChange={setAccountSearch}
-          roleFilter={accountRoleFilter}
-          onRoleChange={setAccountRoleFilter}
-        />
+        {activePage === "accounts" && (
+          <AllAccounts
+            accounts={accounts}
+            pagination={accountPagination}
+            onPageChange={(page) =>
+              loadAccounts(page, accountSearch, accountRoleFilter)
+            }
+            onSetStatus={handleSetStatus}
+            search={accountSearch}
+            onSearchChange={setAccountSearch}
+            roleFilter={accountRoleFilter}
+            onRoleChange={setAccountRoleFilter}
+          />
+        )}
 
         {/* ===================================================
             SYSTEM LOGS
