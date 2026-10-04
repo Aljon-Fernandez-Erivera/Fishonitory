@@ -125,7 +125,7 @@ function NoteItem({ item, onUpdateNote, edit, remove, perms }) {
   const NOTE_CHARS_PER_LINE = 90;
   const lineBreaks = (text.match(/\n/g) || []).length;
   const isLongNote = text.length > NOTE_CHARS_PER_LINE * 2 || lineBreaks >= 2;
-  const taskBusy = Boolean(item.isTask);
+ 
 
   return (
     <li

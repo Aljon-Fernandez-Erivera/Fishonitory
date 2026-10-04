@@ -105,6 +105,9 @@ function OwnerSettings({ user, features, onEditWorkspace }) {
         : "bg-white/[.04] text-[#8fb7be] hover:bg-white/[.08] hover:text-[#d9ecef]"
     }`;
 
+  const cardClass =
+    "rounded-2xl border border-sky-100/15 bg-[#062d48]/80 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,.04),0_14px_35px_rgba(0,12,31,.14)]";
+
   return (
     <section className="mx-auto grid w-full max-w-7xl gap-6 pb-12">
       {/* Header */}
@@ -168,7 +171,7 @@ function OwnerSettings({ user, features, onEditWorkspace }) {
       {activeTab === "profile" && (
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Main profile summary card */}
-          <div className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-6 shadow-[0_14px_35px_rgba(0,12,31,.14)] lg:col-span-1">
+          <div className={`${cardClass} lg:col-span-1`}>
             <div className="flex flex-col items-center text-center">
               <span className="grid h-20 w-20 place-items-center rounded-full bg-[#75bec4]/20 font-['Poppins'] text-3xl font-semibold text-[#bce9e9] shadow-inner">
                 {(user?.ownerName || user?.email || "O").trim().charAt(0).toUpperCase()}
@@ -201,7 +204,7 @@ function OwnerSettings({ user, features, onEditWorkspace }) {
           </div>
 
           {/* Detailed information card */}
-          <div className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-6 shadow-[0_14px_35px_rgba(0,12,31,.14)] lg:col-span-2">
+          <div className={`${cardClass} lg:col-span-2`}>
             <h3 className="font-['Fraunces'] text-xl font-medium text-[#d9ecef]">
               Account Details
             </h3>
@@ -269,7 +272,7 @@ function OwnerSettings({ user, features, onEditWorkspace }) {
       )}
 
       {activeTab === "workspace" && (
-        <div className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-6 shadow-[0_14px_35px_rgba(0,12,31,.14)]">
+        <div className={cardClass}>
           <h3 className="font-['Fraunces'] text-xl font-medium text-[#d9ecef]">Business tools</h3>
           <p className="mt-1 font-['Poppins'] text-sm text-[#9bbec7]">Select only the tools this business needs. Turning a tool off hides it but keeps all existing records for later.</p>
           <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -287,7 +290,7 @@ function OwnerSettings({ user, features, onEditWorkspace }) {
       {/* TAB 2: ACCOUNT SECURITY */}
       {activeTab === "security" && (
         <div className="grid gap-6 lg:grid-cols-3">
-          <div className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-6 shadow-[0_14px_35px_rgba(0,12,31,.14)] lg:col-span-2">
+          <div className={`${cardClass} lg:col-span-2`}>
             <div className="flex flex-wrap items-start justify-between gap-4 border-b border-sky-100/10 pb-4">
               <div>
                 <h3 className="font-['Fraunces'] text-xl font-medium text-[#d9ecef]">
@@ -425,7 +428,7 @@ function OwnerSettings({ user, features, onEditWorkspace }) {
           </div>
 
           {/* Security tips sidebar */}
-          <div className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-6 shadow-[0_14px_35px_rgba(0,12,31,.14)] lg:col-span-1">
+          <div className={`${cardClass} lg:col-span-1`}>
             <h3 className="font-['Fraunces'] text-xl font-medium text-[#d9ecef]">
               Security Best Practices
             </h3>
@@ -451,12 +454,12 @@ function OwnerSettings({ user, features, onEditWorkspace }) {
             </ul>
           </div>
         </div>
-      )}    
+      )}
 
       {/* TAB 4: ABOUT */}
       {activeTab === "about" && (
         <div className="grid gap-6 lg:grid-cols-3">
-          <div className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-6 shadow-[0_14px_35px_rgba(0,12,31,.14)] lg:col-span-2">
+          <div className={`${cardClass} lg:col-span-2`}>
             <h3 className="font-['Fraunces'] text-2xl font-medium text-[#d9ecef]">
               About Fishonitory
             </h3>
@@ -465,7 +468,7 @@ function OwnerSettings({ user, features, onEditWorkspace }) {
             </p>
           </div>
 
-          <div className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-6 shadow-[0_14px_35px_rgba(0,12,31,.14)] lg:col-span-1">
+          <div className={`${cardClass} lg:col-span-1`}>
             <h3 className="font-['Fraunces'] text-xl font-medium text-[#d9ecef]">
               System Information
             </h3>
@@ -498,7 +501,7 @@ function OwnerSettings({ user, features, onEditWorkspace }) {
       {/* TAB 5: CONTACT & SUPPORT */}
       {activeTab === "contact" && (
         <div className="grid gap-6 lg:grid-cols-3">
-          <div className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-6 shadow-[0_14px_35px_rgba(0,12,31,.14)] lg:col-span-2">
+          <div className={`${cardClass} lg:col-span-2`}>
             <h3 className="font-['Fraunces'] text-2xl font-medium text-[#d9ecef]">
               Help & Support Center
             </h3>

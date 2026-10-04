@@ -152,10 +152,10 @@ function OwnerOverview({
             className={`
               min-w-0
               rounded-2xl
-              border border-sky-100/[.09]
+              border border-sky-100/15
               bg-[#062d48]/80
               px-4 py-4
-              shadow-[0_8px_25px_rgba(0,12,31,.12)]
+              shadow-[inset_0_1px_0_rgba(255,255,255,.04),0_8px_25px_rgba(0,12,31,.12)]
               sm:p-5
 
               ${index === 4 ? "col-span-2 sm:col-span-1" : ""}
@@ -228,9 +228,9 @@ function OwnerOverview({
           min-w-0
           overflow-hidden
           rounded-2xl
-          border border-sky-100/[.09]
+          border border-sky-100/15
           bg-[#062d48]/80
-          shadow-[0_8px_25px_rgba(0,12,31,.12)]
+          shadow-[inset_0_1px_0_rgba(255,255,255,.04),0_8px_25px_rgba(0,12,31,.12)]
         "
       >
         <div className="px-4 pt-5 sm:px-6 sm:pt-6">
@@ -327,10 +327,10 @@ function OwnerOverview({
           min-w-0
           overflow-hidden
           rounded-2xl
-          border border-sky-100/[.09]
+          border border-sky-100/15
           bg-[#062d48]/80
           p-4
-          shadow-[0_8px_25px_rgba(0,12,31,.12)]
+          shadow-[inset_0_1px_0_rgba(255,255,255,.04),0_8px_25px_rgba(0,12,31,.12)]
           sm:p-6
         "
       >

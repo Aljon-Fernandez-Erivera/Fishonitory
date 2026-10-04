@@ -1176,7 +1176,9 @@ function OwnerDashboard() {
   };
 
   return (
-    <main className="owner-dashboard-main box-border flex h-[100dvh] min-h-0 w-full flex-col overflow-hidden bg-[radial-gradient(circle_at_88%_12%,#0a5267_0%,#08465d_42%,#021a31_100%)] text-[#c9e1e5] md:flex-row">
+    <main 
+    className="owner-dashboard-main box-border flex h-[100dvh] min-h-0 w-full flex-col overflow-hidden  bg-[radial-gradient(circle_at_88%_12%,#0a5267_0%,#08465d_42%,#021a31_100%)] text-[#c9e1e5] md:flex-row"
+    >
       <button
         type="button"
         aria-label={
