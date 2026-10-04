@@ -794,7 +794,8 @@ exports.verifyTotpLogin = async (req, res) => {
 
     await user.save({ validateBeforeSave: false });
     return completeLogin(req, res, user, challenge.role);
-  } catch (error) {
+    } catch (error) {
+    console.error("TOTP login verify failed:", error.name, "-", error.message);
     return res.status(401).json({
       message: "The login verification expired. Please sign in again.",
     });
