@@ -433,7 +433,9 @@ function StaffDashboard() {
     <main className="owner-dashboard-main box-border flex h-[100dvh] min-h-0 w-full flex-col overflow-hidden bg-[radial-gradient(circle_at_88%_12%,#0a5267_0%,#08465d_42%,#021a31_100%)] text-[#c9e1e5] md:flex-row">
       <button
         type="button"
-        aria-label={sidebarOpen ? "Close dashboard menu" : "Open dashboard menu"}
+        aria-label={
+          sidebarOpen ? "Close dashboard menu" : "Open dashboard menu"
+        }
         aria-expanded={sidebarOpen}
         className={`owner-mobile-menu-toggle ${sidebarOpen ? "is-open" : ""}`}
         onClick={() => setSidebarOpen((open) => !open)}
@@ -450,7 +452,9 @@ function StaffDashboard() {
       />
 
       {/* SIDEBAR */}
-      <aside className={`owner-sidebar box-border flex w-full shrink-0 flex-col overflow-hidden border-b border-cyan-100/[.08] bg-[#021d2e] px-4 py-3 md:h-full md:w-56 md:border-b-0 md:border-r md:px-3 md:pt-4 md:pb-4 ${sidebarOpen ? "is-open" : ""}`}>
+      <aside
+        className={`owner-sidebar box-border flex w-full shrink-0 flex-col overflow-hidden border-b border-cyan-100/[.08] bg-[#021d2e] px-4 py-3 md:h-full md:w-56 md:border-b-0 md:border-r md:px-3 md:pt-4 md:pb-4 ${sidebarOpen ? "is-open" : ""}`}
+      >
         {/* Brand */}
         <button
           type="button"
@@ -767,10 +771,16 @@ function StaffDashboard() {
               <section className="overflow-hidden rounded-2xl border border-sky-100/10 bg-[#062d48]/80">
                 <div className="flex items-center justify-between gap-3 border-b border-sky-100/10 px-5 py-4">
                   <div>
-                    <h3 className="m-0 font-['Fraunces'] text-xl font-medium text-[#d9ecef]">Recent mortality reports</h3>
-                    <p className="mt-1 font-['Poppins'] text-xs text-[#9bbec7]">Reports for this store, newest first.</p>
+                    <h3 className="m-0 font-['Fraunces'] text-xl font-medium text-[#d9ecef]">
+                      Recent mortality reports
+                    </h3>
+                    <p className="mt-1 font-['Poppins'] text-xs text-[#9bbec7]">
+                      Reports for this store, newest first.
+                    </p>
                   </div>
-                  <span className="rounded-full border border-amber-300/25 bg-amber-300/10 px-3 py-1 font-['Poppins'] text-xs text-amber-100">{mortality.length} reports</span>
+                  <span className="rounded-full border border-amber-300/25 bg-amber-300/10 px-3 py-1 font-['Poppins'] text-xs text-amber-100">
+                    {mortality.length} reports
+                  </span>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[760px] border-collapse font-['Poppins'] text-sm">
@@ -785,17 +795,44 @@ function StaffDashboard() {
                       </tr>
                     </thead>
                     <tbody>
-                      {mortality.length ? mortality.slice(0, 30).map((item) => (
-                        <tr className="border-t border-sky-100/[.07] text-[#b7d2d7]" key={item._id}>
-                          <td className="px-4 py-3">{new Date(item.recordedAt).toLocaleString()}</td>
-                          <td className="px-4 py-3">{item.recordedBy?.staffName || item.recordedBy?.ownerName || "Unknown"}</td>
-                          <td className="px-4 py-3">{item.tankId?.name || "—"}</td>
-                          <td className="px-4 py-3">{item.species || item.fishName} · {item.lifeStage || "—"}</td>
-                          <td className="px-4 py-3">{item.quantity} / {item.initialStockCount ?? "—"}</td>
-                          <td className="px-4 py-3">{item.suspectedCause || item.reason}</td>
+                      {mortality.length ? (
+                        mortality.slice(0, 30).map((item) => (
+                          <tr
+                            className="border-t border-sky-100/[.07] text-[#b7d2d7]"
+                            key={item._id}
+                          >
+                            <td className="px-4 py-3">
+                              {new Date(item.recordedAt).toLocaleString()}
+                            </td>
+                            <td className="px-4 py-3">
+                              {item.recordedBy?.staffName ||
+                                item.recordedBy?.ownerName ||
+                                "Unknown"}
+                            </td>
+                            <td className="px-4 py-3">
+                              {item.tankId?.name || "—"}
+                            </td>
+                            <td className="px-4 py-3">
+                              {item.species || item.fishName} ·{" "}
+                              {item.lifeStage || "—"}
+                            </td>
+                            <td className="px-4 py-3">
+                              {item.quantity} / {item.initialStockCount ?? "—"}
+                            </td>
+                            <td className="px-4 py-3">
+                              {item.suspectedCause || item.reason}
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td
+                            colSpan="6"
+                            className="px-4 py-6 text-sm text-[#789faa]"
+                          >
+                            No mortality reports have been recorded.
+                          </td>
                         </tr>
-                      )) : (
-                        <tr><td colSpan="6" className="px-4 py-6 text-sm text-[#789faa]">No mortality reports have been recorded.</td></tr>
                       )}
                     </tbody>
                   </table>
@@ -1115,21 +1152,36 @@ function StaffDashboard() {
                     <input
                       type="text"
                       value={customerDetails.customerName}
-                      onChange={(event) => setCustomerDetails((previous) => ({ ...previous, customerName: event.target.value }))}
+                      onChange={(event) =>
+                        setCustomerDetails((previous) => ({
+                          ...previous,
+                          customerName: event.target.value,
+                        }))
+                      }
                       placeholder="Customer name"
                       className="w-full rounded-lg border border-sky-100/15 bg-white/[.07] px-2.5 py-2 font-['Poppins'] text-xs text-[#d9ecef] outline-none focus:border-[#73c4ca]"
                     />
                     <input
                       type="email"
                       value={customerDetails.customerEmail}
-                      onChange={(event) => setCustomerDetails((previous) => ({ ...previous, customerEmail: event.target.value }))}
+                      onChange={(event) =>
+                        setCustomerDetails((previous) => ({
+                          ...previous,
+                          customerEmail: event.target.value,
+                        }))
+                      }
                       placeholder="customer@email.com"
                       className="w-full rounded-lg border border-sky-100/15 bg-white/[.07] px-2.5 py-2 font-['Poppins'] text-xs text-[#d9ecef] outline-none focus:border-[#73c4ca]"
                     />
                     <input
                       type="tel"
                       value={customerDetails.customerPhone}
-                      onChange={(event) => setCustomerDetails((previous) => ({ ...previous, customerPhone: event.target.value }))}
+                      onChange={(event) =>
+                        setCustomerDetails((previous) => ({
+                          ...previous,
+                          customerPhone: event.target.value,
+                        }))
+                      }
                       placeholder="+639171234567"
                       className="w-full rounded-lg border border-sky-100/15 bg-white/[.07] px-2.5 py-2 font-['Poppins'] text-xs text-[#d9ecef] outline-none focus:border-[#73c4ca]"
                     />
@@ -1325,8 +1377,12 @@ function StaffDashboard() {
 
                     <div className="mt-6 space-y-3">
                       <div className="rounded-xl border border-sky-100/10 bg-white/[.03] p-3 font-['Poppins'] text-xs text-[#9bbec7]">
-                        <div className="font-semibold text-[#d9ecef]">Customer details</div>
-                        <div className="mt-1">Name: {receipt.customerName || "Walk-in Customer"}</div>
+                        <div className="font-semibold text-[#d9ecef]">
+                          Customer details
+                        </div>
+                        <div className="mt-1">
+                          Name: {receipt.customerName || "Walk-in Customer"}
+                        </div>
                         <div>Email: {receipt.customerEmail || "-"}</div>
                         <div>Phone: {receipt.customerPhone || "-"}</div>
                       </div>
@@ -1372,37 +1428,52 @@ function StaffDashboard() {
 
               <div className="mt-5 space-y-3">
                 {sales.length === 0 ? (
-                  <p className="font-['Poppins'] text-xs text-[#7fa7ae]">No orders have been created yet.</p>
+                  <p className="font-['Poppins'] text-xs text-[#7fa7ae]">
+                    No orders have been created yet.
+                  </p>
                 ) : (
                   sales.map((sale) => (
-                    <div key={sale._id} className="rounded-xl border border-sky-100/[.08] bg-white/[.03] p-4">
+                    <div
+                      key={sale._id}
+                      className="rounded-xl border border-sky-100/[.08] bg-white/[.03] p-4"
+                    >
                       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                         <div>
                           <div className="font-['Poppins'] text-xs uppercase tracking-[0.12em] text-[#73c4ca]">
                             {sale.customerName || "Walk-in Customer"}
                           </div>
                           <div className="mt-1 font-['Poppins'] text-xs text-[#9bbec7]">
-                            {sale.customerEmail || "No email"} · {sale.customerPhone || "No phone"}
+                            {sale.customerEmail || "No email"} ·{" "}
+                            {sale.customerPhone || "No phone"}
                           </div>
                           <div className="mt-1 font-['Poppins'] text-[11px] text-[#7fa7ae]">
-                            {new Date(sale.createdAt).toLocaleString()} · {sale.items.length} product(s)
+                            {new Date(sale.createdAt).toLocaleString()} ·{" "}
+                            {sale.items.length} product(s)
                           </div>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
-                          {(["pending", "picked-up", "delivered"]).map((status) => (
-                            <button
-                              key={status}
-                              type="button"
-                              onClick={() => updateOrderStatus(sale._id, status)}
-                              className={`rounded-full px-3 py-1.5 font-['Poppins'] text-[10px] font-semibold uppercase tracking-[0.08em] transition ${
-                                sale.deliveryStatus === status
-                                  ? "bg-[#75bec4] text-[#052d45]"
-                                  : "border border-sky-100/15 bg-transparent text-[#9bbec7] hover:text-[#d9ecef]"
-                              }`}
-                            >
-                              {status === "picked-up" ? "Picked up" : status === "delivered" ? "Delivered" : "Pending"}
-                            </button>
-                          ))}
+                          {["pending", "picked-up", "delivered"].map(
+                            (status) => (
+                              <button
+                                key={status}
+                                type="button"
+                                onClick={() =>
+                                  updateOrderStatus(sale._id, status)
+                                }
+                                className={`rounded-full px-3 py-1.5 font-['Poppins'] text-[10px] font-semibold uppercase tracking-[0.08em] transition ${
+                                  sale.deliveryStatus === status
+                                    ? "bg-[#75bec4] text-[#052d45]"
+                                    : "border border-sky-100/15 bg-transparent text-[#9bbec7] hover:text-[#d9ecef]"
+                                }`}
+                              >
+                                {status === "picked-up"
+                                  ? "Picked up"
+                                  : status === "delivered"
+                                    ? "Delivered"
+                                    : "Pending"}
+                              </button>
+                            ),
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1494,10 +1565,17 @@ function StaffDashboard() {
                         {item.isTask && (
                           <button
                             type="button"
-                            onClick={() => updateTaskStatus(item._id, item.taskStatus === "done" ? "pending" : "done")}
+                            onClick={() =>
+                              updateTaskStatus(
+                                item._id,
+                                item.taskStatus === "done" ? "pending" : "done",
+                              )
+                            }
                             className="mt-3 rounded-full border border-sky-100/15 bg-white/[.03] px-3 py-1.5 font-['Poppins'] text-[10px] font-semibold uppercase tracking-[0.12em] text-[#d9ecef] hover:bg-white/[.08]"
                           >
-                            {item.taskStatus === "done" ? "Mark pending" : "Mark done"}
+                            {item.taskStatus === "done"
+                              ? "Mark pending"
+                              : "Mark done"}
                           </button>
                         )}
                       </div>
@@ -1550,10 +1628,17 @@ function StaffDashboard() {
                     {item.isTask && (
                       <button
                         type="button"
-                        onClick={() => updateTaskStatus(item._id, item.taskStatus === "done" ? "pending" : "done")}
+                        onClick={() =>
+                          updateTaskStatus(
+                            item._id,
+                            item.taskStatus === "done" ? "pending" : "done",
+                          )
+                        }
                         className="mt-3 block rounded-full border border-sky-100/15 bg-white/[.03] px-3 py-1.5 font-['Poppins'] text-[10px] font-semibold uppercase tracking-[0.12em] text-[#d9ecef] hover:bg-white/[.08]"
                       >
-                        {item.taskStatus === "done" ? "Mark pending" : "Mark done"}
+                        {item.taskStatus === "done"
+                          ? "Mark pending"
+                          : "Mark done"}
                       </button>
                     )}
                   </div>
@@ -1806,7 +1891,7 @@ function StaffDashboard() {
 
               {/* TAB: ABOUT */}
               {settingsTab === "about" && (
-                <div className="grid gap-6 lg:grid-cols-3">
+                <div className="grid gap-6 lg:grid-cols-1">
                   <div className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-6 shadow-[0_14px_35px_rgba(0,12,31,.14)] lg:col-span-2">
                     <h3 className="font-['Fraunces'] text-2xl font-medium text-[#d9ecef]">
                       About Fishonitory
@@ -1815,46 +1900,12 @@ function StaffDashboard() {
                       This section is still In progress.
                     </p>
                   </div>
-
-                  <div className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-6 shadow-[0_14px_35px_rgba(0,12,31,.14)] lg:col-span-1">
-                    <h3 className="font-['Fraunces'] text-xl font-medium text-[#d9ecef]">
-                      System Information
-                    </h3>
-                    <div className="mt-4 space-y-3 font-['Poppins'] text-xs text-[#9bbec7]">
-                      <div className="flex justify-between border-b border-sky-100/10 pb-2">
-                        <span>Version</span>
-                        <span className="font-mono text-[#d9ecef]">
-                          v1.0.0 (Final)
-                        </span>
-                      </div>
-                      <div className="flex justify-between border-b border-sky-100/10 pb-2">
-                        <span>Release Type</span>
-                        <span className="text-emerald-300">Production</span>
-                      </div>
-                      <div className="flex justify-between border-b border-sky-100/10 pb-2">
-                        <span>Frontend</span>
-                        <span className="text-[#d9ecef]">
-                          React 19 + Tailwind v4
-                        </span>
-                      </div>
-                      <div className="flex justify-between border-b border-sky-100/10 pb-2">
-                        <span>Backend</span>
-                        <span className="text-[#d9ecef]">
-                          Node.js + Express API
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Database</span>
-                        <span className="text-[#d9ecef]">MongoDB Atlas</span>
-                      </div>
-                    </div>
-                  </div>
                 </div>
               )}
 
               {/* TAB: CONTACT & SUPPORT */}
               {settingsTab === "contact" && (
-                <div className="grid gap-6 lg:grid-cols-3">
+                <div className="grid gap-6 lg:grid-cols-2">
                   <div className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-6 shadow-[0_14px_35px_rgba(0,12,31,.14)] lg:col-span-2">
                     <h3 className="font-['Fraunces'] text-2xl font-medium text-[#d9ecef]">
                       Help & Support Center
@@ -1864,7 +1915,7 @@ function StaffDashboard() {
                     </p>
                   </div>
                 </div>
-              )}
+              )}  
             </div>
           )}
 
