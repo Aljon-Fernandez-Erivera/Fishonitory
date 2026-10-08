@@ -259,11 +259,11 @@ function LoginPage() {
       ? "A reset code was sent to your email. If you don't see it, check your spam folder — it may take a minute to arrive."
       : totpChallenge
         ? "Open your authenticator app to see your current 6-digit code. Lost access to your app? Use a recovery code or reset your authenticator instead."
-        : "Enter the email and password you used when registering your business. If you forgot your password, click Forgot Password.";
+        : "Enter the email and password of your Fishonitory account. Staff should use the account their owner created for them. If you forgot your password, click Forgot password.";
 
   return (
     <AuthLayout
-      actionLabel="REGISTER BUSINESS"
+      actionLabel="GET STARTED"
       actionTo="/register"
       contentWidth="max-w-[460px]"
     >
@@ -279,14 +279,15 @@ function LoginPage() {
       />
 
       <section className="box-border w-full rounded-3xl border border-sky-100/15 bg-[#062d48]/90 p-6 shadow-[0_28px_80px_rgba(0,12,31,.3)] backdrop-blur-md sm:p-9">
-        <div className="absolute right-3 top-3">
+        <div className="absolute right-4 top-4">
           <button
             type="button"
             aria-label="Help"
+            aria-expanded={helpOpen}
             onClick={() => setHelpOpen((value) => !value)}
-            className="grid h-6 w-6 place-items-center rounded-full border border-sky-100/15 bg-white/[.06] font-['Poppins'] text-[11px] font-semibold text-[#9ebfc8] transition hover:bg-white/[.12] hover:text-[#d9ecef]"
+            className="inline-flex h-7 items-center gap-1.5 rounded-full border border-[#75bec4]/50 bg-[#75bec4]/15 px-3 font-['Poppins'] text-[11px] font-semibold text-[#d9ecef] transition hover:bg-[#75bec4]/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#d5eef0]"
           >
-            ?
+            <span aria-hidden="true">?</span> Help
           </button>
           {helpOpen && (
             <div className="absolute right-0 top-9 z-10 w-64 rounded-xl border border-sky-100/15 bg-[#062d48] p-4 text-left shadow-2xl">
@@ -317,7 +318,7 @@ function LoginPage() {
                   name="email"
                   type="email"
                   autoComplete="email"
-                  placeholder="you@fishonitory.com"
+                  placeholder="example@gmail.com"
                   value={formData.email}
                   onChange={setField}
                   disabled={loading || lockSeconds > 0}
@@ -537,12 +538,12 @@ function LoginPage() {
 
         {!totpChallenge && !mfaEnrollment && !resetMode && (
           <p className="mt-5 text-center font-['Poppins'] text-[11px] text-[#9abcc5]">
-            Don&apos;t have an account?{" "}
+            New to Fishonitory?{" "}
             <Link
               className="font-medium text-[#8cc7cc] no-underline hover:text-[#d9ecef]"
               to="/register"
             >
-              Register here
+              Register your business
             </Link>
           </p>
         )}

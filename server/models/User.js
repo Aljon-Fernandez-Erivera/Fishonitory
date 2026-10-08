@@ -148,6 +148,12 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    displayName: {
+      type: String,
+      trim: true,
+      maxlength: [60, "Display name cannot exceed 60 characters"],
+      default: "",
+    },
     totpEnabled: { type: Boolean, default: false },
     totpSecretCiphertext: { type: String, default: "", select: false },
     totpSetupCiphertext: { type: String, default: "", select: false },

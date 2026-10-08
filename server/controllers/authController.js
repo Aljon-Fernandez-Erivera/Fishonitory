@@ -9,6 +9,10 @@ const config = require("../config/config");
 const { cookieNameForRole } = require("../middleware/authMiddleware");
 const { writeAudit } = require("../utils/audit");
 const { getManilaDateKey } = require("../utils/dateKey");
+const crypto = require("crypto");
+const { sendPasswordChangeCodeEmail } = require("../utils/mailer");
+const { checkNewPassword, isUsablePasswordInput } = require("../utils/validators");
+
 const {
   buildOtpAuthUri,
   createRecoveryCodes,
@@ -1261,3 +1265,276 @@ exports.getCurrentUser = async (req, res) => {
     res.status(500).json({ message: "Failed to retrieve user." });
   }
 };
+
+exports.changePassword = async (req, res) => {
+  try {
+    const currentPassword = String(req.body?.currentPassword ?? "");
+    const newPassword = String(req.body?.newPassword ?? "");
+ 
+    if (!currentPassword || !newPassword) {
+      return res
+        .status(400)
+        .json({ message: "Enter your current and new password." });
+    }
+ 
+    if (
+      !/^[A-Za-z0-9@#$!]{8,64}$/.test(newPassword) ||
+      !/[A-Za-z]/.test(newPassword) ||
+      !/\d/.test(newPassword)
+    ) {
+      return res.status(400).json({
+        message:
+          "Use 8-64 characters with at least one letter and one number. Only letters, numbers, and @ # $ ! are allowed.",
+      });
+    }
+ 
+    if (newPassword === currentPassword) {
+      return res.status(400).json({
+        message: "The new password must be different from your current password.",
+      });
+    }
+ 
+    const user = await User.findById(req.user.userId);
+    if (!user || user.accountStatus !== "Active") {
+      return res.status(401).json({ message: "Session is no longer valid." });
+    }
+ 
+    if (user.loginLockedUntil && user.loginLockedUntil > new Date()) {
+      return res.status(423).json({
+        code: "ACCOUNT_LOCKED",
+        message: "Too many incorrect attempts. Please try again later.",
+        retryAfterSeconds: secondsUntil(user.loginLockedUntil),
+      });
+    }
+ 
+    // Wrong current passwords count toward the same lockout as failed logins,
+    // so a hijacked session cannot be used to guess the password.
+    const matches = await bcrypt.compare(currentPassword, user.password);
+    if (!matches) {
+      const lockedUntil = await recordAccountFailure(user);
+      if (lockedUntil) {
+        return res.status(423).json({
+          code: "ACCOUNT_LOCKED",
+          message: "Too many incorrect attempts. Please try again later.",
+          retryAfterSeconds: secondsUntil(lockedUntil),
+        });
+      }
+      return res
+        .status(401)
+        .json({ message: "Your current password is not correct." });
+    }
+ 
+    user.password = newPassword; // hashed by the User model's pre-save hook
+    user.failedLoginAttempts = 0;
+    user.loginLockedUntil = null;
+    await user.save({ validateBeforeSave: false });
+ 
+    // The password is already changed; an audit problem must not undo that.
+    try {
+      await writeAudit(req, "UPDATE", "User", user._id, "Password changed.");
+    } catch (auditError) {
+      console.error("Password change audit failed:", auditError.message);
+    }
+ 
+    return res.json({ message: "Your password has been changed." });
+  } catch (error) {
+    console.error("Change password failed:", error.message);
+    return res
+      .status(500)
+      .json({ message: "We could not change your password. Please try again." });
+  }
+};
+ 
+const PW_CODE_TTL_MS = 10 * 60 * 1000;
+const PW_CODE_RESEND_MS = 60 * 1000;
+const PW_CODE_MAX_TRIES = 5;
+const pendingPasswordCodes = new Map(); // userId -> { hash, expires, sentAt, tries }
+ 
+const hashPwCode = (userId, code) =>
+  crypto
+    .createHash("sha256")
+    .update(`${userId}:${code}:${process.env.JWT_SECRET || ""}`)
+    .digest("hex");
+ 
+// Shared: load the user and verify the current password, counting wrong
+// attempts toward the normal lockout. Returns { user } or { response }.
+async function verifyCurrentPassword(req, currentPassword) {
+  const user = await User.findById(req.user.userId);
+  if (!user || user.accountStatus !== "Active") {
+    return { status: 401, body: { message: "Session is no longer valid." } };
+  }
+ 
+  if (user.loginLockedUntil && user.loginLockedUntil > new Date()) {
+    return {
+      status: 423,
+      body: {
+        code: "ACCOUNT_LOCKED",
+        message: "Too many incorrect attempts. Please try again later.",
+        retryAfterSeconds: secondsUntil(user.loginLockedUntil),
+      },
+    };
+  }
+ 
+  const matches = await bcrypt.compare(currentPassword, user.password);
+  if (!matches) {
+    const lockedUntil = await recordAccountFailure(user);
+    if (lockedUntil) {
+      return {
+        status: 423,
+        body: {
+          code: "ACCOUNT_LOCKED",
+          message: "Too many incorrect attempts. Please try again later.",
+          retryAfterSeconds: secondsUntil(lockedUntil),
+        },
+      };
+    }
+    return {
+      status: 401,
+      body: { message: "Your current password is not correct." },
+    };
+  }
+ 
+  return { user };
+}
+ 
+// Step 1: verify the current password, then email a confirmation code.
+exports.requestPasswordChangeCode = async (req, res) => {
+  try {
+    const currentPassword = req.body?.currentPassword;
+    if (!isUsablePasswordInput(currentPassword)) {
+      return res.status(400).json({ message: "Enter your current password." });
+    }
+ 
+    const userId = String(req.user.userId);
+    const existing = pendingPasswordCodes.get(userId);
+    if (existing && Date.now() - existing.sentAt < PW_CODE_RESEND_MS) {
+      const wait = Math.ceil(
+        (PW_CODE_RESEND_MS - (Date.now() - existing.sentAt)) / 1000,
+      );
+      return res.status(429).json({
+        message: `Please wait ${wait}s before requesting another code.`,
+        retryAfterSeconds: wait,
+      });
+    }
+ 
+    const checked = await verifyCurrentPassword(req, currentPassword);
+    if (!checked.user) return res.status(checked.status).json(checked.body);
+ 
+    const code = String(crypto.randomInt(0, 1000000)).padStart(6, "0");
+    const { error } = await sendPasswordChangeCodeEmail(
+      checked.user.email,
+      code,
+      PW_CODE_TTL_MS / 60000,
+    );
+    if (error) {
+      console.error("Password code email failed:", error);
+      return res.status(502).json({
+        message: "We could not send the confirmation code. Please try again.",
+      });
+    }
+ 
+    pendingPasswordCodes.set(userId, {
+      hash: hashPwCode(userId, code),
+      expires: Date.now() + PW_CODE_TTL_MS,
+      sentAt: Date.now(),
+      tries: 0,
+    });
+ 
+    return res.json({
+      message: "A confirmation code was sent to your email.",
+      expiresInSeconds: PW_CODE_TTL_MS / 1000,
+      resendAfterSeconds: PW_CODE_RESEND_MS / 1000,
+    });
+  } catch (error) {
+    console.error("Password code request failed:", error.message);
+    return res.status(500).json({
+      message: "We could not send the confirmation code. Please try again.",
+    });
+  }
+};
+ 
+// Step 2: verify code + current password, then set the new password.
+exports.changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body || {};
+    const code =
+      typeof req.body?.code === "string" ? req.body.code.replace(/\s/g, "") : "";
+ 
+    if (!isUsablePasswordInput(currentPassword) || typeof newPassword !== "string") {
+      return res
+        .status(400)
+        .json({ message: "Enter your current and new password." });
+    }
+ 
+    const passwordProblem = checkNewPassword(newPassword, {
+      current: currentPassword,
+    });
+    if (passwordProblem) {
+      return res.status(400).json({ message: passwordProblem });
+    }
+ 
+    if (!/^\d{6}$/.test(code)) {
+      return res
+        .status(400)
+        .json({ message: "Enter the 6-digit confirmation code." });
+    }
+ 
+    const userId = String(req.user.userId);
+    const pending = pendingPasswordCodes.get(userId);
+ 
+    if (!pending || pending.expires < Date.now()) {
+      pendingPasswordCodes.delete(userId);
+      return res.status(400).json({
+        code: "CODE_EXPIRED",
+        message: "That code has expired. Request a new one.",
+      });
+    }
+ 
+    const a = Buffer.from(pending.hash);
+    const b = Buffer.from(hashPwCode(userId, code));
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+      pending.tries += 1;
+      if (pending.tries >= PW_CODE_MAX_TRIES) {
+        pendingPasswordCodes.delete(userId);
+        return res.status(400).json({
+          code: "CODE_EXPIRED",
+          message: "Too many incorrect codes. Request a new one.",
+        });
+      }
+      return res.status(400).json({
+        message: `Incorrect code. ${PW_CODE_MAX_TRIES - pending.tries} tries left.`,
+      });
+    }
+ 
+    const checked = await verifyCurrentPassword(req, currentPassword);
+    if (!checked.user) return res.status(checked.status).json(checked.body);
+ 
+    const user = checked.user;
+ 
+    // Needs the account email, so it runs once the user is loaded.
+    const emailProblem = checkNewPassword(newPassword, { email: user.email });
+    if (emailProblem) return res.status(400).json({ message: emailProblem });
+ 
+    user.password = newPassword; // hashed by the User model's pre-save hook
+    user.failedLoginAttempts = 0;
+    user.loginLockedUntil = null;
+    await user.save({ validateBeforeSave: false });
+ 
+    pendingPasswordCodes.delete(userId); // single use
+ 
+    // The password is already changed; an audit problem must not undo that.
+    try {
+      await writeAudit(req, "UPDATE", "User", user._id, "Password changed.");
+    } catch (auditError) {
+      console.error("Password change audit failed:", auditError.message);
+    }
+ 
+    return res.json({ message: "Your password has been changed." });
+  } catch (error) {
+    console.error("Change password failed:", error.message);
+    return res
+      .status(500)
+      .json({ message: "We could not change your password. Please try again." });
+  }
+};
+ 

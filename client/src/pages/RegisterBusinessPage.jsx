@@ -1,4 +1,9 @@
 import PasswordRequirements from "./shared/passwordRequirements.jsx";
+import {
+  PASSWORD_MAX,
+  getPasswordProblem,
+  sanitizePassword,
+} from "./shared/passwordRules.js";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import {
   getCountries,
@@ -157,7 +162,7 @@ function RegisterBusinessPage() {
           sanitizedValue = value.replace(/[^a-zA-Z0-9@._%+-]/g, "");
           break;
         case "password":
-          sanitizedValue = value.replace(/[^a-zA-Z0-9@#$!]/g, "");
+          sanitizedValue = sanitizePassword(value);
           break;
         case "businessAddress":
           sanitizedValue = value.replace(/[^a-zA-Z0-9\s\-,.#]/g, "");
@@ -217,15 +222,17 @@ function RegisterBusinessPage() {
     if (!/^\S+@\S+\.\S+$/.test(formData.email)) {
       newErrors.email = "Please provide a valid email address.";
     }
-    if (formData.password.length < 8) {
-      newErrors.password = "Password must be at least 8 characters.";
+    const passwordProblem = getPasswordProblem(formData.password, {
+      email: formData.email,
+    });
+    if (passwordProblem) {
+      newErrors.password = passwordProblem;
     }
     if (!formData.businessAddress) {
       newErrors.businessAddress = "Business Address is required.";
     }
     if (!businessLocation || !businessLocationConfirmed) {
       newErrors.businessLocation = "Pin your business location on the map.";
-      openBusinessLocation();
     }
     if (
       !isValidLocalPhoneForCountry(formData.phoneNumber, countryIso) ||
@@ -248,7 +255,14 @@ function RegisterBusinessPage() {
     }
 
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+
+    // Only open the map when the pin is the single thing left to do.
+    // If other fields are empty or invalid, just show their errors.
+    const errorKeys = Object.keys(newErrors);
+    if (errorKeys.length === 1 && errorKeys[0] === "businessLocation") {
+      openBusinessLocation();
+    }
+    return errorKeys.length === 0;
   };
 
   // Step 1: Send OTP to email
@@ -371,19 +385,25 @@ function RegisterBusinessPage() {
       )}
       <header className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4">
         <BrandLogo />
-        <Link
-          to="/login"
-          className="no-underline rounded-full border border-sky-100/15 bg-white/[0.06] px-4 py-2 font-['Poppins'] text-xs font-medium text-sky-50 transition hover:bg-white/[0.12] sm:px-5 sm:text-sm"
-        >
-          LOGIN
-        </Link>
+        <div className="flex items-center gap-3">
+          <p className="m-0 hidden font-['Poppins'] text-sm text-[#a7c7cf] sm:block">
+            Already have an account?
+          </p>
+          <Link
+            to="/login"
+            className="no-underline rounded-full border border-sky-100/15 bg-white/[0.06] px-4 py-2 font-['Poppins'] text-xs font-medium text-sky-50 transition hover:bg-white/[0.12] sm:px-5 sm:text-sm"
+          >
+            LOGIN
+          </Link>
+        </div>
       </header>
       <div className="box-border mx-auto my-5 w-full max-w-[600px] rounded-2xl border border-sky-100/15 bg-[#062d48]/80 p-5 shadow-[0_24px_70px_rgba(0,12,31,.25)] backdrop-blur-md sm:my-6 sm:p-7">
         <h1 className="m-0 text-center font-['Fraunces'] text-3xl text-[#d9ecef] sm:text-[2rem]">
-          Register Business
+          Create Your Business Account
         </h1>
-        <p className="mt-2 text-center font-['Poppins'] text-xs text-[#9abcc5]">
-          Register Your Ornamental Fish Store
+        <p className="mx-auto mt-2 max-w-md text-center font-['Poppins'] text-xs leading-relaxed text-[#9abcc5]">
+          Set up your ornamental fish store on Fishonitory. Your business
+          permit will be reviewed before your account is activated.
         </p>
         <div className="mx-auto mt-5 flex max-w-[260px] items-center gap-3 font-['Poppins'] text-[10px] font-medium tracking-wide">
           <span className="grid h-8 w-8 place-items-center rounded-full bg-[#75bec4] text-xs text-[#052d45]">
@@ -476,7 +496,7 @@ function RegisterBusinessPage() {
 
             <div>
               <label className="block font-['Poppins'] text-[10px] font-medium tracking-wider text-[#8abcc0]">
-                OWNER NAME
+                OWNER'S FULL NAME
               </label>
               <input
                 className="mt-1.5 box-border w-full rounded-md border border-transparent bg-white/[.09] px-3 py-2.5 font-['Poppins'] text-sm text-[#d8f1f1] outline-none transition placeholder:text-[#7faab0] focus:border-[#4dccca]"
@@ -504,7 +524,7 @@ function RegisterBusinessPage() {
                 name="email"
                 value={formData.email}
                 onChange={handleInputChange}
-                placeholder="owner@store.com"
+                placeholder="example@gmail.com"
                 required
               />
               {errors.email && (
@@ -525,6 +545,9 @@ function RegisterBusinessPage() {
                   name="password"
                   value={formData.password}
                   onChange={handleInputChange}
+                  maxLength={PASSWORD_MAX}
+                  autoComplete="new-password"
+                  spellCheck={false}
                   placeholder="At least 8 characters"
                   required
                 />

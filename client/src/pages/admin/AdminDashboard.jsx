@@ -9,6 +9,8 @@ import { showOceanicLogoutConfirm } from "../../utils/oceanicSwal.js";
 import AdminOverview from "./AdminOverview.jsx";
 import PendingVerifications from "./PendingVerifications.jsx";
 import AllAccounts from "./AllAccounts.jsx";
+import ActiveBusinesses from "./ActiveBusinesses.jsx";
+import AdminAccount from "./AdminAccount.jsx";
 import SystemLogs from "./SystemLogs.jsx";
 
 async function apiRequest(path, options = {}) {
@@ -25,7 +27,9 @@ async function apiRequest(path, options = {}) {
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    const error = new Error(data.message || "Request failed.");
+    const error = new Error(
+      data.message || `Request failed (${response.status}).`,
+    );
 
     error.code = data.code;
 
@@ -38,7 +42,14 @@ async function apiRequest(path, options = {}) {
 function AdminDashboard() {
   const { user, authReady, logout } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
-  const adminPages = ["overview", "pending", "accounts", "logs"];
+  const adminPages = [
+    "overview",
+    "pending",
+    "businesses",
+    "accounts",
+    "logs",
+    "account",
+  ];
   const requestedPage = searchParams.get("page");
   const activePage = adminPages.includes(requestedPage) ? requestedPage : "overview";
   const setActivePage = (page) => {
@@ -80,6 +91,19 @@ function AdminDashboard() {
 
   const [accountSearch, setAccountSearch] = useState("");
   const [accountRoleFilter, setAccountRoleFilter] = useState("all");
+
+  const [businesses, setBusinesses] = useState([]);
+  const [businessPagination, setBusinessPagination] = useState({
+    page: 1,
+    limit: 20,
+    total: 0,
+    totalPages: 0,
+  });
+  const [businessSearch, setBusinessSearch] = useState("");
+  const [businessesLoading, setBusinessesLoading] = useState(false);
+  const [businessesError, setBusinessesError] = useState("");
+  const [mfaEnabled, setMfaEnabled] = useState(null);
+  const [adminProfile, setAdminProfile] = useState(null);
 
   /* =========================================================
      NOTIFICATIONS
@@ -223,6 +247,42 @@ function AdminDashboard() {
     },
     [],
   );
+
+  /* =========================================================
+     ACTIVE BUSINESSES
+     Loaded only when the Active Businesses page is opened.
+  ========================================================= */
+
+  const loadBusinesses = useCallback(async (page = 1, searchValue = "") => {
+    setBusinessesLoading(true);
+    setBusinessesError("");
+
+    try {
+      const params = new URLSearchParams({ page: String(page), limit: "20" });
+
+      if (searchValue.trim()) {
+        params.set("search", searchValue.trim());
+      }
+
+      const res = await apiRequest(`/admin/businesses?${params.toString()}`);
+
+      setBusinesses(res?.businesses || []);
+
+      setBusinessPagination(
+        res?.pagination || { page, limit: 20, total: 0, totalPages: 0 },
+      );
+    } catch (err) {
+      console.error("Failed to load businesses:", err);
+      setBusinessesError(err.message || "Could not load businesses.");
+    } finally {
+      setBusinessesLoading(false);
+    }
+  }, []);
+
+  const loadBusinessStaff = useCallback(async (businessId) => {
+    const res = await apiRequest(`/admin/businesses/${businessId}/staff`);
+    return res?.staff || [];
+  }, []);
 
   /* =========================================================
      SYSTEM LOGS
@@ -408,6 +468,78 @@ function AdminDashboard() {
     loadAccounts,
   ]);
 
+  useEffect(() => {
+    if (
+      !authReady ||
+      user?.role !== "superAdmin" ||
+      activePage !== "businesses"
+    ) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      loadBusinesses(1, businessSearch);
+    }, 400);
+
+    return () => window.clearTimeout(timer);
+  }, [authReady, user?.role, activePage, businessSearch, loadBusinesses]);
+
+  /* =========================================================
+     ACCOUNT & SECURITY
+  ========================================================= */
+
+  useEffect(() => {
+    if (!authReady || user?.role !== "superAdmin" || activePage !== "account") {
+      return;
+    }
+
+    let active = true;
+
+    apiRequest("/admin/profile")
+      .then((res) => {
+        if (active) setAdminProfile(res?.profile || null);
+      })
+      .catch((err) => console.error("Failed to load admin profile:", err));
+
+    apiRequest("/auth/totp/status")
+      .then((res) => {
+        if (active) setMfaEnabled(Boolean(res?.enabled));
+      })
+      .catch(() => {
+        if (active) setMfaEnabled(null);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [authReady, user?.role, activePage]);
+
+  // Throws on failure so the dialog can show the message under the fields.
+  const handleSaveProfile = async ({ displayName, phoneNumber }) => {
+    const data = await apiRequest("/admin/profile", {
+      method: "PATCH",
+      body: JSON.stringify({ displayName, phoneNumber }),
+    });
+
+    setAdminProfile(data.profile);
+    setMessage(data.message);
+  };
+
+  const handleRequestPasswordCode = (currentPassword) =>
+    apiRequest("/auth/password/change/code", {
+      method: "POST",
+      body: JSON.stringify({ currentPassword }),
+    });
+
+  const handleChangePassword = async (currentPassword, newPassword, code) => {
+    const data = await apiRequest("/auth/password/change", {
+      method: "POST",
+      body: JSON.stringify({ currentPassword, newPassword, code }),
+    });
+
+    setMessage(data.message);
+  };
+
   /* =========================================================
      APPROVE OWNER
   ========================================================= */
@@ -415,7 +547,7 @@ function AdminDashboard() {
   const handleApprove = async (ownerId, businessName) => {
     const confirmation = await Swal.fire({
       title: `Approve ${businessName}?`,
-      text: "This owner will be able to log in immediately.",
+      text: "This owner will be able to log in immediately and will be notified by email.",
       icon: "question",
       showCancelButton: true,
       confirmButtonText: "Approve",
@@ -453,7 +585,7 @@ function AdminDashboard() {
     const { value: reason, isConfirmed } = await Swal.fire({
       title: `Reject ${businessName}?`,
       input: "textarea",
-      inputLabel: "Reason (shown to the applicant)",
+      inputLabel: "Reason (shown to the applicant and sent by email)",
       inputPlaceholder: "e.g. The uploaded permit is expired or unreadable.",
       showCancelButton: true,
       confirmButtonText: "Reject",
@@ -534,7 +666,8 @@ function AdminDashboard() {
         loadOverviewData({
           background: true,
         }),
-        loadAccounts(),
+        // Keep the current page, search and role filter after the change.
+        loadAccounts(accountPagination.page, accountSearch, accountRoleFilter),
       ]);
     } catch (requestError) {
       setError(requestError.message);
@@ -657,15 +790,23 @@ function AdminDashboard() {
             }}
           >
             Pending Verifications
-            {pending.length > 0 && (
+            {pendingPagination.total > 0 && (
               <span className="ml-2 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-400 px-1 text-[10px] font-bold text-[#3a2900]">
-                {pendingPagination.total > 0 && (
-                  <span className="ml-2 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-400 px-1 text-[10px] font-bold text-[#3a2900]">
-                    {pendingPagination.total}
-                  </span>
-                )}
+                {pendingPagination.total}
               </span>
             )}
+          </button>
+
+          {/* Active businesses */}
+          <button
+            className={navButtonClass("businesses")}
+            type="button"
+            onClick={() => {
+              setActivePage("businesses");
+              setSidebarOpen(false);
+            }}
+          >
+            Active Businesses
           </button>
 
           {/* Accounts */}
@@ -690,6 +831,18 @@ function AdminDashboard() {
             }}
           >
             System Logs
+          </button>
+
+          {/* Account & security */}
+          <button
+            className={navButtonClass("account")}
+            type="button"
+            onClick={() => {
+              setActivePage("account");
+              setSidebarOpen(false);
+            }}
+          >
+            Account &amp; Security
           </button>
         </nav>
 
@@ -773,7 +926,9 @@ function AdminDashboard() {
         {activePage === "overview" && (
           <AdminOverview
             stats={stats}
-            pendingCount={pending.length}
+            pendingCount={pendingPagination.total}
+            pendingList={pending}
+            onNavigate={setActivePage}
             registrationAnalytics={registrationAnalytics}
             verificationAnalytics={verificationAnalytics}
             dataHealth={dataHealth}
@@ -796,6 +951,23 @@ function AdminDashboard() {
         )}
 
         {/* ===================================================
+            ACTIVE BUSINESSES
+        =================================================== */}
+
+        {activePage === "businesses" && (
+          <ActiveBusinesses
+            businesses={businesses}
+            loading={businessesLoading}
+            error={businessesError}
+            pagination={businessPagination}
+            onPageChange={(page) => loadBusinesses(page, businessSearch)}
+            search={businessSearch}
+            onSearchChange={setBusinessSearch}
+            onLoadStaff={loadBusinessStaff}
+          />
+        )}
+
+        {/* ===================================================
             ACCOUNTS
         =================================================== */}
 
@@ -811,6 +983,7 @@ function AdminDashboard() {
             onSearchChange={setAccountSearch}
             roleFilter={accountRoleFilter}
             onRoleChange={setAccountRoleFilter}
+            onLoadStaff={loadBusinessStaff}
           />
         )}
 
@@ -823,6 +996,21 @@ function AdminDashboard() {
             logs={logs}
             pagination={logPagination}
             onPageChange={loadLogs}
+          />
+        )}
+
+        {/* ===================================================
+            ACCOUNT & SECURITY
+        =================================================== */}
+
+        {activePage === "account" && (
+          <AdminAccount
+            email={user?.email}
+            profile={adminProfile}
+            mfaEnabled={mfaEnabled}
+            onSaveProfile={handleSaveProfile}
+            onRequestCode={handleRequestPasswordCode}
+            onChangePassword={handleChangePassword}
           />
         )}
       </div>

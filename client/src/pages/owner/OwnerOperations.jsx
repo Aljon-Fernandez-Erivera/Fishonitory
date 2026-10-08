@@ -382,6 +382,7 @@ function OwnerOperations({
                 <input
                   className={inputClass}
                   type="text"
+                  maxLength={120}
                   placeholder="Example: Dagupan Aquatic Supplier"
                   value={purchase.supplierName}
                   onChange={(event) =>
@@ -399,7 +400,8 @@ function OwnerOperations({
                 <input
                   className={inputClass}
                   type="text"
-                  placeholder="Example: 0917 123 4567"
+                  maxLength={120}
+                  placeholder="Optional. Example: 0917 123 4567"
                   value={purchase.supplierContact}
                   onChange={(event) =>
                     setPurchase((current) => ({
@@ -407,7 +409,6 @@ function OwnerOperations({
                       supplierContact: event.target.value,
                     }))
                   }
-                  required
                 />
               </label>
 
@@ -416,7 +417,8 @@ function OwnerOperations({
                 <input
                   className={inputClass}
                   type="text"
-                  placeholder="Example: INV-2026-001"
+                  maxLength={80}
+                  placeholder="Optional. Example: INV-2026-001"
                   value={purchase.invoiceNumber}
                   onChange={(event) =>
                     setPurchase((current) => ({
@@ -424,7 +426,6 @@ function OwnerOperations({
                       invoiceNumber: event.target.value,
                     }))
                   }
-                  required
                 />
               </label>
 
@@ -452,6 +453,9 @@ function OwnerOperations({
                       value={item._id}
                     >
                       {item.name}
+                      {item.species ? ` · ${item.species}` : ""}
+                      {item.tankId?.name ? ` · ${item.tankId.name}` : ""}
+                      {` (stock ${item.quantity})`}
                     </option>
                   ))}
                 </select>
@@ -658,6 +662,7 @@ function OwnerOperations({
                   <tr>
                     <th className={tableHeaderClass}>Date</th>
                     <th className={tableHeaderClass}>Supplier</th>
+                    <th className={tableHeaderClass}>Items</th>
                     <th className={tableHeaderClass}>Total</th>
                   </tr>
                 </thead>
@@ -679,6 +684,14 @@ function OwnerOperations({
                           {item.supplierName || "—"}
                         </td>
 
+                        <td className={tableCellClass}>
+                          {item.items?.length
+                            ? item.items
+                                .map((line) => `${line.name} × ${line.quantity}`)
+                                .join(", ")
+                            : "—"}
+                        </td>
+
                         <td className="border-b border-sky-100/[.07] px-3 py-3 font-['Fraunces'] text-base font-bold text-[#73c4ca]">
                           {formatPeso(item.totalCost)}
                         </td>
@@ -687,7 +700,7 @@ function OwnerOperations({
                   ) : (
                     <tr>
                       <td
-                        colSpan="3"
+                        colSpan="4"
                         className="px-3 py-8 text-center font-['Poppins'] text-sm text-[#789faa]"
                       >
                         No purchases recorded in this range.

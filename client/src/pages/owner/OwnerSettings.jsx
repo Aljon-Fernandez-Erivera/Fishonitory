@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
 import { API_URL } from "../../config.js";
+import ChangePasswordDialog from "../../components/ChangePasswordDialog.jsx";
+import OwnerEditProfileDialog from "./OwnerEditProfileDialog.jsx";
 
 async function ownerRequest(path, options = {}) {
   const response = await fetch(`${API_URL}${path}`, {
@@ -17,7 +19,11 @@ async function ownerRequest(path, options = {}) {
   return data;
 }
 
-function OwnerSettings({ user, features, onEditWorkspace }) {
+function OwnerSettings({ user: authUser, features, onEditWorkspace }) {
+  // Saved profile edits are layered over the signed-in user so this page shows
+  // them straight away, without waiting for the session to be reloaded.
+  const [profileEdits, setProfileEdits] = useState({});
+  const user = authUser ? { ...authUser, ...profileEdits } : authUser;
   const [activeTab, setActiveTab] = useState("profile");
 
   // TOTP / Security state
@@ -28,6 +34,9 @@ function OwnerSettings({ user, features, onEditWorkspace }) {
   const [securityMessage, setSecurityMessage] = useState("");
   const [securityError, setSecurityError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [passwordOpen, setPasswordOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [profileMessage, setProfileMessage] = useState("");
 
   useEffect(() => {
     if (user?.role !== "Owner") return;
@@ -35,6 +44,32 @@ function OwnerSettings({ user, features, onEditWorkspace }) {
       .then((data) => setTotpEnabled(Boolean(data.enabled)))
       .catch((err) => setSecurityError(err.message));
   }, [user?.role]);
+
+  // Change password (needs an emailed confirmation code).
+  const requestPasswordCode = (currentPassword) =>
+    ownerRequest("/auth/password/change/code", {
+      method: "POST",
+      body: JSON.stringify({ currentPassword }),
+    });
+
+  const changePassword = async (currentPassword, newPassword, code) => {
+    const data = await ownerRequest("/auth/password/change", {
+      method: "POST",
+      body: JSON.stringify({ currentPassword, newPassword, code }),
+    });
+    setSecurityError("");
+    setSecurityMessage(data.message || "Your password has been changed.");
+  };
+
+  // Throws on failure so the dialog can show the message.
+  const saveProfile = async (payload) => {
+    const data = await ownerRequest("/auth/profile", {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+    setProfileEdits((previous) => ({ ...previous, ...(data.profile || {}) }));
+    setProfileMessage(data.message || "Profile updated.");
+  };
 
   const handleStartTotpSetup = async () => {
     setBusy(true);
@@ -205,12 +240,32 @@ function OwnerSettings({ user, features, onEditWorkspace }) {
 
           {/* Detailed information card */}
           <div className={`${cardClass} lg:col-span-2`}>
-            <h3 className="font-['Fraunces'] text-xl font-medium text-[#d9ecef]">
-              Account Details
-            </h3>
-            <p className="mt-1 font-['Poppins'] text-xs text-[#9bbec7]">
-              Your administrative credentials and store identity information.
-            </p>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3 className="font-['Fraunces'] text-xl font-medium text-[#d9ecef]">
+                  Account Details
+                </h3>
+                <p className="mt-1 font-['Poppins'] text-xs text-[#9bbec7]">
+                  Your administrative credentials and store identity information.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setProfileMessage("");
+                  setProfileOpen(true);
+                }}
+                className="cursor-pointer rounded-full border border-sky-100/15 bg-white/[.05] px-5 py-2.5 font-['Poppins'] text-xs font-medium text-[#cfe6ea] transition hover:bg-white/[.1]"
+              >
+                Edit profile
+              </button>
+            </div>
+
+            {profileMessage && (
+              <p className="mt-4 rounded-xl border border-[#75bec4]/30 bg-[#75bec4]/10 px-4 py-3 font-['Poppins'] text-xs text-[#c9e8e9]">
+                {profileMessage}
+              </p>
+            )}
 
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
               <div className="rounded-xl border border-sky-100/10 bg-white/[.03] p-4">
@@ -233,7 +288,7 @@ function OwnerSettings({ user, features, onEditWorkspace }) {
 
               <div className="rounded-xl border border-sky-100/10 bg-white/[.03] p-4">
                 <label className="font-['Poppins'] text-[10px] font-semibold tracking-wider text-[#6f9ca5] uppercase">
-                  Contact Phone Number
+                  Contact Number
                 </label>
                 <p className="mt-1 font-['Poppins'] text-sm font-medium text-[#d9ecef]">
                   {user?.phoneNumber || "Registered on file"}
@@ -291,7 +346,26 @@ function OwnerSettings({ user, features, onEditWorkspace }) {
       {activeTab === "security" && (
         <div className="grid gap-6 lg:grid-cols-3">
           <div className={`${cardClass} lg:col-span-2`}>
+            {/* Password */}
             <div className="flex flex-wrap items-start justify-between gap-4 border-b border-sky-100/10 pb-4">
+              <div className="min-w-0 flex-1 basis-60">
+                <h3 className="font-['Fraunces'] text-xl font-medium text-[#d9ecef]">
+                  Change Password
+                </h3>
+                <p className="mt-1 font-['Poppins'] text-xs text-[#9bbec7]">
+                  **********
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPasswordOpen(true)}
+                className="cursor-pointer rounded-full bg-[#75bec4] px-5 py-2.5 font-['Poppins'] text-xs font-medium text-[#052d45] transition hover:bg-[#86d0d6]"
+              >
+                Change password
+              </button>
+            </div>
+
+            <div className="mt-5 flex flex-wrap items-start justify-between gap-4 border-b border-sky-100/10 pb-4">
               <div>
                 <h3 className="font-['Fraunces'] text-xl font-medium text-[#d9ecef]">
                   Two-Factor Authentication (TOTP)
@@ -510,6 +584,23 @@ function OwnerSettings({ user, features, onEditWorkspace }) {
             </p>
           </div>
         </div>
+      )}
+
+      {profileOpen && (
+        <OwnerEditProfileDialog
+          user={user}
+          onClose={() => setProfileOpen(false)}
+          onSave={saveProfile}
+        />
+      )}
+
+      {passwordOpen && (
+        <ChangePasswordDialog
+          email={user?.email}
+          onClose={() => setPasswordOpen(false)}
+          onRequestCode={requestPasswordCode}
+          onChangePassword={changePassword}
+        />
       )}
     </section>
   );

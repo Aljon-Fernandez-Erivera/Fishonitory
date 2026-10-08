@@ -12,6 +12,8 @@ router.get("/", fishController.listFish);
 router.post("/photo", uploadFishPhoto, fishController.uploadPhoto, uploadErrorHandler);
 router.post("/", validateFish, fishController.createFish);
 router.patch("/:id", validateId("id"), validateFish, fishController.updateFish);
+// Stock corrections (count fixes) with a required reason.
+router.patch("/:id/adjust", validateId("id"), fishController.adjustStock);
 router.delete("/:id", validateId("id"), fishController.deleteFish);
 
 module.exports = router;

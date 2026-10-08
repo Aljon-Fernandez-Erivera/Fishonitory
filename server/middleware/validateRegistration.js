@@ -6,6 +6,9 @@ module.exports = validate((req) => {
 
   if (route === "/send-otp") {
     email(body.email);
+    // The password is collected in step 1, so reject a weak one before an OTP
+    // is sent instead of after the user has verified their email.
+    password(body.password, "Password", { email: body.email });
     return;
   }
 
@@ -22,7 +25,7 @@ module.exports = validate((req) => {
 
   if (route === "/password-reset/confirm") {
     email(body.email);
-    password(body.password);
+    password(body.password, "Password", { email: body.email });
     if (!/^\d{6}$/.test(String(body.otp || ""))) {
       throw Object.assign(new Error("Please enter the 6-digit reset code."), { statusCode: 400 });
     }
@@ -32,7 +35,7 @@ module.exports = validate((req) => {
   email(body.email);
   string(body.businessName, "Business name", { min: 3, max: 100 });
   string(body.ownerName, "Owner name", { min: 2, max: 100 });
-  password(body.password);
+  password(body.password, "Password", { email: body.email });
   string(body.businessAddress, "Business address", { min: 5, max: 255 });
   phone(body.phoneNumber);
 

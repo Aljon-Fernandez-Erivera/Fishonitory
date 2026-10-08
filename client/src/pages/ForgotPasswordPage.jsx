@@ -8,6 +8,11 @@ import {
 } from "./shared/AuthLayout.jsx";
 
 import PasswordRequirements from "./shared/passwordRequirements.jsx";
+import {
+  PASSWORD_MAX,
+  getPasswordProblem,
+  sanitizePassword,
+} from "./shared/passwordRules.js";
 
 const emailPattern = /^\S+@\S+\.\S+$/;
 
@@ -64,7 +69,7 @@ function ForgotPasswordPage() {
         ? value.replace(/[^a-zA-Z0-9@._%+-]/g, "")
         : name === "otp"
           ? value.replace(/\D/g, "").slice(0, 6)
-          : value.replace(/[^a-zA-Z0-9@#$!]/g, "");
+          : sanitizePassword(value);
     setForm((old) => ({ ...old, [name]: cleaned }));
     setErrors((old) => ({ ...old, [name]: "" }));
   };
@@ -103,8 +108,12 @@ function ForgotPasswordPage() {
     event.preventDefault();
     const next = {};
     if (form.otp.length !== 6) next.otp = "Enter the 6-digit reset code.";
-    if (form.password.length < 8) next.password = "Use at least 8 characters.";
-    if (form.password !== form.confirmPassword)
+    const passwordProblem = getPasswordProblem(form.password, {
+      email: form.email,
+    });
+    if (passwordProblem) next.password = passwordProblem;
+    if (!form.confirmPassword) next.confirmPassword = "Re-enter the new password.";
+    else if (form.password !== form.confirmPassword)
       next.confirmPassword = "Passwords do not match.";
     if (Object.keys(next).length) return setErrors(next);
     setLoading(true);
@@ -175,6 +184,7 @@ function ForgotPasswordPage() {
                 autoComplete="email"
                 value={form.email}
                 onChange={change}
+                placeholder="example@gmail.com"
               />
             </label>
             {errors.email && (
@@ -214,6 +224,8 @@ function ForgotPasswordPage() {
                   className={`${input} pr-11`}
                   name="password"
                   type={showPassword ? "text" : "password"}
+                  maxLength={PASSWORD_MAX}
+                  spellCheck={false}
                   autoComplete="new-password"
                   value={form.password}
                   onChange={change}
@@ -244,6 +256,8 @@ function ForgotPasswordPage() {
                   className={`${input} pr-11`}
                   name="confirmPassword"
                   type={showConfirmPassword ? "text" : "password"}
+                  maxLength={PASSWORD_MAX}
+                  spellCheck={false}
                   autoComplete="new-password"
                   value={form.confirmPassword}
                   onChange={change}

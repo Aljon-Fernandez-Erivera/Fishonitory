@@ -1,6 +1,12 @@
 const User = require("../models/User");
 const AuditLog = require("../models/AuditLog");
 const { writeAudit } = require("../utils/audit");
+const mongoose = require("mongoose");
+const { checkDisplayName, checkPhone } = require("../utils/validators");
+const {
+  sendApprovalEmail,
+  sendRejectionEmail,
+} = require("../utils/mailer");
 
 // Every business owner currently waiting on a permit review, oldest first so
 // the queue is worked in the order it came in.
@@ -72,6 +78,8 @@ exports.listAllAccounts = async (req, res) => {
     // Role filter
     if (["Owner", "Staff", "masterStaff"].includes(role)) {
       filter.role = role;
+    } else if (!search) {
+      filter.role = "Owner";
     }
 
     // Search across relevant account fields
@@ -98,6 +106,8 @@ exports.listAllAccounts = async (req, res) => {
         .select(
           "businessName ownerName staffName staffPosition email role accountStatus ownerId createdAt verifiedAt rejectionReason",
         )
+        // Staff rows show which business they belong to.
+        .populate("ownerId", "businessName")
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
@@ -106,10 +116,34 @@ exports.listAllAccounts = async (req, res) => {
       User.countDocuments(filter),
     ]);
 
+    // How many staff accounts each Owner on this page has (for the tree view).
+    const ownerIds = accounts
+      .filter((account) => account.role === "Owner")
+      .map((account) => account._id);
+    const staffCountRows = ownerIds.length
+      ? await User.aggregate([
+          {
+            $match: {
+              role: { $in: ["Staff", "masterStaff"] },
+              ownerId: { $in: ownerIds },
+            },
+          },
+          { $group: { _id: "$ownerId", count: { $sum: 1 } } },
+        ])
+      : [];
+    const staffCountByOwner = new Map(
+      staffCountRows.map((row) => [String(row._id), row.count]),
+    );
+    const accountsWithCounts = accounts.map((account) =>
+      account.role === "Owner"
+        ? { ...account, staffCount: staffCountByOwner.get(String(account._id)) || 0 }
+        : account,
+    );
+
     const totalPages = Math.ceil(total / limit);
 
     return res.json({
-      accounts,
+      accounts: accountsWithCounts,
       pagination: {
         page,
         limit,
@@ -128,189 +162,164 @@ exports.listAllAccounts = async (req, res) => {
 
 // High-level counts for the Super Admin overview page.
 exports.getOverviewStats = async (req, res) => {
-  const now = new Date();
+  try {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  // Start of the current month.
-  const startOfMonth = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    1,
-  );
+    const [
+      totalOwners,
+      pendingOwners,
+      activeOwners,
+      rejectedOwners,
+      disabledAccounts,
+      businessesThisMonth,
+      oldestPending,
+    ] = await Promise.all([
+      User.countDocuments({ role: "Owner" }),
+      User.countDocuments({ role: "Owner", accountStatus: "Pending Verification" }),
+      User.countDocuments({ role: "Owner", accountStatus: "Active" }),
+      User.countDocuments({ role: "Owner", accountStatus: "Rejected" }),
+      User.countDocuments({ accountStatus: "Disabled" }),
+      User.countDocuments({ role: "Owner", createdAt: { $gte: startOfMonth } }),
+      User.findOne({ role: "Owner", accountStatus: "Pending Verification" })
+        .sort({ createdAt: 1 })
+        .select("createdAt")
+        .lean(),
+    ]);
 
-  const [
-    totalOwners,
-    pendingOwners,
-    activeOwners,
-    rejectedOwners,
-    totalStaff,
-    disabledAccounts,
+    // Businesses that have already gone through a decision.
+    const reviewedOwners = activeOwners + rejectedOwners;
+    const pct = (part, whole) =>
+      whole > 0 ? Number(((part / whole) * 100).toFixed(1)) : 0;
 
-    // Businesses/staff registered during the current month.
-    businessesThisMonth,
-    staffThisMonth,
-  ] = await Promise.all([
-    User.countDocuments({ role: "Owner" }),
+    return res.json({
+      // Kept with the same names so existing code keeps working.
+      totalOwners,
+      pendingOwners,
+      activeOwners,
+      rejectedOwners,
+      disabledAccounts,
+      businessesThisMonth,
 
-    User.countDocuments({
-      role: "Owner",
-      accountStatus: "Pending Verification",
-    }),
+      // New / clearer fields for the overview cards.
+      registeredOwners: totalOwners,
+      approvedOwners: activeOwners,
+      reviewedOwners,
+      oldestPendingAt: oldestPending?.createdAt || null,
 
-    User.countDocuments({
-      role: "Owner",
-      accountStatus: "Active",
-    }),
-
-    User.countDocuments({
-      role: "Owner",
-      accountStatus: "Rejected",
-    }),
-
-    User.countDocuments({
-      role: { $in: ["Staff", "masterStaff"] },
-    }),
-
-    User.countDocuments({
-      accountStatus: "Disabled",
-    }),
-
-    User.countDocuments({
-      role: "Owner",
-      createdAt: { $gte: startOfMonth },
-    }),
-
-    User.countDocuments({
-      role: { $in: ["Staff", "masterStaff"] },
-      createdAt: { $gte: startOfMonth },
-    }),
-  ]);
-
-  // Businesses that have already gone through a decision.
-  const reviewedOwners = activeOwners + rejectedOwners;
-
-  const approvalRate =
-    reviewedOwners > 0
-      ? Number(((activeOwners / reviewedOwners) * 100).toFixed(1))
-      : 0;
-
-  const rejectionRate =
-    reviewedOwners > 0
-      ? Number(((rejectedOwners / reviewedOwners) * 100).toFixed(1))
-      : 0;
-
-  const activeRate =
-    totalOwners > 0
-      ? Number(((activeOwners / totalOwners) * 100).toFixed(1))
-      : 0;
-
-  const averageStaffPerBusiness =
-    totalOwners > 0
-      ? Number((totalStaff / totalOwners).toFixed(1))
-      : 0;
-
-  return res.json({
-    totalOwners,
-    pendingOwners,
-    activeOwners,
-    rejectedOwners,
-    totalStaff,
-    disabledAccounts,
-
-    approvalRate,
-    rejectionRate,
-    activeRate,
-    averageStaffPerBusiness,
-
-    businessesThisMonth,
-    staffThisMonth,
-  });
+      approvalRate: pct(activeOwners, reviewedOwners),
+      rejectionRate: pct(rejectedOwners, reviewedOwners),
+      activeRate: pct(activeOwners, totalOwners),
+    });
+  } catch (error) {
+    console.error("Overview stats error:", error);
+    return res.status(500).json({ message: "Failed to load overview stats." });
+  }
 };
 
 // Approve a pending owner: the account becomes Active and can log in.
+// An approval email is sent afterwards; if that email fails the approval
+// still stands and the response says so.
 exports.approveOwner = async (req, res) => {
-  const owner = await User.findOne({
-    _id: req.params.id,
-    role: "Owner",
-    accountStatus: "Pending Verification",
-  });
-
-  if (!owner) {
-    return res.status(409).json({
-      message: "This account is no longer pending verification.",
+  try {
+    const owner = await User.findOne({
+      _id: req.params.id,
+      role: "Owner",
+      accountStatus: "Pending Verification",
     });
+
+    if (!owner) {
+      return res.status(409).json({
+        message: "This account is no longer pending verification.",
+      });
+    }
+
+    owner.accountStatus = "Active";
+    owner.verifiedBy = req.user.userId;
+    owner.verifiedAt = new Date();
+    owner.rejectedAt = null;
+    owner.rejectionReason = "";
+
+    await owner.save({ validateBeforeSave: false });
+
+    await writeAudit(
+      req,
+      "APPROVE",
+      "User",
+      owner._id,
+      `Approved business registration for ${owner.businessName}`,
+    );
+
+    const { error: mailError } = await sendApprovalEmail(owner);
+    if (mailError) {
+      console.error("Approval email failed:", owner.email, mailError);
+    }
+
+    return res.json({
+      message: mailError
+        ? `${owner.businessName} has been approved, but the notification email could not be sent.`
+        : `${owner.businessName} has been approved and notified by email.`,
+      emailSent: !mailError,
+    });
+  } catch (error) {
+    console.error("Approve owner error:", error);
+    return res.status(500).json({ message: "Failed to approve this account." });
   }
-
-  owner.accountStatus = "Active";
-  owner.verifiedBy = req.user.userId;
-  owner.verifiedAt = new Date();
-
-  // An approved registration should not retain a rejection timestamp/reason.
-  owner.rejectedAt = null;
-  owner.rejectionReason = "";
-
-  await owner.save({ validateBeforeSave: false });
-
-  await writeAudit(
-    req,
-    "APPROVE",
-    "User",
-    owner._id,
-    `Approved business registration for ${owner.businessName}`,
-  );
-
-  return res.json({
-    message: `${owner.businessName} has been approved and can now log in.`,
-  });
 };
 
-// Reject a pending owner, with a reason the owner will see on their next
-// login attempt. The account stays in the database (not deleted) in case
-// the applicant corrects the issue and a resubmission flow is added later.
+// Reject a pending owner with a reason. The reason is saved, shown if they
+// try to log in, and emailed to them.
 exports.rejectOwner = async (req, res) => {
-  const reason = String(req.body?.reason || "").trim();
+  try {
+    const reason = String(req.body?.reason || "").trim().slice(0, 500);
 
-  if (!reason) {
-    return res.status(400).json({
-      message: "A rejection reason is required.",
+    if (!reason) {
+      return res.status(400).json({ message: "A rejection reason is required." });
+    }
+
+    const owner = await User.findOne({
+      _id: req.params.id,
+      role: "Owner",
+      accountStatus: "Pending Verification",
     });
-  }
 
-  const owner = await User.findOne({
-    _id: req.params.id,
-    role: "Owner",
-    accountStatus: "Pending Verification",
-  });
+    if (!owner) {
+      return res.status(409).json({
+        message: "This account is no longer pending verification.",
+      });
+    }
 
-  if (!owner) {
-    return res.status(409).json({
-      message: "This account is no longer pending verification.",
+    owner.accountStatus = "Rejected";
+    owner.verifiedBy = null;
+    owner.verifiedAt = null;
+    owner.rejectedAt = new Date();
+    owner.rejectionReason = reason;
+
+    await owner.save({ validateBeforeSave: false });
+
+    await writeAudit(
+      req,
+      "REJECT",
+      "User",
+      owner._id,
+      `Rejected business registration for ${owner.businessName}: ${reason}`,
+    );
+
+    const { error: mailError } = await sendRejectionEmail(owner, reason);
+    if (mailError) {
+      console.error("Rejection email failed:", owner.email, mailError);
+    }
+
+    return res.json({
+      message: mailError
+        ? `${owner.businessName}'s registration has been rejected, but the notification email could not be sent.`
+        : `${owner.businessName}'s registration has been rejected and the owner was notified by email.`,
+      emailSent: !mailError,
     });
+  } catch (error) {
+    console.error("Reject owner error:", error);
+    return res.status(500).json({ message: "Failed to reject this account." });
   }
-
-  owner.accountStatus = "Rejected";
-
-  // Rejection is not verification.
-  owner.verifiedBy = null;
-  owner.verifiedAt = null;
-
-  // Record the exact time of the rejection.
-  owner.rejectedAt = new Date();
-
-  owner.rejectionReason = reason.slice(0, 500);
-
-  await owner.save({ validateBeforeSave: false });
-
-  await writeAudit(
-    req,
-    "REJECT",
-    "User",
-    owner._id,
-    `Rejected business registration for ${owner.businessName}: ${reason}`,
-  );
-
-  return res.json({
-    message: `${owner.businessName}'s registration has been rejected.`,
-  });
 };
 
 // Enable or disable any Owner/Staff account platform-wide. Distinct from
@@ -938,5 +947,146 @@ exports.getSystemHealth = async (req, res) => {
       message:
         "Failed to retrieve system health.",
     });
+  }
+};
+
+// Approved (Active) businesses, each with a count of its registered staff.
+exports.listActiveBusinesses = async (req, res) => {
+  try {
+    const page = Math.max(Number(req.query.page) || 1, 1);
+    const limit = Math.min(Math.max(Number(req.query.limit) || 20, 1), 100);
+    const search = String(req.query.search || "").trim();
+
+    const filter = { role: "Owner", accountStatus: "Active" };
+
+    if (search) {
+      const regex = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+      filter.$or = [{ businessName: regex }, { ownerName: regex }, { email: regex }];
+    }
+
+    const [owners, total] = await Promise.all([
+      User.find(filter)
+        .select("businessName ownerName email businessAddress createdAt verifiedAt")
+        .sort({ businessName: 1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .lean(),
+      User.countDocuments(filter),
+    ]);
+
+    const staffCounts = await User.aggregate([
+      {
+        $match: {
+          role: { $in: ["Staff", "masterStaff"] },
+          ownerId: { $in: owners.map((owner) => owner._id) },
+        },
+      },
+      { $group: { _id: "$ownerId", count: { $sum: 1 } } },
+    ]);
+    const countByOwner = new Map(
+      staffCounts.map((row) => [String(row._id), row.count]),
+    );
+
+    return res.json({
+      businesses: owners.map((owner) => ({
+        ...owner,
+        staffCount: countByOwner.get(String(owner._id)) || 0,
+      })),
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    });
+  } catch (error) {
+    console.error("List active businesses error:", error);
+    return res.status(500).json({ message: "Failed to load businesses." });
+  }
+};
+
+// Registered staff of one business (read-only for the Super Admin).
+exports.listBusinessStaff = async (req, res) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ message: "Invalid business id." });
+    }
+
+    const owner = await User.findOne({ _id: req.params.id, role: "Owner" })
+      .select("businessName")
+      .lean();
+
+    if (!owner) {
+      return res.status(404).json({ message: "Business not found." });
+    }
+
+    const staff = await User.find({
+      ownerId: owner._id,
+      role: { $in: ["Staff", "masterStaff"] },
+    })
+      .select("staffName staffPosition email role accountStatus createdAt")
+      .sort({ createdAt: 1 })
+      .lean();
+
+    return res.json({ businessName: owner.businessName, staff });
+  } catch (error) {
+    console.error("List business staff error:", error);
+    return res.status(500).json({ message: "Failed to load staff." });
+  }
+};
+
+// ---------------------------------------------------------------------
+// Super Admin own profile (display name + contact phone).
+// Email is the login identity and the place codes are sent, so it is not
+// editable here.
+// ---------------------------------------------------------------------
+const profileView = (user) => ({
+  email: user.email,
+  displayName: user.displayName || "",
+  phoneNumber: user.phoneNumber || "",
+});
+
+exports.getMyProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId).select(
+      "email displayName phoneNumber accountStatus",
+    );
+    if (!user || user.accountStatus !== "Active") {
+      return res.status(401).json({ message: "Session is no longer valid." });
+    }
+    return res.json({ profile: profileView(user) });
+  } catch (error) {
+    console.error("Get admin profile failed:", error.message);
+    return res.status(500).json({ message: "Could not load your profile." });
+  }
+};
+
+exports.updateMyProfile = async (req, res) => {
+  try {
+    const body = req.body && typeof req.body === "object" ? req.body : {};
+
+    const name = checkDisplayName(body.displayName);
+    if (name.error) return res.status(400).json({ message: name.error });
+
+    const phone = checkPhone(body.phoneNumber);
+    if (phone.error) return res.status(400).json({ message: phone.error });
+
+    const user = await User.findById(req.user.userId);
+    if (!user || user.accountStatus !== "Active") {
+      return res.status(401).json({ message: "Session is no longer valid." });
+    }
+
+    user.displayName = name.value;
+    user.phoneNumber = phone.value;
+    await user.save({ validateBeforeSave: false });
+
+    try {
+      await writeAudit(req, "UPDATE", "User", user._id, "Admin profile updated.");
+    } catch (auditError) {
+      console.error("Profile audit failed:", auditError.message);
+    }
+
+    return res.json({
+      message: "Profile updated.",
+      profile: profileView(user),
+    });
+  } catch (error) {
+    console.error("Update admin profile failed:", error.message);
+    return res.status(500).json({ message: "Could not save your profile." });
   }
 };

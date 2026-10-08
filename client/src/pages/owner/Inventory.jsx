@@ -53,6 +53,7 @@ function Inventory({
   onPhotoUpload,
   onSubmit,
   onDelete,
+  onAdjust,
 }) {
   const [formOpen, setFormOpen] = useState(false);
   const [categoryView, setCategoryView] = useState("Fish");
@@ -60,6 +61,51 @@ function Inventory({
   const [speciesMode, setSpeciesMode] = useState("select");
   const [photoUploading, setPhotoUploading] = useState(false);
   const [viewMode, setViewMode] = useState("grid");
+
+  // Adjust stock dialog (count corrections with a reason)
+  const [adjustItem, setAdjustItem] = useState(null);
+  const [adjustValues, setAdjustValues] = useState({ change: "", reason: "" });
+  const [adjustError, setAdjustError] = useState("");
+  const [adjustBusy, setAdjustBusy] = useState(false);
+
+  const closeAdjust = () => {
+    if (adjustBusy) return;
+    setAdjustItem(null);
+    setAdjustValues({ change: "", reason: "" });
+    setAdjustError("");
+  };
+
+  const submitAdjust = async (event) => {
+    event.preventDefault();
+    if (adjustBusy || !adjustItem) return;
+
+    const change = Number(adjustValues.change);
+    if (!Number.isInteger(change) || change === 0 || Math.abs(change) > 100000) {
+      setAdjustError("Enter a whole number to add or remove (not 0).");
+      return;
+    }
+    if (change < 0 && -change > Number(adjustItem.quantity)) {
+      setAdjustError("You cannot remove more than the current stock.");
+      return;
+    }
+    const reason = adjustValues.reason.replace(/[<>{}`$\\]/g, "").trim();
+    if (reason.length < 3) {
+      setAdjustError("Give a short reason (at least 3 characters).");
+      return;
+    }
+
+    setAdjustBusy(true);
+    setAdjustError("");
+    try {
+      await onAdjust(adjustItem._id, { change, reason });
+      setAdjustBusy(false);
+      setAdjustItem(null);
+      setAdjustValues({ change: "", reason: "" });
+    } catch (error) {
+      setAdjustError(error.message || "Could not adjust the stock.");
+      setAdjustBusy(false);
+    }
+  };
 
   const existingNames = [
     ...new Set(fish.map((item) => item.name).filter(Boolean)),
@@ -163,6 +209,8 @@ function Inventory({
                 price: "",
                 costPrice: "",
                 quantity: "",
+                source: "Purchased",
+                supplierName: "",
                 description: "",
                 photoUrl: "",
               },
@@ -276,6 +324,16 @@ function Inventory({
               </div>
 
               <div className="mt-4 grid grid-cols-2 gap-2">
+                {onAdjust && (
+                  <button
+                    type="button"
+                    className="col-span-2 min-h-[40px] rounded-xl border border-[#73c4ca]/25 bg-[#73c4ca]/10 py-2 font-['Poppins'] text-xs font-medium text-[#bce9e9] transition active:scale-[.98] hover:bg-[#73c4ca]/20"
+                    onClick={() => setAdjustItem(item)}
+                  >
+                    Adjust stock
+                  </button>
+                )}
+
                 <button
                   type="button"
                   className="min-h-[40px] rounded-xl border border-sky-100/15 bg-white/[.04] py-2 font-['Poppins'] text-xs font-medium text-[#a8c6cc] transition active:scale-[.98] hover:border-[#73c4ca]/50 hover:bg-white/[.08] hover:text-[#bce9e9]"
@@ -397,6 +455,15 @@ function Inventory({
                   {/* ACTIONS */}
                   <td className="border-b border-sky-100/[.07] px-4 py-3">
                     <div className="flex gap-2">
+                      {onAdjust && (
+                        <button
+                          type="button"
+                          className="rounded-lg border border-[#73c4ca]/25 bg-[#73c4ca]/10 px-3 py-2 font-['Poppins'] text-xs text-[#bce9e9] transition hover:bg-[#73c4ca]/20"
+                          onClick={() => setAdjustItem(item)}
+                        >
+                          Adjust
+                        </button>
+                      )}
                       <button
                         type="button"
                         className="rounded-lg border border-sky-100/15 bg-white/[.04] px-3 py-2 font-['Poppins'] text-xs text-[#b7d2d7] transition hover:border-[#73c4ca]/50 hover:text-[#d9ecef]"
@@ -440,6 +507,95 @@ function Inventory({
           </div>
         )}
       </div>
+
+      {/* ADJUST STOCK DIALOG */}
+      {adjustItem && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+          role="presentation"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) closeAdjust();
+          }}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border border-sky-100/15 bg-[#062d48] p-6 shadow-2xl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="adjust-dialog-title"
+          >
+            <h3
+              id="adjust-dialog-title"
+              className="m-0 font-['Fraunces'] text-xl font-medium text-[#d9ecef]"
+            >
+              Adjust stock
+            </h3>
+            <p className="mt-1 font-['Poppins'] text-xs text-[#9bbec7]">
+              {adjustItem.name} · current stock {adjustItem.quantity}. For new
+              stock bought from a supplier, use Record purchase instead.
+            </p>
+
+            <form className="mt-4 grid gap-4" onSubmit={submitAdjust} noValidate>
+              <label className="flex flex-col gap-1.5 font-['Poppins'] text-xs font-medium text-[#a9c8cf]">
+                Change (use a minus to remove)
+                <input
+                  className="min-h-[44px] rounded-xl border border-sky-100/10 bg-white/[.06] px-3 text-sm text-[#d9ecef] outline-none focus:border-[#73c4ca]"
+                  type="number"
+                  step="1"
+                  inputMode="numeric"
+                  placeholder="e.g. -3 or 5"
+                  autoFocus
+                  value={adjustValues.change}
+                  onChange={(event) => {
+                    setAdjustValues((previous) => ({ ...previous, change: event.target.value }));
+                    setAdjustError("");
+                  }}
+                  disabled={adjustBusy}
+                />
+              </label>
+
+              <label className="flex flex-col gap-1.5 font-['Poppins'] text-xs font-medium text-[#a9c8cf]">
+                Reason
+                <input
+                  className="min-h-[44px] rounded-xl border border-sky-100/10 bg-white/[.06] px-3 text-sm text-[#d9ecef] outline-none focus:border-[#73c4ca]"
+                  type="text"
+                  maxLength={200}
+                  placeholder="e.g. Recount found 3 missing"
+                  value={adjustValues.reason}
+                  onChange={(event) => {
+                    setAdjustValues((previous) => ({ ...previous, reason: event.target.value }));
+                    setAdjustError("");
+                  }}
+                  disabled={adjustBusy}
+                />
+              </label>
+
+              {adjustError && (
+                <p className="m-0 rounded-xl border border-red-300/20 bg-red-400/10 p-3 font-['Poppins'] text-xs text-[#ffb4b4]">
+                  {adjustError}
+                </p>
+              )}
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="submit"
+                  disabled={adjustBusy}
+                  className="min-h-[44px] rounded-xl bg-[#75bec4] px-4 py-2.5 font-['Poppins'] text-sm font-bold text-[#052d45] transition hover:bg-[#91d2d5] disabled:opacity-60"
+                >
+                  {adjustBusy ? "Saving..." : "Save adjustment"}
+                </button>
+                <button
+                  type="button"
+                  onClick={closeAdjust}
+                  disabled={adjustBusy}
+                  className="min-h-[44px] rounded-xl border border-sky-100/15 bg-white/[.04] px-4 py-2.5 font-['Poppins'] text-sm text-[#c9e1e5] transition hover:bg-white/[.08]"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* ADD / EDIT MODAL */}
       {formOpen && (
@@ -502,6 +658,7 @@ function Inventory({
                   <input
                     className="min-h-[44px] rounded-xl border border-sky-100/10 bg-white/[.06] px-3 text-sm text-[#d9ecef] outline-none focus:border-[#73c4ca]"
                     name="name"
+                    maxLength={100}
                     placeholder="Enter new fish name"
                     value={fishForm.name}
                     onChange={updateField}
@@ -579,6 +736,53 @@ function Inventory({
                 </select>
               </label>
 
+              {/* SOURCE (new items only) */}
+              {!editingFishId && (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <label className="flex flex-col gap-1.5 font-['Poppins'] text-xs font-medium text-[#a9c8cf]">
+                    Where did this stock come from?
+
+                    <select
+                      className="min-h-[44px] rounded-xl border border-sky-100/10 bg-[#062d48] px-3 text-sm text-[#d9ecef] outline-none focus:border-[#73c4ca]"
+                      name="source"
+                      value={fishForm.source || "Purchased"}
+                      onChange={updateField}
+                      required
+                    >
+                      <option value="Purchased">Bought from a supplier</option>
+                      <option value="Bred in-house">Bred in-house</option>
+                      <option value="Opening stock">
+                        Opening stock (already owned)
+                      </option>
+                    </select>
+                  </label>
+
+                  {(fishForm.source || "Purchased") === "Purchased" && (
+                    <label className="flex flex-col gap-1.5 font-['Poppins'] text-xs font-medium text-[#a9c8cf]">
+                      Supplier name
+
+                      <input
+                        className="min-h-[44px] rounded-xl border border-sky-100/10 bg-white/[.06] px-3 text-sm text-[#d9ecef] outline-none focus:border-[#73c4ca]"
+                        type="text"
+                        name="supplierName"
+                        maxLength={120}
+                        placeholder="e.g. Dagupan Aquatic Supplier"
+                        value={fishForm.supplierName || ""}
+                        onChange={updateField}
+                        required
+                      />
+                    </label>
+                  )}
+
+                  {(fishForm.source || "Purchased") === "Purchased" && (
+                    <p className="m-0 font-['Poppins'] text-[11px] leading-relaxed text-[#789faa] sm:col-span-2">
+                      A purchase record will be added to Purchase history
+                      automatically using the quantity and cost price below.
+                    </p>
+                  )}
+                </div>
+              )}
+
               {/* TANK */}
               {fishForm.category !== "Fish Food" && (
                 <label className="flex flex-col gap-1.5 font-['Poppins'] text-xs font-medium text-[#a9c8cf]">
@@ -628,7 +832,7 @@ function Inventory({
                 </label>
 
                 <label className="flex flex-col gap-1.5 font-['Poppins'] text-xs font-medium text-[#a9c8cf]">
-                  Cost Price
+                  Cost Price (per unit)
 
                   <input
                     className="min-h-[44px] rounded-xl border border-sky-100/10 bg-white/[.06] px-3 text-sm text-[#d9ecef] outline-none focus:border-[#73c4ca]"
@@ -652,6 +856,7 @@ function Inventory({
                   <input
                     className="min-h-[44px] rounded-xl border border-sky-100/10 bg-white/[.06] px-3 text-sm text-[#d9ecef] outline-none focus:border-[#73c4ca]"
                     name="species"
+                    maxLength={100}
                     placeholder="Enter new species"
                     value={fishForm.species}
                     onChange={updateField}
@@ -717,15 +922,24 @@ function Inventory({
                 Quantity
 
                 <input
-                  className="min-h-[44px] rounded-xl border border-sky-100/10 bg-white/[.06] px-3 text-sm text-[#d9ecef] outline-none focus:border-[#73c4ca]"
+                  className="min-h-[44px] rounded-xl border border-sky-100/10 bg-white/[.06] px-3 text-sm text-[#d9ecef] outline-none focus:border-[#73c4ca] disabled:cursor-not-allowed disabled:opacity-60"
                   type="number"
                   name="quantity"
                   min="1"
+                  step={fishForm.category === "Fish Food" ? "any" : "1"}
                   placeholder="Quantity"
                   value={fishForm.quantity}
                   onChange={updateField}
+                  disabled={Boolean(editingFishId)}
                   required
                 />
+
+                {editingFishId && (
+                  <span className="text-[11px] font-normal text-[#789faa]">
+                    Quantity is locked. Use Adjust stock for corrections, or
+                    Record purchase to restock.
+                  </span>
+                )}
               </label>
 
               {/* DESCRIPTION */}
@@ -735,6 +949,7 @@ function Inventory({
                 <textarea
                   className="min-h-[90px] resize-none rounded-xl border border-sky-100/10 bg-white/[.06] px-3 py-2.5 text-sm text-[#d9ecef] outline-none focus:border-[#73c4ca]"
                   name="description"
+                  maxLength={1000}
                   placeholder="Description"
                   value={fishForm.description}
                   onChange={updateField}

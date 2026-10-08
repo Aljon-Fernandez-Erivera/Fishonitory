@@ -75,7 +75,7 @@ function LandingPage() {
             </span>
             , and{" "}
             <em className="inline-block animate-[landing-word-wave_4.2s_cubic-bezier(0.4,0,0.2,1)_infinite] [animation-delay:0.96s] font-['Fraunces'] italic font-normal [will-change:color,transform,text-shadow] motion-reduce:animate-none motion-reduce:text-[#73c4ca]">
-              sale
+              sales
             </em>
             <br />
             in one clear view.
@@ -88,19 +88,19 @@ function LandingPage() {
 
         <nav
           aria-label="Fishonitory actions"
-          className="mx-auto mb-6 flex w-full max-w-6xl flex-col justify-center gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3"
+          className="mx-auto mb-10 flex w-full max-w-md flex-col justify-center gap-3 sm:max-w-none sm:flex-row sm:items-center sm:gap-4"
         >
           <Link
-            to="/login"
-            className="rounded-full border border-sky-100/20 px-5 py-2.5 text-center font-['Poppins'] text-sm font-medium text-sky-50 no-underline transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-[#73c4ca]"
+            to="/register"
+            className="rounded-full bg-[#75bec4] px-8 py-3.5 text-center font-['Poppins'] text-base font-semibold text-[#052d45] no-underline shadow-[0_5px_5px_rgba(0,0,0,0.5)] transition hover:-translate-y-0.5 hover:bg-[#91d2d5] focus:outline-none focus:ring-2 focus:ring-[#d5eef0] focus:ring-offset-2 focus:ring-offset-[#063047]"
           >
-            Login
+            Get Started
           </Link>
           <Link
-            to="/register"
-            className="rounded-full bg-[#75bec4] px-5 py-2.5 text-center font-['Poppins'] text-sm font-semibold text-[#052d45] no-underline shadow-[0_10px_24px_rgba(77,190,196,.16)] transition hover:-translate-y-0.5 hover:bg-[#91d2d5] focus:outline-none focus:ring-2 focus:ring-[#d5eef0] focus:ring-offset-2 focus:ring-offset-[#063047]"
+            to="/login"
+            className="rounded-full border-2 border-[#75bec4] bg-[#75bec4]/10 px-8 py-3.5 text-center font-['Poppins'] text-base font-semibold text-[#e0f0f3] no-underline transition hover:-translate-y-0.5 hover:bg-[#75bec4]/25 focus:outline-none focus:ring-2 focus:ring-[#d5eef0] focus:ring-offset-2 focus:ring-offset-[#063047]"
           >
-            Register&nbsp; Business
+            Login
           </Link>
         </nav>
 

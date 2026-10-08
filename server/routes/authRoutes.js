@@ -3,10 +3,12 @@ const router = express.Router();
 const authController = require("../controllers/authController");
 const validateRegistration = require("../middleware/validateRegistration");
 const authMiddleware = require("../middleware/authMiddleware");
+const { requireRole } = require("../middleware/authorization");
 const {
   uploadBusinessPermit,
   uploadErrorHandler,
 } = require("../middleware/uploadPermit");
+const ownerProfileController = require("../controllers/ownerProfileController");
 
 // Step 1: Send OTP
 router.post("/send-otp", validateRegistration, authController.sendOtp);
@@ -58,5 +60,9 @@ router.post("/totp/disable", authMiddleware, authController.disableTotp);
 // Get the authenticated user's profile without exposing password or OTP
 router.get("/me", authMiddleware, authController.getCurrentUser);
 
-// MUST BE EXPORTED EXACTLY LIKE THIS:
+router.post("/password/change/code", authMiddleware, authController.requestPasswordChangeCode);
+router.post("/password/change", authMiddleware, authController.changePassword);
+
+router.patch("/profile", authMiddleware, requireRole(["Owner"]), ownerProfileController.updateProfile);
+
 module.exports = router;

@@ -1,11 +1,20 @@
 const mongoose = require("mongoose");
 const validator = require("validator");
+const { checkNewPassword } = require("../utils/validators");
 
 function fail(message) {
   const error = new Error(message);
   error.statusCode = 400;
   throw error;
 }
+
+// True for control characters (0-31 and DELETE). Done with char codes so the
+// code has no control characters inside a regex (ESLint no-control-regex).
+const hasControlChars = (text) =>
+  Array.from(text).some((char) => {
+    const code = char.codePointAt(0);
+    return code <= 0x1f || code === 0x7f;
+  });
 
 function string(value, field, { required = true, min = 1, max = 255 } = {}) {
   if (value === undefined || value === null || value === "") {
@@ -18,7 +27,7 @@ function string(value, field, { required = true, min = 1, max = 255 } = {}) {
   if (text.length < min || text.length > max) {
     fail(`${field} must be between ${min} and ${max} characters.`);
   }
-  if (/[\u0000-\u001F\u007F]/.test(text)) {
+  if (hasControlChars(text)) {
     fail(`${field} contains invalid control characters.`);
   }
   return text;
@@ -30,9 +39,20 @@ function email(value, field = "Email") {
   return text;
 }
 
-function password(value, field = "Password") {
-  const text = string(value, field, { min: 8, max: 128 });
-  return text;
+// New-password rule (registration, password reset, change password):
+// 8-64 characters, letters / numbers / @ # $ ! only, at least one letter and
+// one number, not common or repeated, and not containing the email name.
+// The value is checked exactly as sent (no trimming), so a password with
+// spaces or other characters the login form strips is rejected, not altered.
+function password(value, field = "Password", { email: emailValue = "" } = {}) {
+  if (typeof value !== "string") fail(`${field} must be text.`);
+
+  const problem = checkNewPassword(value, {
+    email: typeof emailValue === "string" ? emailValue : "",
+  });
+  if (problem) fail(problem);
+
+  return value;
 }
 
 function phone(value, field = "Phone number") {

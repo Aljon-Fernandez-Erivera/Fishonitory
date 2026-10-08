@@ -5,13 +5,16 @@ export function BrandLogo() {
     <Link
       to="/"
       aria-label="Fishonitory home"
-      className="block h-11 w-6 shrink-0 sm:h-14 sm:w-8"
+      className="flex shrink-0 items-center gap-2.5 no-underline sm:gap-3"
     >
       <img
         src="/LOGO.svg"
-        alt="Fishonitory"
-        className="block h-full w-full"
+        alt=""
+        className="block h-14 w-14 shrink-0 object-contain sm:h-[4.5rem] sm:w-[4.5rem]"
       />
+      <span className="font-['Sansita'] text-2xl font-extrabold italic uppercase leading-none tracking-wide text-[#e0f0f3] sm:text-3xl">
+        Fishonitory
+      </span>
     </Link>
   );
 }
@@ -64,7 +67,7 @@ export function LoadingOverlay({ label = "Loading" }) {
         <img
           src="/LOGO.svg"
           alt=""
-          className="mx-auto h-24 w-auto animate-[pulse_1.3s_ease-in-out_infinite] drop-shadow-[0_0_24px_rgba(115,196,202,.35)]"
+          className="mx-auto h-28 w-28 object-contain animate-[pulse_1.3s_ease-in-out_infinite] drop-shadow-[0_0_24px_rgba(115,196,202,.35)]"
         />
         <p className="mt-4 font-['Poppins'] text-base text-[#d2e8ea]">
           {label}. Please wait...
@@ -94,7 +97,7 @@ export function SystemUnavailable({ onRetry, retrying = false }) {
           <img
             src="/LOGO.svg"
             alt=""
-            className="h-14 w-auto opacity-75 grayscale-[.35]"
+            className="h-14 w-14 object-contain opacity-75 grayscale-[.35]"
           />
           <span
             aria-hidden="true"

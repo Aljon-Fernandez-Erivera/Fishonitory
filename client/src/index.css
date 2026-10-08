@@ -228,29 +228,10 @@ html {
 }
 
 @keyframes landing-word-wave {
-
-  0%,
-  12%,
-  100% {
-    color: #e0f0f3;
-    text-shadow: 0 0 0 transparent;
-    transform: translateY(0);
-  }
-
-  22%,
-  31% {
-    color: #73c4ca;
-    text-shadow: 0 0 18px rgba(115, 196, 202, 0.3);
-    transform: translateY(-0.04em);
-  }
-
-  42% {
-    color: #b6dde0;
-    text-shadow: 0 0 0 transparent;
-    transform: translateY(0);
-  }
+  0%, 12%, 100% { color: #e0f0f3; transform: translateY(0); }
+  22%, 31%      { color: #f4b8a0; transform: translateY(-0.04em); }
+  42%           { color: #f8d9cb; transform: translateY(0); }
 }
-
 
 .info-page {
   width: min(720px, calc(100% - 40px));
