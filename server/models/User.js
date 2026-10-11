@@ -162,6 +162,8 @@ const userSchema = new mongoose.Schema(
     totpLastUsedCounter: { type: Number, default: -1, select: false },
     totpFailedAttempts: { type: Number, default: 0, select: false },
     totpLockedUntil: { type: Date, default: null, select: false },
+    // Incrementing this revokes every JWT issued to the account immediately.
+    sessionVersion: { type: Number, min: 0, default: 0, select: false },
     // Feature choices belong to the owner account. Turning one off never
     // deletes its records; it only removes it from the owner workspace.
     businessFeatures: { type: businessFeaturesSchema, default: () => ({}) },

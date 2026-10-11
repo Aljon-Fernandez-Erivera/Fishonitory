@@ -108,7 +108,8 @@ exports.listOrders = async (req, res) => {
   const ownerId = await resolveScope(req, res);
   if (!ownerId) return undefined;
 
-  const orders = await Order.find({ ownerId })
+  const isArchived = req.query.archived === "true";
+  const orders = await Order.find({ ownerId, archivedAt: isArchived ? { $ne: null } : null })
     .populate("createdBy", "ownerName staffName staffPosition")
     .sort({ createdAt: -1 });
 
@@ -234,6 +235,20 @@ exports.updateOrderStatus = async (req, res) => {
   const nextDeliveryStatus = changes.deliveryStatus ?? order.deliveryStatus;
   const movingToPaid = changes.paymentStatus === "paid" && order.paymentStatus !== "paid";
 
+  if (changes.deliveryStatus && changes.deliveryStatus !== order.deliveryStatus) {
+    const pickupSteps = ["pending", "ready_for_pickup", "fulfilled"];
+    const deliverySteps = ["pending", "preparing", "out_for_delivery", "fulfilled"];
+    const workflow = order.deliveryMethod === "pickup" ? pickupSteps : deliverySteps;
+    const currentIndex = workflow.indexOf(order.deliveryStatus);
+    if (workflow[currentIndex + 1] !== changes.deliveryStatus) {
+      return res.status(400).json({ message: "Order status must follow the next step in its pickup or delivery workflow." });
+    }
+  }
+
+  if (movingToPaid && nextDeliveryStatus !== "fulfilled") {
+    return res.status(400).json({ message: "Mark the order fulfilled before recording payment and completing it." });
+  }
+
   if (!movingToPaid) {
     order.deliveryStatus = nextDeliveryStatus;
     await order.save();
@@ -279,6 +294,31 @@ exports.updateOrderStatus = async (req, res) => {
   return res.json({ message: "Order marked as paid and recorded as a sale.", order, sale });
 };
 
+exports.archiveOrder = async (req, res) => {
+  const ownerId = await resolveScope(req, res);
+  if (!ownerId) return undefined;
+  const order = await Order.findOne({ _id: req.params.id, ownerId });
+  if (!order) return res.status(404).json({ message: "Order not found." });
+  if (!order.saleId || order.deliveryStatus !== "fulfilled" || order.paymentStatus !== "paid") {
+    return res.status(400).json({ message: "Only fulfilled and paid orders can be archived." });
+  }
+  order.archivedAt = new Date();
+  await order.save();
+  await writeAudit(req, "UPDATE", "Order", order._id, "Completed order archived.");
+  return res.json({ message: "Completed order archived.", order });
+};
+
+exports.restoreOrder = async (req, res) => {
+  const ownerId = await resolveScope(req, res);
+  if (!ownerId) return undefined;
+  const order = await Order.findOne({ _id: req.params.id, ownerId });
+  if (!order) return res.status(404).json({ message: "Order not found." });
+  order.archivedAt = null;
+  await order.save();
+  await writeAudit(req, "UPDATE", "Order", order._id, "Archived order restored.");
+  return res.json({ message: "Order restored.", order });
+};
+
 exports.cancelOrder = async (req, res) => {
   const ownerId = await resolveScope(req, res);
   if (!ownerId) return undefined;
@@ -287,6 +327,9 @@ exports.cancelOrder = async (req, res) => {
   if (!order) return res.status(404).json({ message: "Order not found." });
   if (order.saleId) {
     return res.status(400).json({ message: "A completed order cannot be cancelled." });
+  }
+  if (["out_for_delivery", "fulfilled"].includes(order.deliveryStatus)) {
+    return res.status(400).json({ message: "An order already handed to a customer or delivery provider cannot be cancelled here." });
   }
 
   await withTransaction(async (session) => {

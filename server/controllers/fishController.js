@@ -1,4 +1,5 @@
 const Fish = require("../models/Fish");
+const Tank = require("../models/Tank");
 const Purchase = require("../models/Purchase");
 const { cleanText } = require("../utils/validators");
 const getOwnerId = require("../utils/ownerScope");
@@ -104,7 +105,6 @@ function checkPhotoUrl(raw) {
 async function checkTank(tankId, ownerId) {
   if (typeof tankId !== "string" || !/^[a-f\d]{24}$/i.test(tankId))
     return "Choose a valid tank.";
-  const Tank = require("../models/Tank");
   const tank = await Tank.findOne({ _id: tankId, ownerId });
   return tank ? "" : "Selected tank does not belong to this store.";
 }
@@ -161,6 +161,15 @@ exports.createFish = async (req, res) => {
       return res.status(400).json({ message: "Choose a tank before adding fish." });
     const tankProblem = await checkTank(body.tankId, ownerId);
     if (tankProblem) return res.status(400).json({ message: tankProblem });
+    const tank = await Tank.findById(body.tankId).select("capacity");
+    if (tank?.capacity) {
+      const currentFish = await Fish.aggregate([
+        { $match: { ownerId: tank.ownerId, tankId: tank._id } },
+        { $group: { _id: null, total: { $sum: "$quantity" } } },
+      ]);
+      if ((currentFish[0]?.total || 0) + quantity.value > tank.capacity)
+        return res.status(400).json({ message: `This would exceed the tank capacity of ${tank.capacity} fish.` });
+    }
     tankId = body.tankId;
   }
 

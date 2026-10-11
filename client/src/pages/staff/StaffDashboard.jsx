@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../shared/useAuth.js";
 import Sales from "../shared/Sales.jsx";
+import Orders from "../shared/Orders.jsx";
+import AboutContactPanel from "../shared/AboutContactPanel.jsx";
 import SalesSummary from "../shared/SalesSummary.jsx";
 import MortalityReportForm from "../../components/MortalityReportForm.jsx";
 import { formatPeso, getDefaultSalesRange } from "../shared/salesUtils.js";
@@ -23,6 +25,13 @@ const escapeHtml = (value) =>
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+
+const todayLocal = () => {
+  const now = new Date();
+  return new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+    .toISOString()
+    .slice(0, 10);
+};
 
 // Function to make API requests with authentication headers
 async function apiRequest(path, options = {}) {
@@ -58,6 +67,12 @@ function StaffDashboard() {
   const [inventoryOpen, setInventoryOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [receipt, setReceipt] = useState(null);
+  const [checkoutMode, setCheckoutMode] = useState("sale");
+  const [orderDetails, setOrderDetails] = useState({
+    deliveryMethod: "pickup",
+    courierName: "",
+    requestedDate: todayLocal(),
+  });
 
   const [fish, setFish] = useState([]);
   const [tanks, setTanks] = useState([]);
@@ -317,9 +332,22 @@ function StaffDashboard() {
     if (!cart.length) {
       return;
     }
+    if (checkoutMode === "order" && !customerDetails.customerName.trim()) {
+      setError("Enter the customer name to create a customer order.");
+      return;
+    }
+    if (checkoutMode === "order" && orderDetails.deliveryMethod === "courier" && !orderDetails.courierName.trim()) {
+      setError("Enter the courier name for courier deliveries.");
+      return;
+    }
+    if (checkoutMode === "order" && !orderDetails.requestedDate) {
+      setError("Choose the customer pickup or delivery date.");
+      return;
+    }
 
     try {
-      const data = await apiRequest("/sales", {
+      const isOrder = checkoutMode === "order";
+      const data = await apiRequest(isOrder ? "/orders" : "/sales", {
         method: "POST",
         body: JSON.stringify({
           items: cart.map((item) => ({
@@ -331,14 +359,21 @@ function StaffDashboard() {
           customerName: customerDetails.customerName || "Walk-in Customer",
           customerEmail: customerDetails.customerEmail,
           customerPhone: customerDetails.customerPhone,
+          ...(isOrder ? {
+            ...orderDetails,
+            requestedDate: new Date(`${orderDetails.requestedDate}T12:00:00`).toISOString(),
+          } : {}),
         }),
       });
 
-      setReceipt(data.sale);
+      setReceipt({ ...(isOrder ? data.order : data.sale), receiptKind: isOrder ? "order" : "sale" });
       setCheckoutOpen(false);
       setCart([]);
       setDiscount(0);
       setCustomerDetails({ customerName: "", customerEmail: "", customerPhone: "" });
+      setCheckoutMode("sale");
+      setOrderDetails({ deliveryMethod: "pickup", courierName: "", requestedDate: todayLocal() });
+      setMessage(isOrder ? "Customer order created and stock reserved." : "Sale completed.");
       await loadData();
     } catch (requestError) {
       setError(requestError.message);
@@ -390,13 +425,14 @@ function StaffDashboard() {
           </style>
         </head>
         <body>
-          <h1>Fishonitory Receipt</h1>
+          <h1>Fishonitory {receipt.receiptKind === "order" ? "Order Confirmation" : "Receipt"}</h1>
           <p>
             Cashier: ${escapeHtml(user?.staffName || user?.role || "Staff")}<br />
             Customer: ${escapeHtml(receipt.customerName || "Walk-in Customer")}<br />
             Email: ${escapeHtml(receipt.customerEmail || "-")}<br />
             Phone: ${escapeHtml(receipt.customerPhone || "-")}<br />
             Date: ${new Date(receipt.createdAt).toLocaleString()}
+            ${receipt.receiptKind === "order" ? `<br />Fulfillment: ${escapeHtml(receipt.deliveryMethod)}<br />Requested date: ${new Date(receipt.requestedDate).toLocaleDateString()}` : ""}
           </p>
           <table>${receiptItems}</table>
           <p style="margin-top: 16px;">
@@ -1298,17 +1334,42 @@ function StaffDashboard() {
               {/* MODAL 2: Checkout Confirmation */}
               {checkoutOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
-                  <div className="w-full max-w-md rounded-2xl border border-sky-100/15 bg-[#062d48] p-6 shadow-2xl">
+                  <div className="w-full max-w-lg rounded-2xl border border-sky-100/15 bg-[#062d48] p-6 shadow-2xl">
                     <h3 className="font-['Fraunces'] text-xl font-medium text-[#d9ecef]">
-                      Confirm Checkout
+                      {checkoutMode === "order" ? "Create customer order" : "Confirm checkout"}
                     </h3>
                     <p className="mt-2 font-['Poppins'] text-sm text-[#9bbec7]">
-                      Confirm this sale transaction for{" "}
+                      {checkoutMode === "order" ? "Create an order for" : "Complete this sale for"}{" "}
                       <strong className="font-semibold text-[#73c4ca]">
                         {formatPeso(total)}
                       </strong>
-                      ?
+                      {checkoutMode === "sale" ? "?" : ". Stock will be reserved until it is cancelled or fulfilled."}
                     </p>
+                    <label className="mt-5 block font-['Poppins'] text-xs font-medium text-[#a9c8cf]">
+                      Checkout type
+                      <select value={checkoutMode} onChange={(event) => setCheckoutMode(event.target.value)} className="mt-1.5 w-full rounded-xl border border-sky-100/15 bg-[#062d48] px-3 py-2.5 text-sm text-[#d9ecef] outline-none focus:border-[#73c4ca]">
+                        <option value="sale">Point-of-sale sale · paid now</option>
+                        <option value="order">Customer order · pickup or delivery</option>
+                      </select>
+                    </label>
+                    {checkoutMode === "order" && (
+                      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                        <label className="font-['Poppins'] text-xs font-medium text-[#a9c8cf]">
+                          Fulfillment method
+                          <select value={orderDetails.deliveryMethod} onChange={(event) => setOrderDetails((current) => ({ ...current, deliveryMethod: event.target.value }))} className="mt-1.5 w-full rounded-xl border border-sky-100/15 bg-[#062d48] px-3 py-2.5 text-sm text-[#d9ecef] outline-none focus:border-[#73c4ca]">
+                            <option value="pickup">Customer pickup</option>
+                            <option value="rider">Rider delivery</option>
+                            <option value="courier">Courier delivery</option>
+                          </select>
+                        </label>
+                        <label className="font-['Poppins'] text-xs font-medium text-[#a9c8cf]">
+                          {orderDetails.deliveryMethod === "pickup" ? "Customer pickup date" : "Requested delivery date"}
+                          <input required type="date" min={todayLocal()} value={orderDetails.requestedDate} onChange={(event) => setOrderDetails((current) => ({ ...current, requestedDate: event.target.value }))} className="mt-1.5 w-full rounded-xl border border-sky-100/15 bg-[#062d48] px-3 py-2.5 text-sm text-[#d9ecef] outline-none [color-scheme:dark] focus:border-[#73c4ca]" />
+                        </label>
+                        {orderDetails.deliveryMethod === "courier" && <label className="font-['Poppins'] text-xs font-medium text-[#a9c8cf] sm:col-span-2">Courier name<input required value={orderDetails.courierName} onChange={(event) => setOrderDetails((current) => ({ ...current, courierName: event.target.value }))} placeholder="e.g. Lalamove or Grab" className="mt-1.5 w-full rounded-xl border border-sky-100/15 bg-[#062d48] px-3 py-2.5 text-sm text-[#d9ecef] outline-none focus:border-[#73c4ca]" /></label>}
+                        <p className="text-xs text-[#9bbec7] sm:col-span-2">Customer name is required for customer orders. You can enter it in the order summary panel before checkout.</p>
+                      </div>
+                    )}
                     <div className="mt-6 flex justify-end gap-3">
                       <button
                         type="button"
@@ -1322,7 +1383,7 @@ function StaffDashboard() {
                         onClick={checkout}
                         className="rounded-full bg-[#75bec4] px-5 py-2 font-['Poppins'] text-xs font-semibold text-[#052d45] transition hover:bg-[#86d0d6] cursor-pointer"
                       >
-                        Confirm and Show Receipt
+                        {checkoutMode === "order" ? "Create order" : "Complete sale"}
                       </button>
                     </div>
                   </div>
@@ -1334,13 +1395,14 @@ function StaffDashboard() {
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
                   <div className="w-full max-w-md rounded-2xl border border-sky-100/15 bg-[#062d48] p-6 shadow-2xl">
                     <h3 className="font-['Fraunces'] text-xl font-medium text-[#d9ecef]">
-                      Transaction Receipt
+                      {receipt.receiptKind === "order" ? "Customer Order" : "Transaction Receipt"}
                     </h3>
                     <p className="mt-1 font-['Poppins'] text-xs text-[#89afb9]">
                       Cashier:{" "}
                       {receipt.soldBy?.staffName || user?.role || "Staff"} ·{" "}
                       {new Date(receipt.createdAt).toLocaleString()}
                     </p>
+                    {receipt.receiptKind === "order" && <p className="mt-2 rounded-lg border border-sky-100/10 bg-white/[.03] px-3 py-2 font-['Poppins'] text-xs text-[#b7d2d7]">{receipt.deliveryMethod === "pickup" ? "Pickup" : receipt.deliveryMethod === "rider" ? "Rider delivery" : `Courier delivery${receipt.courierName ? ` · ${receipt.courierName}` : ""}`} · Requested {new Date(receipt.requestedDate).toLocaleDateString("en-PH", { dateStyle: "medium" })}</p>}
 
                     <div className="mt-4 max-h-56 space-y-2 overflow-y-auto border-t border-b border-sky-100/10 py-3">
                       {receipt.items.map((item) => (
@@ -1368,7 +1430,7 @@ function StaffDashboard() {
                         <span>{formatPeso(receipt.discount)}</span>
                       </div>
                       <div className="flex justify-between font-semibold text-[#d9ecef]">
-                        <span>Total Paid</span>
+                        <span>{receipt.receiptKind === "order" ? "Order Total · unpaid" : "Total Paid"}</span>
                         <span className="font-['Fraunces'] text-base font-bold text-[#73c4ca]">
                           {formatPeso(receipt.total)}
                         </span>
@@ -1411,6 +1473,9 @@ function StaffDashboard() {
 
           {/* 5. ORDERS */}
           {activePage === "orders" && (
+            <Orders request={apiRequest} onChanged={loadData} />
+          )}
+          {activePage === "orders-legacy" && (
             <div className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-6 shadow-[0_14px_35px_rgba(0,12,31,.14)]">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-sky-100/10 pb-4">
                 <div>
@@ -1891,30 +1956,12 @@ function StaffDashboard() {
 
               {/* TAB: ABOUT */}
               {settingsTab === "about" && (
-                <div className="grid gap-6 lg:grid-cols-1">
-                  <div className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-6 shadow-[0_14px_35px_rgba(0,12,31,.14)] lg:col-span-2">
-                    <h3 className="font-['Fraunces'] text-2xl font-medium text-[#d9ecef]">
-                      About Fishonitory
-                    </h3>
-                    <p className="mt-2 font-['Poppins'] text-xs sm:text-sm leading-relaxed text-[#9bbec7]">
-                      This section is still In progress.
-                    </p>
-                  </div>
-                </div>
+                <AboutContactPanel section="about" />
               )}
 
               {/* TAB: CONTACT & SUPPORT */}
               {settingsTab === "contact" && (
-                <div className="grid gap-6 lg:grid-cols-2">
-                  <div className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-6 shadow-[0_14px_35px_rgba(0,12,31,.14)] lg:col-span-2">
-                    <h3 className="font-['Fraunces'] text-2xl font-medium text-[#d9ecef]">
-                      Help & Support Center
-                    </h3>
-                    <p className="mt-2 font-['Poppins'] text-xs sm:text-sm text-[#9bbec7]">
-                      This section is still In progress.
-                    </p>
-                  </div>
-                </div>
+                <AboutContactPanel section="contact" />
               )}  
             </div>
           )}

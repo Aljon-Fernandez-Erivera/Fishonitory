@@ -11,8 +11,9 @@ import {
   isValidPhoneNumber,
 } from "libphonenumber-js";
 import { API_URL } from "../config.js";
-import { BrandLogo, LoadingOverlay } from "./shared/AuthLayout.jsx";
+import { AuthFooter, BrandLogo, LoadingOverlay } from "./shared/AuthLayout.jsx";
 import { Link } from "react-router-dom";
+import { createPortal } from "react-dom";
 import LegalDocumentsDialog from "../components/LegalDocumentsDialog.jsx";
 import {
   sanitizePhoneDigits,
@@ -373,7 +374,7 @@ function RegisterBusinessPage() {
   };
 
   return (
-    <div className="box-border h-screen w-full flex-1 overflow-x-clip overflow-y-auto bg-[radial-gradient(circle_at_88%_22%,#0a5267_0%,#08465d_35%,#053751_68%,#021a31_100%)] px-4 py-4 text-[#c9e1e5] sm:px-7 sm:py-6">
+    <div className="auth-shell box-border flex min-h-dvh w-full flex-1 flex-col overflow-x-clip bg-[#f8f6ef] text-[#18383e]">
       {loading && (
         <LoadingOverlay
           label={
@@ -383,21 +384,23 @@ function RegisterBusinessPage() {
           }
         />
       )}
-      <header className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4">
+      <header className="sticky top-0 z-40 flex min-h-[62px] w-full items-center justify-center gap-4 bg-[#033341] px-5 py-2.5 sm:px-8 lg:px-12">
+       <div className="flex w-full max-w-7xl items-center justify-between gap-4">
         <BrandLogo />
         <div className="flex items-center gap-3">
-          <p className="m-0 hidden font-['Poppins'] text-sm text-[#a7c7cf] sm:block">
+          <p className="m-0 hidden font-['Poppins'] text-sm text-[#62777a] sm:block">
             Already have an account?
           </p>
           <Link
             to="/login"
-            className="no-underline rounded-full border border-sky-100/15 bg-white/[0.06] px-4 py-2 font-['Poppins'] text-xs font-medium text-sky-50 transition hover:bg-white/[0.12] sm:px-5 sm:text-sm"
+            className="no-underline rounded-full border border-[#b8ceca] bg-white/70 px-4 py-2 font-['Poppins'] text-xs font-semibold text-[#174c53] transition hover:bg-white sm:px-5 sm:text-sm"
           >
             LOGIN
           </Link>
         </div>
+       </div>
       </header>
-      <div className="box-border mx-auto my-5 w-full max-w-[600px] rounded-2xl border border-sky-100/15 bg-[#062d48]/80 p-5 shadow-[0_24px_70px_rgba(0,12,31,.25)] backdrop-blur-md sm:my-6 sm:p-7">
+      <div className="auth-card box-border mx-4 my-6 w-[calc(100%-2rem)] max-w-[600px] rounded-2xl border border-[#d9e5df] bg-[#fffefa] p-5 text-[#18383e] shadow-[0_24px_60px_rgba(21,62,67,.12)] sm:mx-auto sm:my-8 sm:p-7">
         <h1 className="m-0 text-center font-['Fraunces'] text-3xl text-[#d9ecef] sm:text-[2rem]">
           Create Your Business Account
         </h1>
@@ -420,7 +423,7 @@ function RegisterBusinessPage() {
         </div>
 
         {/* OTP Dialog */}
-        {dialogMessage && (
+        {dialogMessage && createPortal((
           <div
             className="fixed inset-0 z-50 grid place-items-center bg-[#021a31]/75 p-4 backdrop-blur-sm"
             role="presentation"
@@ -428,18 +431,18 @@ function RegisterBusinessPage() {
             <div
               aria-labelledby="otp-dialog-title"
               aria-modal="true"
-              className="w-full max-w-sm rounded-2xl border border-sky-100/15 bg-[#062d48] p-6 text-center text-[#c9e1e5] shadow-2xl"
+              className="auth-dialog w-full max-w-sm rounded-2xl border border-[#d9e5df] bg-[#fffefa] p-6 text-center text-[#18383e] shadow-2xl"
               role="dialog"
             >
               <h2
                 id="otp-dialog-title"
-                className="font-['Fraunces'] text-2xl text-[#d9ecef]"
+                className="font-['Fraunces'] text-2xl text-[#153c43]"
               >
                 {dialogMode === "success"
                   ? "Registration submitted"
                   : "OTP Sent"}
               </h2>
-              <p className="mt-3 font-['Poppins'] text-sm leading-relaxed text-[#a7c7cf]">
+              <p className="mt-3 font-['Poppins'] text-sm leading-relaxed text-[#62777a]">
                 {dialogMessage}
               </p>
               <button
@@ -455,7 +458,7 @@ function RegisterBusinessPage() {
               </button>
             </div>
           </div>
-        )}
+        ), document.body)}
 
         {serverMessage && (
           <p
@@ -1014,6 +1017,7 @@ function RegisterBusinessPage() {
         onChangeDocument={setActiveLegalDocument}
         onClose={() => setActiveLegalDocument(null)}
       />
+      <AuthFooter />
     </div>
   );
 }

@@ -45,7 +45,7 @@ router.post(
   validateRegistration,
   authController.resetPassword,
 );
-router.post("/logout", authController.logout);
+router.post("/logout", authMiddleware, authController.logout);
 router.get("/session", authMiddleware, authController.getSession);
 router.get("/totp/status", authMiddleware, authController.getTotpStatus);
 router.post("/totp/setup", authMiddleware, authController.startTotpSetup);

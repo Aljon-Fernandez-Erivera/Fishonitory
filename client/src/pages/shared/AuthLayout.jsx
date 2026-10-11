@@ -5,17 +5,26 @@ export function BrandLogo() {
     <Link
       to="/"
       aria-label="Fishonitory home"
-      className="flex shrink-0 items-center gap-2.5 no-underline sm:gap-3"
+      className="flex shrink-0 items-center gap-2 no-underline sm:gap-2.5"
     >
       <img
         src="/LOGO.svg"
         alt=""
-        className="block h-14 w-14 shrink-0 object-contain sm:h-[4.5rem] sm:w-[4.5rem]"
+        className="block h-9 w-9 shrink-0 object-contain sm:h-10 sm:w-10"
       />
-      <span className="font-['Sansita'] text-2xl font-extrabold italic uppercase leading-none tracking-wide text-[#e0f0f3] sm:text-3xl">
+      <span className="font-['Sansita'] text-lg font-extrabold italic uppercase leading-none tracking-wide text-[#e0f0f3] sm:text-xl">
         Fishonitory
       </span>
     </Link>
+  );
+}
+
+export function AuthFooter() {
+  return (
+    <footer className="mt-auto flex flex-col items-center justify-between gap-2 bg-[#033341] px-5 py-4 font-['Poppins'] text-[11px] text-[#b8d5d9] sm:flex-row sm:px-8 lg:px-12">
+      <span>© 2026 Fishonitory. All rights reserved.</span>
+      <Link className="text-inherit no-underline transition hover:text-white" to="/help">Help Center</Link>
+    </footer>
   );
 }
 
@@ -26,32 +35,28 @@ export function AuthLayout({
   contentWidth = "max-w-[380px]",
 }) {
   return (
-    <main className="box-border relative isolate flex h-screen w-full flex-1 flex-col overflow-hidden bg-[radial-gradient(circle_at_88%_22%,#0a5267_0%,#08465d_35%,#053751_68%,#021a31_100%)] px-4 py-4 text-[#c9e1e5] sm:px-7 sm:py-6">
+    <main className="auth-shell box-border relative isolate flex min-h-dvh w-full flex-1 flex-col overflow-x-clip bg-[#f8f6ef] text-[#18383e]">
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute -right-24 top-32 -z-10 h-72 w-72 rounded-full border border-sky-100/10 bg-sky-300/5 blur-3xl"
+        className="pointer-events-none absolute -right-24 top-32 -z-10 h-72 w-72 rounded-full bg-[#83cbd0]/10 blur-3xl"
       />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -bottom-32 -left-20 -z-10 h-80 w-80 rounded-full bg-cyan-300/[0.07] blur-3xl"
-      />
-      <header className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4">
+      <header className="sticky top-0 z-40 flex min-h-[62px] w-full items-center justify-between gap-4 bg-[#033341] px-5 py-2.5 sm:px-8 lg:px-12">
+        <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4">
           <BrandLogo />
         <Link
           to={actionTo}
-          className="no-underline rounded-full border border-sky-100/15 bg-white/[0.06] px-4 py-2 font-['Poppins'] text-xs font-medium text-sky-50 transition hover:bg-white/[0.12] focus:outline-none focus:ring-2 focus:ring-[#73c4ca] sm:px-5 sm:text-sm"
+          className="no-underline rounded-full border border-[#b8ceca] bg-white/70 px-4 py-2 font-['Poppins'] text-xs font-semibold text-[#174c53] transition hover:bg-white focus:outline-none focus:ring-2 focus:ring-[#73c4ca] sm:px-5 sm:text-sm"
         >
           {actionLabel}
         </Link>
+        </div>
       </header>
       <div
-        className={`mx-auto flex min-h-0 w-full flex-1 ${contentWidth} items-center justify-center py-5 sm:py-6`}
+        className={`mx-auto flex min-h-0 w-full flex-1 ${contentWidth} items-center justify-center px-4 py-6 sm:px-7 sm:py-8`}
       >
         {children}
       </div>
-      <footer className="pt-1 text-center font-['Poppins'] text-xs text-cyan-100/40">
-        &copy; 2026 Fishonitory. All rights reserved.
-      </footer>
+      <AuthFooter />
     </main>
   );
 }
@@ -136,7 +141,7 @@ export function FriendlyDialog({ dialog, onClose }) {
   if (!dialog) return null;
   return (
     <div
-      className="fixed inset-0 z-40 grid place-items-center bg-[#021a31]/70 p-4 backdrop-blur-md"
+        className="fixed inset-0 z-40 grid place-items-center bg-[#123a41]/35 p-4 backdrop-blur-md"
       role="presentation"
       onClick={(event) => {
         if (event.target === event.currentTarget) onClose();
@@ -146,15 +151,15 @@ export function FriendlyDialog({ dialog, onClose }) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="friendly-dialog-title"
-        className="w-full max-w-sm rounded-2xl border border-sky-100/15 bg-[#062d48]/90 p-6 text-center shadow-[0_28px_80px_rgba(0,12,31,.45)] backdrop-blur-md"
+        className="w-full max-w-sm rounded-2xl border border-[#d9e5df] bg-[#fffefa] p-6 text-center text-[#18383e] shadow-[0_28px_80px_rgba(0,36,45,.2)]"
       >
         <h2
           id="friendly-dialog-title"
-          className="font-['Fraunces'] text-2xl text-[#d9ecef]"
+          className="font-['Fraunces'] text-2xl text-[#153c43]"
         >
           {dialog.title}
         </h2>
-        <p className="mt-3 font-['Poppins'] text-sm leading-relaxed text-[#a7c7cf]">
+        <p className="mt-3 font-['Poppins'] text-sm leading-relaxed text-[#62777a]">
           {dialog.message}
         </p>
         <button

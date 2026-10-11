@@ -3,6 +3,7 @@ import QRCode from "qrcode";
 import { API_URL } from "../../config.js";
 import ChangePasswordDialog from "../../components/ChangePasswordDialog.jsx";
 import OwnerEditProfileDialog from "./OwnerEditProfileDialog.jsx";
+import AboutContactPanel from "../shared/AboutContactPanel.jsx";
 
 async function ownerRequest(path, options = {}) {
   const response = await fetch(`${API_URL}${path}`, {
@@ -532,58 +533,12 @@ function OwnerSettings({ user: authUser, features, onEditWorkspace }) {
 
       {/* TAB 4: ABOUT */}
       {activeTab === "about" && (
-        <div className="grid gap-6 lg:grid-cols-3">
-          <div className={`${cardClass} lg:col-span-2`}>
-            <h3 className="font-['Fraunces'] text-2xl font-medium text-[#d9ecef]">
-              About Fishonitory
-            </h3>
-            <p className="mt-2 font-['Poppins'] text-xs sm:text-sm leading-relaxed text-[#9bbec7]">
-              This section is still In progress.
-            </p>
-          </div>
-
-          <div className={`${cardClass} lg:col-span-1`}>
-            <h3 className="font-['Fraunces'] text-xl font-medium text-[#d9ecef]">
-              System Information
-            </h3>
-            <div className="mt-4 space-y-3 font-['Poppins'] text-xs text-[#9bbec7]">
-              <div className="flex justify-between border-b border-sky-100/10 pb-2">
-                <span>Version</span>
-                <span className="font-mono text-[#d9ecef]">v1.0.0 (Final)</span>
-              </div>
-              <div className="flex justify-between border-b border-sky-100/10 pb-2">
-                <span>Release Type</span>
-                <span className="text-emerald-300">Production</span>
-              </div>
-              <div className="flex justify-between border-b border-sky-100/10 pb-2">
-                <span>Frontend</span>
-                <span className="text-[#d9ecef]">React 19 + Tailwind v4</span>
-              </div>
-              <div className="flex justify-between border-b border-sky-100/10 pb-2">
-                <span>Backend</span>
-                <span className="text-[#d9ecef]">Node.js + Express API</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Database</span>
-                <span className="text-[#d9ecef]">MongoDB Atlas</span>
-              </div>
-            </div>
-          </div>
-        </div>
+        <AboutContactPanel section="about" />
       )}
 
       {/* TAB 5: CONTACT & SUPPORT */}
       {activeTab === "contact" && (
-        <div className="grid gap-6 lg:grid-cols-3">
-          <div className={`${cardClass} lg:col-span-2`}>
-            <h3 className="font-['Fraunces'] text-2xl font-medium text-[#d9ecef]">
-              Help & Support Center
-            </h3>
-            <p className="mt-2 font-['Poppins'] text-xs sm:text-sm text-[#9bbec7]">
-             This section is still In progress.
-            </p>
-          </div>
-        </div>
+        <AboutContactPanel section="contact" />
       )}
 
       {profileOpen && (

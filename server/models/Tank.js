@@ -13,6 +13,7 @@ const tankSchema = new mongoose.Schema(
       default: null,
     },
     name: { type: String, required: true, trim: true },
+    capacity: { type: Number, min: 1, default: null },
     status: {
       type: String,
       required: true,

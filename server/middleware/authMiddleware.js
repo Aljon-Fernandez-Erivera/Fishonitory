@@ -1,5 +1,6 @@
 const jwt = require("jsonwebtoken");
 const config = require("../config/config");
+const User = require("../models/User");
 const {
   cookieNameForRole,
   getCookieToken,
@@ -8,7 +9,7 @@ const {
 
 // Validate the JWT before letting any authenticated endpoint proceed. This is the
 // first line of defense for every protected API route.
-const authMiddleware = (req, res, next) => {
+const authMiddleware = async (req, res, next) => {
   const authorization = req.headers.authorization;
   const requestedRole = req.headers["x-session-role"];
   const preferredCookieName = cookieNameForRole(requestedRole);
@@ -46,12 +47,27 @@ const authMiddleware = (req, res, next) => {
   try {
     req.user = jwt.verify(token, config.jwtSecret);
 
+    const account = await User.findById(req.user.userId)
+      .select("+sessionVersion accountStatus")
+      .lean();
+    if (!account || account.accountStatus !== "Active" ||
+        Number(req.user.sessionVersion || 0) !== Number(account.sessionVersion || 0)) {
+      return res.status(401).json({ message: "Session has expired. Please log in again." });
+    }
+
     if (requestedRole && req.user.role !== requestedRole) {
       return res.status(403).json({ message: "This session is not authorized for the requested account type." });
     }
 
     return next();
   } catch (error) {
+    if (![
+      "JsonWebTokenError",
+      "TokenExpiredError",
+      "NotBeforeError",
+    ].includes(error.name)) {
+      return res.status(503).json({ message: "Authentication service is temporarily unavailable." });
+    }
     return res
       .status(401)
       .json({ message: "Invalid or expired authentication token." });

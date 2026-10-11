@@ -190,10 +190,15 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 body {
   margin: 0;
   overflow-x: clip;
-  height: 100vh;
   min-height: 100vh;
   background: #021a31;
   overscroll-behavior: none;
+}
+
+html:has(.auth-shell),
+body:has(.auth-shell),
+#root:has(.auth-shell) {
+  background-color: #f8f6ef !important;
 }
 
 .ocean-background {
@@ -207,7 +212,6 @@ body {
 html {
   scroll-behavior: smooth;
   background: #021a31;
-  height: 100vh;
   min-height: 100vh;
   overscroll-behavior: none;
 }
@@ -216,7 +220,6 @@ html {
   width: 100%;
   max-width: 100%;
   overflow-x: clip;
-  height: 100vh;
   box-sizing: border-box;
   margin: 0 auto;
   text-align: center;
@@ -231,6 +234,106 @@ html {
   0%, 12%, 100% { color: #e0f0f3; transform: translateY(0); }
   22%, 31%      { color: #f4b8a0; transform: translateY(-0.04em); }
   42%           { color: #f8d9cb; transform: translateY(0); }
+}
+
+.landing-hero-word {
+  display: inline-block;
+  color: #d8eef0;
+  transform: translateY(0);
+  transition: color 180ms ease;
+}
+
+.landing-hero-word.is-active {
+  color: #5dc4c4;
+  animation: landing-word-drop 650ms cubic-bezier(.2,.8,.25,1.15) both;
+}
+
+@keyframes landing-word-drop {
+  0% { transform: translateY(-0.16em); }
+  56% { transform: translateY(0.12em); }
+  78% { transform: translateY(-0.045em); }
+  100% { transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-hero-word.is-active { animation: none; }
+}
+
+.auth-card {
+  border-color: rgb(224 240 243 / 15%) !important;
+  background-color: rgb(6 45 72 / 94%) !important;
+  color: #c9e1e5;
+  box-shadow: 0 24px 70px rgb(0 12 31 / 25%);
+}
+
+.auth-card h1,
+.auth-card h2,
+.auth-card h3 {
+  color: #d9ecef !important;
+}
+
+.auth-card p {
+  color: #9abcc5;
+}
+
+.auth-card p[class*="ffd1d1"],
+.auth-card p[class*="ffb4b4"] {
+  color: #b42318 !important;
+}
+
+.auth-card label {
+  color: #9ebfc8 !important;
+}
+
+.auth-card a {
+  color: #8cc7cc;
+}
+
+.auth-card input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+.auth-card select,
+.auth-card textarea {
+  border-color: rgb(224 240 243 / 10%) !important;
+  background-color: rgb(255 255 255 / 7%) !important;
+  color: #d8f1f1 !important;
+}
+
+.auth-card input::placeholder,
+.auth-card textarea::placeholder {
+  color: #789ba4 !important;
+  opacity: 1;
+}
+
+.auth-card input:focus,
+.auth-card select:focus,
+.auth-card textarea:focus {
+  border-color: #73c4ca !important;
+  background-color: rgb(255 255 255 / 10%) !important;
+  outline-color: #73c4ca;
+}
+
+.auth-card option {
+  background: #062d48;
+  color: #d8f1f1;
+}
+
+.auth-popover {
+  border-color: rgb(224 240 243 / 15%) !important;
+  background-color: #062d48 !important;
+  color: #b9d8dd;
+}
+
+.auth-dialog {
+  border-color: rgb(224 240 243 / 15%) !important;
+  background-color: #062d48 !important;
+  color: #c9e1e5 !important;
+}
+
+.auth-dialog h2 {
+  color: #d9ecef !important;
+}
+
+.auth-dialog p {
+  color: #a7c7cf !important;
 }
 
 .info-page {

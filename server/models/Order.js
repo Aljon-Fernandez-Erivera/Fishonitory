@@ -39,7 +39,7 @@ const orderSchema = new mongoose.Schema(
     notes: { type: String, trim: true, maxlength: 500, default: "" },
     deliveryStatus: {
       type: String,
-      enum: ["pending", "fulfilled"],
+      enum: ["pending", "preparing", "ready_for_pickup", "out_for_delivery", "fulfilled"],
       default: "pending",
       index: true,
     },
@@ -53,11 +53,12 @@ const orderSchema = new mongoose.Schema(
     discount: { type: Number, required: true, min: 0, default: 0 },
     total: { type: Number, required: true, min: 0 },
     saleId: { type: mongoose.Schema.Types.ObjectId, ref: "Sale", default: null },
+    archivedAt: { type: Date, default: null, index: true },
     notificationSentAt: { type: Date, default: null },
   },
   { timestamps: true },
 );
 
-orderSchema.index({ ownerId: 1, deliveryStatus: 1, paymentStatus: 1, createdAt: -1 });
+orderSchema.index({ ownerId: 1, archivedAt: 1, deliveryStatus: 1, paymentStatus: 1, createdAt: -1 });
 
 module.exports = mongoose.model("Order", orderSchema);

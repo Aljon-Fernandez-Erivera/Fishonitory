@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const Fish = require("../models/Fish");
+const Tank = require("../models/Tank");
 const Purchase = require("../models/Purchase");
 const getOwnerId = require("../utils/ownerScope");
 const { writeAudit } = require("../utils/audit");
@@ -87,6 +88,29 @@ exports.createPurchase = async (req, res) => {
   const changed = [];
 
   try {
+    const additions = new Map();
+    for (const entry of entries) additions.set(entry.fishId, (additions.get(entry.fishId) || 0) + entry.quantity);
+    const tankAdditions = new Map();
+    for (const [fishId, addedQuantity] of additions) {
+      const fish = await Fish.findOne({ _id: fishId, ownerId });
+      if (!fish) throw new Error("One selected inventory item was not found.");
+      if (fish.tankId && fish.category !== "Fish Food") {
+        const key = String(fish.tankId);
+        const current = tankAdditions.get(key) || { added: 0, tankId: fish.tankId };
+        current.added += addedQuantity;
+        tankAdditions.set(key, current);
+      }
+    }
+    for (const { tankId, added } of tankAdditions.values()) {
+      const tank = await Tank.findOne({ _id: tankId, ownerId }).select("name capacity");
+      if (!tank?.capacity) continue;
+      const currentFish = await Fish.aggregate([
+        { $match: { ownerId: new mongoose.Types.ObjectId(ownerId), tankId } },
+        { $group: { _id: null, total: { $sum: "$quantity" } } },
+      ]);
+      if ((currentFish[0]?.total || 0) + added > tank.capacity)
+        throw new Error(`Purchase would exceed ${tank.name}'s capacity of ${tank.capacity} fish.`);
+    }
     const purchaseItems = [];
     for (const entry of entries) {
       const fish = await Fish.findOneAndUpdate(

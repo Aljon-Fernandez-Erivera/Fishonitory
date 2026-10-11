@@ -206,7 +206,7 @@ async function completeLogin(req, res, user, loginRole) {
   }
 
   const token = jwt.sign(
-    { userId: user._id, role: loginRole },
+    { userId: user._id, role: loginRole, sessionVersion: user.sessionVersion || 0 },
     config.jwtSecret,
     { expiresIn: "1d" },
   );
@@ -629,7 +629,7 @@ exports.login = async (req, res) => {
 
     const email = rawEmail.trim().toLowerCase();
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email }).select("+sessionVersion");
     if (!user) {
       const ipRecord = await recordIpFailure(clientIp);
       if (ipRecord.blockedUntil) {
@@ -762,7 +762,7 @@ exports.verifyTotpLogin = async (req, res) => {
     }
 
     const user = await User.findById(challenge.userId).select(
-      "+totpSecretCiphertext +totpRecoveryCodeHashes +totpLastUsedCounter +totpFailedAttempts +totpLockedUntil",
+      "+totpSecretCiphertext +totpRecoveryCodeHashes +totpLastUsedCounter +totpFailedAttempts +totpLockedUntil +sessionVersion",
     );
     if (!user || user.accountStatus !== "Active" || !user.totpEnabled) {
       return res
@@ -1003,7 +1003,7 @@ exports.confirmRequiredTotpEnrollment = async (req, res) => {
     if (challenge.purpose !== "totp-enroll")
       throw new Error("Invalid enrollment request.");
     const user = await User.findById(challenge.userId).select(
-      "+totpSetupCiphertext +totpSetupExpiresAt +totpRecoveryCodeHashes",
+      "+totpSetupCiphertext +totpSetupExpiresAt +totpRecoveryCodeHashes +sessionVersion",
     );
     if (
       !user?.totpSetupCiphertext ||
@@ -1213,8 +1213,9 @@ exports.disableTotp = async (req, res) => {
   }
 };
 
-exports.logout = (req, res) => {
-  clearAuthCookie(res, req.headers["x-session-role"]);
+exports.logout = async (req, res) => {
+  await User.updateOne({ _id: req.user.userId }, { $inc: { sessionVersion: 1 } });
+  clearAuthCookie(res, req.user.role);
   return res.json({ message: "Logged out successfully." });
 };
 

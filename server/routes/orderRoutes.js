@@ -14,6 +14,8 @@ router.use(requireRole(["Owner", "masterStaff"]));
 
 router.get("/", orderController.listOrders);
 router.post("/", validateOrderCreate, orderController.createOrder);
+router.patch("/:id/archive", validateObjectIdParam("id"), orderController.archiveOrder);
+router.patch("/:id/restore", validateObjectIdParam("id"), orderController.restoreOrder);
 router.patch("/:id", validateObjectIdParam("id"), validateOrderUpdate, orderController.updateOrderStatus);
 router.delete("/:id", validateObjectIdParam("id"), orderController.cancelOrder);
 

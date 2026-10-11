@@ -4,7 +4,7 @@ import { useSearchParams } from "react-router-dom";
 import { API_URL } from "../../config.js";
 import "../../css/owner-dashboard-layout.css";
 import Swal from "sweetalert2";
-import { showOceanicLogoutConfirm } from "../../utils/oceanicSwal.js";
+import { confirmOceanicAction, showOceanicLogoutConfirm } from "../../utils/oceanicSwal.js";
 
 import AdminOverview from "./AdminOverview.jsx";
 import PendingVerifications from "./PendingVerifications.jsx";
@@ -12,6 +12,7 @@ import AllAccounts from "./AllAccounts.jsx";
 import ActiveBusinesses from "./ActiveBusinesses.jsx";
 import AdminAccount from "./AdminAccount.jsx";
 import SystemLogs from "./SystemLogs.jsx";
+import AboutContactPanel from "../shared/AboutContactPanel.jsx";
 
 async function apiRequest(path, options = {}) {
   const response = await fetch(`${API_URL}${path}`, {
@@ -48,7 +49,7 @@ function AdminDashboard() {
     "businesses",
     "accounts",
     "logs",
-    "account",
+    "settings",
   ];
   const requestedPage = searchParams.get("page");
   const activePage = adminPages.includes(requestedPage) ? requestedPage : "overview";
@@ -62,6 +63,7 @@ function AdminDashboard() {
     });
   };
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState("account");
 
   const [initialLoading, setInitialLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -489,7 +491,7 @@ function AdminDashboard() {
   ========================================================= */
 
   useEffect(() => {
-    if (!authReady || user?.role !== "superAdmin" || activePage !== "account") {
+    if (!authReady || user?.role !== "superAdmin" || activePage !== "settings") {
       return;
     }
 
@@ -545,14 +547,11 @@ function AdminDashboard() {
   ========================================================= */
 
   const handleApprove = async (ownerId, businessName) => {
-    const confirmation = await Swal.fire({
+    const confirmation = await confirmOceanicAction({
       title: `Approve ${businessName}?`,
       text: "This owner will be able to log in immediately and will be notified by email.",
       icon: "question",
-      showCancelButton: true,
       confirmButtonText: "Approve",
-      background: "#062d48",
-      color: "#d9ecef",
     });
 
     if (!confirmation.isConfirmed) {
@@ -636,16 +635,14 @@ function AdminDashboard() {
   ========================================================= */
 
   const handleSetStatus = async (accountId, status, label) => {
-    const confirmation = await Swal.fire({
+    const confirmation = await confirmOceanicAction({
       title: `${status === "Disabled" ? "Disable" : "Enable"} this account?`,
       text: `${label} will ${
         status === "Disabled" ? "lose" : "regain"
       } the ability to log in.`,
-      icon: "warning",
-      showCancelButton: true,
       confirmButtonText: status === "Disabled" ? "Disable" : "Enable",
-      background: "#062d48",
-      color: "#d9ecef",
+      icon: "warning",
+      danger: status === "Disabled",
     });
 
     if (!confirmation.isConfirmed) {
@@ -681,6 +678,11 @@ function AdminDashboard() {
   const navButtonClass = (page) => {
     return `dashboard-nav-link ${activePage === page ? "is-active" : ""}`;
   };
+
+  const saveAboutContact = (content) => apiRequest("/site-content", {
+    method: "PATCH",
+    body: JSON.stringify(content),
+  });
 
   /* =========================================================
      INITIAL LOADING SCREEN
@@ -833,16 +835,16 @@ function AdminDashboard() {
             System Logs
           </button>
 
-          {/* Account & security */}
+          {/* Account, security, and public information settings */}
           <button
-            className={navButtonClass("account")}
+            className={navButtonClass("settings")}
             type="button"
             onClick={() => {
-              setActivePage("account");
+              setActivePage("settings");
               setSidebarOpen(false);
             }}
           >
-            Account &amp; Security
+            Settings
           </button>
         </nav>
 
@@ -999,19 +1001,33 @@ function AdminDashboard() {
           />
         )}
 
-        {/* ===================================================
-            ACCOUNT & SECURITY
-        =================================================== */}
-
-        {activePage === "account" && (
-          <AdminAccount
-            email={user?.email}
-            profile={adminProfile}
-            mfaEnabled={mfaEnabled}
-            onSaveProfile={handleSaveProfile}
-            onRequestCode={handleRequestPasswordCode}
-            onChangePassword={handleChangePassword}
-          />
+        {activePage === "settings" && (
+          <section className="space-y-5">
+            <div>
+              <h1 className="font-['Fraunces'] text-2xl font-semibold text-[#e1f1f1]">Settings</h1>
+              <p className="mt-1 font-['Poppins'] text-sm text-[#9bbbc2]">Manage your administrator account and public business information.</p>
+            </div>
+            <div className="flex flex-wrap gap-2 border-b border-cyan-100/10 pb-3" role="tablist" aria-label="Settings sections">
+              <button type="button" role="tab" aria-selected={settingsTab === "account"} onClick={() => setSettingsTab("account")} className={`rounded-full px-4 py-2 font-['Poppins'] text-sm transition ${settingsTab === "account" ? "bg-[#75bec4] font-semibold text-[#052d45]" : "border border-cyan-100/15 text-[#b8d8dd] hover:bg-white/[.06]"}`}>
+                Account &amp; Security
+              </button>
+              <button type="button" role="tab" aria-selected={settingsTab === "about-contact"} onClick={() => setSettingsTab("about-contact")} className={`rounded-full px-4 py-2 font-['Poppins'] text-sm transition ${settingsTab === "about-contact" ? "bg-[#75bec4] font-semibold text-[#052d45]" : "border border-cyan-100/15 text-[#b8d8dd] hover:bg-white/[.06]"}`}>
+                About &amp; Contact
+              </button>
+            </div>
+            {settingsTab === "account" ? (
+              <AdminAccount
+                email={user?.email}
+                profile={adminProfile}
+                mfaEnabled={mfaEnabled}
+                onSaveProfile={handleSaveProfile}
+                onRequestCode={handleRequestPasswordCode}
+                onChangePassword={handleChangePassword}
+              />
+            ) : (
+              <AboutContactPanel editable onSave={saveAboutContact} />
+            )}
+          </section>
         )}
       </div>
     </main>

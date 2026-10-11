@@ -8,6 +8,7 @@ import Inventory from "./Inventory.jsx";
 import TankManagement from "./TankManagement.jsx";
 import Notes from "./Notes.jsx";
 import Sales from "../shared/Sales.jsx";
+import Orders from "../shared/Orders.jsx";
 import OwnerOperations from "./OwnerOperations.jsx";
 import Payroll from "./Payroll.jsx";
 import OwnerSettings from "./OwnerSettings.jsx";
@@ -59,6 +60,7 @@ const emptyFish = {
 //Place holder objects para sa forms ng add tank
 const emptyTank = {
   name: "",
+  capacity: "",
   status: "Needs Cleaning",
   nextMaintenance: "",
   notes: "",
@@ -407,12 +409,6 @@ function OwnerDashboard() {
     return () => clearInterval(timer);
   }, []);
 
-  // useEffect para i-reset ang theme ng dashboard sa default kapag nag-mount ang component, at i-remove ang theme mula sa localStorage.
-  useEffect(() => {
-    document.documentElement.removeAttribute("data-theme");
-    localStorage.removeItem("fishonitory_theme");
-  }, []);
-
   // Function para i-open ang add staff modal, at i-reset ang staff form sa emptyStaff object.
   const openAddStaff = () => {
     setStaffForm(emptyStaff);
@@ -489,14 +485,11 @@ function OwnerDashboard() {
   // Function para i-update ang staff, at i-reset ang staff form sa emptyStaff object kapag successful ang request.
   const handleUpdateStaff = async (event) => {
     event.preventDefault();
-    const confirmation = await Swal.fire({
+    const confirmation = await confirmOceanicAction({
       title: "Save staff changes?",
       text: "The staff account details will be updated.",
       icon: "question",
-      showCancelButton: true,
       confirmButtonText: "Save changes",
-      background: "#062d48",
-      color: "#d9ecef",
     });
     if (!confirmation.isConfirmed) return;
     setMessage("");
@@ -564,18 +557,16 @@ function OwnerDashboard() {
 
   // Function para i-handle ang status ng staff, magse-send ng PATCH request sa server para i-update ang status ng staff, at i-reload ang dashboard data kapag successful ang request.
   const handleStaffStatus = async (id, status) => {
-    const confirmation = await Swal.fire({
+    const confirmation = await confirmOceanicAction({
       title: `${status === "Disabled" ? "Disable" : "Enable"} staff account?`,
       text:
         status === "Disabled"
           ? "The staff member will not be able to sign in."
           : "The staff member will regain access.",
-      icon: "warning",
-      showCancelButton: true,
       confirmButtonText:
         status === "Disabled" ? "Disable account" : "Enable account",
-      background: "#062d48",
-      color: "#d9ecef",
+      icon: "warning",
+      danger: status === "Disabled",
     });
     if (!confirmation.isConfirmed) return;
     try {
@@ -605,15 +596,12 @@ function OwnerDashboard() {
   };
 
   const handleDeleteShiftTemplate = async (id) => {
-    const confirmation = await Swal.fire({
+    const confirmation = await confirmOceanicAction({
       title: "Delete shift template?",
       text: "Staff assigned to this shift will fall back to the default schedule.",
       icon: "warning",
-      showCancelButton: true,
       confirmButtonText: "Delete",
-      confirmButtonColor: "#d33",
-      background: "#062d48",
-      color: "#d9ecef",
+      danger: true,
     });
     if (!confirmation.isConfirmed) return;
     try {
@@ -691,17 +679,12 @@ function OwnerDashboard() {
   };
 
   const handleDeleteAttendance = async (id) => {
-    const result = await Swal.fire({
+    const result = await confirmOceanicAction({
       title: "Delete record?",
       text: "Delete this attendance record? This cannot be undone.",
       icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#d33",
-      cancelButtonColor: "#062d48",
       confirmButtonText: "Yes, delete it",
-      cancelButtonText: "Cancel",
-      background: "#062d48",
-      color: "#d9ecef",
+      danger: true,
     });
 
     if (!result.isConfirmed) return;
@@ -873,16 +856,12 @@ function OwnerDashboard() {
       await loadDashboardData();
     } catch (requestError) {
       if (requestError.code === "PAYROLL_ALREADY_EXISTS") {
-        const confirmation = await Swal.fire({
+        const confirmation = await confirmOceanicAction({
           title: "Payroll already exists for this period",
           text: `${requestError.message} Do you want to overwrite it with the new numbers?`,
           icon: "warning",
-          showCancelButton: true,
           confirmButtonText: "Overwrite",
-          confirmButtonColor: "#d33",
-          cancelButtonText: "Cancel",
-          background: "#062d48",
-          color: "#d9ecef",
+          danger: true,
         });
         if (confirmation.isConfirmed) {
           try {
@@ -1096,6 +1075,8 @@ function OwnerDashboard() {
             }
           />
         );
+      case "orders":
+        return <Orders request={apiRequest} onChanged={loadDashboardData} />;
       case "operations":
         return (
           <OwnerOperations
@@ -1308,6 +1289,11 @@ function OwnerDashboard() {
               }}
             >
               Sales
+            </button>
+          )}
+          {businessFeatures.sales && (
+            <button className={navButtonClass("orders")} type="button" onClick={() => { setActivePage("orders"); setSidebarOpen(false); }}>
+              Orders
             </button>
           )}
           {businessFeatures.payroll && (

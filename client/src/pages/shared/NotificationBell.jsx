@@ -91,6 +91,18 @@ function NotificationBell({
           page: "tanks",
         }),
       );
+    tanks.forEach((tank) => {
+      const occupied = fish
+        .filter((item) => String(item.tankId?._id || item.tankId || "") === String(tank._id))
+        .reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+      if (!tank.capacity || occupied / Number(tank.capacity) < 0.9) return;
+      items.push({
+        id: `tank-capacity-${tank._id}`,
+        title: occupied > Number(tank.capacity) ? "Tank over capacity" : "Tank near capacity",
+        body: `${tank.name}: ${occupied} of ${tank.capacity} fish capacity.`,
+        page: "tanks",
+      });
+    });
     if (attendance.length) {
       const checkedIn = attendance.filter(
         (record) =>

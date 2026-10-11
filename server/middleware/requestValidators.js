@@ -378,10 +378,10 @@ const validateOrderUpdate = (req, res, next) => {
   const { deliveryStatus, paymentStatus } = req.body ?? {};
 
   if (deliveryStatus !== undefined) {
-    if (!["pending", "fulfilled"].includes(deliveryStatus)) {
+    if (!["pending", "preparing", "ready_for_pickup", "out_for_delivery", "fulfilled"].includes(deliveryStatus)) {
       return res
         .status(400)
-        .json({ message: "Delivery status must be 'pending' or 'fulfilled'." });
+        .json({ message: "Choose a valid order fulfillment status." });
     }
     changes.deliveryStatus = deliveryStatus;
   }

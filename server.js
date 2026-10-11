@@ -161,6 +161,7 @@ app.use("/api/store", require("./server/routes/storeRoutes"));
 app.use("/api/notes", require("./server/routes/noteRoutes"));
 app.use("/api/sales", require("./server/routes/salesRoutes"));
 app.use("/api/orders", require("./server/routes/orderRoutes"));
+app.use("/api/site-content", require("./server/routes/siteContentRoutes"));
 app.use("/api/operations", require("./server/routes/operationsRoutes"));
 app.use("/api/payroll", require("./server/routes/payrollRoutes"));
 app.use("/api/admin", require("./server/routes/adminRoutes"));

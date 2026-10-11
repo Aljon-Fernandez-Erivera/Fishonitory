@@ -28,6 +28,7 @@ function TankManagement({
   onDelete,
 }) {
   const [formOpen, setFormOpen] = useState(false);
+  const [viewTank, setViewTank] = useState(null);
   const updateField = (event) =>
     setTankForm((previous) => ({
       ...previous,
@@ -37,6 +38,7 @@ function TankManagement({
     setEditingTankId(null);
     setTankForm({
       name: "",
+      capacity: "",
       status: "Available",
       nextMaintenance: "",
       notes: "",
@@ -85,7 +87,7 @@ function TankManagement({
               <tr>
                 <th className="px-5 py-3 font-medium">Tank</th>
                 <th className="px-5 py-3 font-medium">Status</th>
-                <th className="px-5 py-3 font-medium">Fish</th>
+                <th className="px-5 py-3 font-medium">Fish / Capacity</th>
                 <th className="px-5 py-3 font-medium">Next maintenance</th>
                 <th className="px-5 py-3 font-medium">Last updated</th>
                 <th className="px-5 py-3 font-medium">Actions</th>
@@ -98,6 +100,7 @@ function TankManagement({
                     String(item.tankId?._id || item.tankId) ===
                     String(tank._id),
                 );
+                const occupied = tankFish.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
 
                 return (
                   <tr
@@ -119,6 +122,10 @@ function TankManagement({
                     </td>
 
                     <td className="px-5 py-4">
+                      <div className="mb-2 flex items-center gap-2 text-xs">
+                        <span>{occupied} / {tank.capacity || "—"} capacity</span>
+                        {tank.capacity && occupied > tank.capacity ? <span className="rounded-full bg-red-300/15 px-2 py-1 text-red-200">Over capacity</span> : tank.capacity && occupied / tank.capacity >= 0.9 ? <span className="rounded-full bg-amber-300/15 px-2 py-1 text-amber-200">Near capacity</span> : null}
+                      </div>
                       {tankFish.length ? (
                         <div className="flex flex-wrap gap-1.5">
                           {tankFish.map((item) => (
@@ -151,6 +158,7 @@ function TankManagement({
                     </td>
                     <td className="px-5 py-4">
                       <div className="flex gap-2">
+                        <button className="rounded-full border border-sky-100/15 px-3 py-1.5 text-xs text-[#b9dfe1]" type="button" onClick={() => setViewTank(tank)}>View more</button>
                         <button
                           className="rounded-full border border-emerald-200/25 bg-white/[.05] px-3 py-1.5 font-['Poppins'] text-xs font-medium text-[#8ccdd0] transition hover:bg-emerald-500/20 hover:text-emerald-100 hover:border-emerald-300/40 focus:outline-none focus:ring-2 focus:ring-[#73c4ca]"
                           type="button"
@@ -233,6 +241,10 @@ function TankManagement({
               </select>
             </label>
             <label className="font-['Poppins'] text-xs font-medium text-[#a9c8cf]">
+              Capacity (total fish)
+              <input className={fieldClass} type="number" min="1" name="capacity" value={tankForm.capacity || ""} onChange={updateField} placeholder="e.g. 100" />
+            </label>
+            <label className="font-['Poppins'] text-xs font-medium text-[#a9c8cf]">
               Next Maintenance
               <input
                 className={fieldClass}
@@ -289,6 +301,15 @@ function TankManagement({
           </form>
         </div>
           </div>
+        </div>
+      )}
+      {viewTank && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-[#021a31]/75 p-4 backdrop-blur-sm" role="presentation" onClick={(event) => { if (event.target === event.currentTarget) setViewTank(null); }}>
+          <section role="dialog" aria-modal="true" aria-labelledby="tank-details-title" className="w-[min(560px,calc(100%-2rem))] rounded-2xl border border-sky-100/15 bg-[#062d48] p-6 text-[#d9ecef] shadow-2xl">
+            <div className="flex items-start justify-between"><h3 id="tank-details-title" className="font-['Fraunces'] text-2xl">{viewTank.name}</h3><button type="button" onClick={() => setViewTank(null)} aria-label="Close details">✕</button></div>
+            <dl className="mt-5 grid gap-3 sm:grid-cols-2 text-sm"><div><dt className="text-[#89afb9]">Status</dt><dd>{viewTank.status || "—"}</dd></div><div><dt className="text-[#89afb9]">Capacity</dt><dd>{viewTank.capacity ? `${viewTank.capacity} fish` : "Not set"}</dd></div><div><dt className="text-[#89afb9]">Current occupancy</dt><dd>{fish.filter((item) => String(item.tankId?._id || item.tankId) === String(viewTank._id)).reduce((sum, item) => sum + Number(item.quantity || 0), 0)} fish</dd></div><div><dt className="text-[#89afb9]">Next maintenance</dt><dd>{viewTank.nextMaintenance ? new Date(viewTank.nextMaintenance).toLocaleDateString() : "Not scheduled"}</dd></div><div><dt className="text-[#89afb9]">Cleaning frequency</dt><dd>{viewTank.cleaningFrequencyDays ? `Every ${viewTank.cleaningFrequencyDays} days` : "Not set"}</dd></div><div className="sm:col-span-2"><dt className="text-[#89afb9]">Fish assigned</dt><dd>{fish.filter((item) => String(item.tankId?._id || item.tankId) === String(viewTank._id)).map((item) => `${item.name} (${item.quantity})`).join(", ") || "No fish assigned"}</dd></div><div className="sm:col-span-2"><dt className="text-[#89afb9]">Maintenance notes</dt><dd className="whitespace-pre-wrap">{viewTank.notes || "No notes"}</dd></div><div className="sm:col-span-2"><dt className="text-[#89afb9]">Last updated by</dt><dd>{viewTank.updatedBy?.staffName || viewTank.updatedBy?.ownerName || viewTank.updatedBy?.staffPosition || "—"}</dd></div></dl>
+            <button className="mt-5 rounded-full bg-[#75bec4] px-4 py-2 text-sm text-[#052d45]" type="button" onClick={() => setViewTank(null)}>Close</button>
+          </section>
         </div>
       )}
     </section>

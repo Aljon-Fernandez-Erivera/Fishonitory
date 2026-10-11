@@ -278,7 +278,7 @@ function LoginPage() {
         }}
       />
 
-      <section className="box-border w-full rounded-3xl border border-sky-100/15 bg-[#062d48]/90 p-6 shadow-[0_28px_80px_rgba(0,12,31,.3)] backdrop-blur-md sm:p-9">
+      <section className="auth-card relative box-border w-full rounded-3xl border border-[#d9e5df] bg-[#fffefa] px-6 pb-6 pt-12 text-[#18383e] shadow-[0_24px_60px_rgba(21,62,67,.12)] sm:px-9 sm:pb-9 sm:pt-12">
         <div className="absolute right-4 top-4">
           <button
             type="button"
@@ -290,7 +290,7 @@ function LoginPage() {
             <span aria-hidden="true">?</span> Help
           </button>
           {helpOpen && (
-            <div className="absolute right-0 top-9 z-10 w-64 rounded-xl border border-sky-100/15 bg-[#062d48] p-4 text-left shadow-2xl">
+            <div className="auth-popover absolute right-0 top-9 z-10 w-64 rounded-xl border border-[#d9e5df] bg-[#fffefa] p-4 text-left shadow-xl">
               <p className="font-['Poppins'] text-xs leading-relaxed text-[#b9d8dd]">
                 {helpText}
               </p>

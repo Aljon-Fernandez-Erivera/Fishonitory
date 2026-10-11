@@ -148,7 +148,7 @@ function ForgotPasswordPage() {
     }
   };
   const input =
-    "mt-1.5 box-border w-full rounded-xl border border-sky-100/10 bg-white/[.07] px-3.5 py-2.5 font-['Poppins'] text-sm text-[#d8f1f1] outline-none transition focus:border-[#73c4ca] focus:bg-white/[.1]";
+    "auth-input mt-1.5 box-border w-full rounded-xl border border-[#d3dfda] bg-[#f7f8f4] px-3.5 py-2.5 font-['Poppins'] text-sm text-[#18383e] outline-none transition focus:border-[#399da4] focus:bg-white";
   return (
     <AuthLayout actionLabel="LOGIN" actionTo="/login">
       {loading && (
@@ -164,7 +164,7 @@ function ForgotPasswordPage() {
           if (destination) navigate(destination);
         }}
       />
-      <section className="box-border w-full rounded-2xl border border-sky-100/15 bg-[#062d48]/80 p-5 shadow-[0_24px_70px_rgba(0,12,31,.25)] backdrop-blur-md sm:p-7">
+      <section className="auth-card box-border w-full rounded-2xl border border-[#d9e5df] bg-[#fffefa] p-5 text-[#18383e] shadow-[0_24px_60px_rgba(21,62,67,.12)] sm:p-7">
         <h1 className="m-0 text-center font-['Fraunces'] text-3xl text-[#d9ecef] sm:text-[2rem]">
           Forgot Password
         </h1>

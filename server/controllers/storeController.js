@@ -28,13 +28,17 @@ exports.listTanks = async (req, res) => {
 exports.createTank = async (req, res) => {
   if (req.user.role !== "Owner")
     return res.status(403).json({ message: "Only owners can add tanks." });
-  const { name, status, nextMaintenance, notes, cleaningFrequencyDays } = req.body;
+  const { name, status, nextMaintenance, notes, cleaningFrequencyDays, capacity } = req.body;
   if (!name) return res.status(400).json({ message: "Tank name is required." });
 
   const frequency = cleaningFrequencyDays ? Number(cleaningFrequencyDays) : null;
+  const tankCapacity = capacity === undefined || capacity === "" || capacity === null ? null : Number(capacity);
+  if (tankCapacity !== null && (!Number.isInteger(tankCapacity) || tankCapacity < 1 || tankCapacity > 1000000))
+    return res.status(400).json({ message: "Tank capacity must be a whole number greater than zero." });
   const tank = await Tank.create({
     ownerId: req.user.userId,
     name,
+    capacity: tankCapacity,
     status,
     nextMaintenance: nextMaintenance || (frequency ? addDays(frequency) : null),
     cleaningFrequencyDays: frequency,
@@ -53,7 +57,7 @@ exports.updateTank = async (req, res) => {
   const updates =
     req.user.role === "Owner"
       ? Object.fromEntries(
-          ["name", "status", "nextMaintenance", "notes", "cleaningFrequencyDays"]
+          ["name", "status", "nextMaintenance", "notes", "cleaningFrequencyDays", "capacity"]
             .filter((field) =>
               Object.prototype.hasOwnProperty.call(req.body, field),
             )
@@ -65,6 +69,22 @@ exports.updateTank = async (req, res) => {
   // Pull the current record first so we know its saved frequency when recalculating.
   const existing = await Tank.findOne({ _id: req.params.id, ownerId });
   if (!existing) return res.status(404).json({ message: "Tank not found." });
+
+  if (req.user.role === "Owner" && Object.prototype.hasOwnProperty.call(updates, "capacity")) {
+    const capacity = updates.capacity === "" || updates.capacity === null ? null : Number(updates.capacity);
+    if (capacity !== null && (!Number.isInteger(capacity) || capacity < 1 || capacity > 1000000))
+      return res.status(400).json({ message: "Tank capacity must be a whole number greater than zero." });
+    if (capacity !== null) {
+      const Fish = require("../models/Fish");
+      const totals = await Fish.aggregate([
+        { $match: { ownerId, tankId: existing._id } },
+        { $group: { _id: null, total: { $sum: "$quantity" } } },
+      ]);
+      if ((totals[0]?.total || 0) > capacity)
+        return res.status(400).json({ message: "Capacity cannot be lower than the current fish count." });
+    }
+    updates.capacity = capacity;
+  }
 
   if (CLEANED_STATUSES.includes(updates.status) && existing.cleaningFrequencyDays) {
     updates.nextMaintenance = addDays(existing.cleaningFrequencyDays);
