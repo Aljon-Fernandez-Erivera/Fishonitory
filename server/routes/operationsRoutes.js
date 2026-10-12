@@ -5,6 +5,7 @@ const purchaseController = require("../controllers/purchaseController");
 const mortalityController = require("../controllers/mortalityController");
 const auditController = require("../controllers/auditController");
 const { validateMortality, validatePurchase } = require("../middleware/validateOperations");
+const sanitizeRequestBody = require("../middleware/sanitizeRequestBody");
 const {
 	uploadErrorHandler,
 	uploadMortalityPhoto,
@@ -20,6 +21,7 @@ router.post(
 	"/mortality",
 	uploadMortalityPhoto,
 	uploadErrorHandler,
+	sanitizeRequestBody,
 	validateMortality,
 	mortalityController.createMortality,
 );

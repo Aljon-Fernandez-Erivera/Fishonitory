@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { useAuth } from "./useAuth.js";
 
 export function BrandLogo() {
   return (
@@ -20,10 +21,13 @@ export function BrandLogo() {
 }
 
 export function AuthFooter() {
+  const { user } = useAuth();
+  const canOpenSupport = ["Owner", "masterStaff"].includes(user?.role);
+
   return (
     <footer className="mt-auto flex flex-col items-center justify-between gap-2 bg-[#033341] px-5 py-4 font-['Poppins'] text-[11px] text-[#b8d5d9] sm:flex-row sm:px-8 lg:px-12">
       <span>© 2026 Fishonitory. All rights reserved.</span>
-      <Link className="text-inherit no-underline transition hover:text-white" to="/help">Help Center</Link>
+      {canOpenSupport && <Link className="text-inherit no-underline transition hover:text-white" to="/help">Help Center</Link>}
     </footer>
   );
 }

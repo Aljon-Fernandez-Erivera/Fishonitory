@@ -62,13 +62,17 @@ const cardClass =
 /* ------------------------------------------------------------------ */
 
 function EditProfileDialog({ profile, onClose, onSave }) {
-  const [values, setValues] = useState({
+  const initialValues = {
     displayName: profile?.displayName || "",
     phoneNumber: profile?.phoneNumber || "",
-  });
+  };
+  const [values, setValues] = useState(initialValues);
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState("");
   const [busy, setBusy] = useState(false);
+  const hasChanges =
+    values.displayName !== initialValues.displayName ||
+    values.phoneNumber !== initialValues.phoneNumber;
 
   const close = useCallback(() => {
     if (!busy) onClose();
@@ -85,7 +89,7 @@ function EditProfileDialog({ profile, onClose, onSave }) {
   const setField = (name) => (event) => {
     let value = cleanText(event.target.value);
     if (name === "phoneNumber") value = value.replace(/[^\d+\s.()-]/g, "").slice(0, 24);
-    else value = value.slice(0, 60);
+    else value = value.replace(/[^\p{L}\p{M} .'-]/gu, "").slice(0, 60);
 
     setValues((previous) => ({ ...previous, [name]: value }));
     setErrors((previous) => ({ ...previous, [name]: "" }));
@@ -138,7 +142,7 @@ function EditProfileDialog({ profile, onClose, onSave }) {
             aria-label="Close"
             className="cursor-pointer rounded-full border-0 bg-white/[.06] px-3 py-1 text-lg leading-none text-[#a9c8cf] hover:bg-white/[.12]"
           >
-            ×
+            &times;
           </button>
         </div>
 
@@ -154,6 +158,7 @@ function EditProfileDialog({ profile, onClose, onSave }) {
               autoComplete="name"
               autoFocus
               maxLength={60}
+              placeholder="e.g. Juan Dela Cruz"
               value={values.displayName}
               onChange={setField("displayName")}
               disabled={busy}
@@ -172,7 +177,7 @@ function EditProfileDialog({ profile, onClose, onSave }) {
               inputMode="tel"
               autoComplete="tel"
               placeholder="+63912345678"
-              maxLength={13}
+              maxLength={24}
               value={values.phoneNumber}
               onChange={setField("phoneNumber")}
               disabled={busy}
@@ -195,8 +200,8 @@ function EditProfileDialog({ profile, onClose, onSave }) {
             <button type="button" className={ghostButton} onClick={close} disabled={busy}>
               Cancel
             </button>
-            <button type="submit" className={primaryButton} disabled={busy}>
-              {busy ? "Saving…" : "Save changes"}
+            <button type="submit" className={primaryButton} disabled={busy || !hasChanges}>
+              {busy ? "Saving..." : "Save changes"}
             </button>
           </div>
         </form>
@@ -238,7 +243,7 @@ function AdminAccount({
       ? "2FA Enabled"
       : mfaEnabled === false
         ? "2FA Inactive"
-        : "Checking…";
+        : "Checking...";
 
   const mfaTone =
     mfaEnabled === true
@@ -247,24 +252,6 @@ function AdminAccount({
 
   return (
     <section className="mx-auto grid w-full max-w-7xl gap-6 pb-12">
-      {/* Header */}
-      <div className="flex flex-col justify-between gap-3 border-b border-sky-100/10 pb-4 sm:flex-row sm:items-end">
-        <div>
-          <p className="font-['Poppins'] text-xs font-semibold uppercase tracking-[0.16em] text-[#73c4ca]">
-            Settings
-          </p>
-
-          <p className="mt-1 font-['Poppins'] text-xs text-[#9bbec7] sm:text-sm">
-            Manage your administrator profile and account security.
-          </p>
-        </div>
-
-        <span className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 font-['Poppins'] text-xs font-medium text-emerald-300 sm:self-auto">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_#34d399]" />
-          Super Admin Authorized
-        </span>
-      </div>
-
       {/* Tabs */}
       <div className="flex flex-wrap gap-2">
         <button
@@ -295,7 +282,7 @@ function AdminAccount({
                 {displayName || "Super Administrator"}
               </h3>
               <p className="m-0 mt-1 break-all font-['Poppins'] text-xs text-[#7fa7ae]">
-                {email || "—"}
+                {email || "-"}
               </p>
               <span className="mt-3 rounded-full border border-sky-100/15 bg-white/[.06] px-3 py-1 font-['Poppins'] text-[0.7rem] font-medium text-[#73c4ca]">
                 Platform Administrator
@@ -314,7 +301,7 @@ function AdminAccount({
                     ? "Enabled"
                     : mfaEnabled === false
                       ? "Not enabled"
-                      : "Checking…"}
+                      : "Checking..."}
                 </span>
               </div>
             </div>

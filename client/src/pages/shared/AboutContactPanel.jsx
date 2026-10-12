@@ -16,22 +16,38 @@ const initialContent = {
 };
 
 const fieldMeta = {
-  aboutEyebrow: ["About label", "text", 80],
-  aboutHeadline: ["About headline", "text", 120],
-  aboutDescription: ["About description", "textarea", 1200],
-  mission: ["Mission", "textarea", 600],
-  vision: ["Vision", "textarea", 600],
-  contactHeadline: ["Contact headline", "text", 120],
-  contactMessage: ["Contact guidance", "textarea", 600],
-  supportEmail: ["Support email", "email", 254],
-  supportPhone: ["Support phone", "tel", 40],
-  supportHours: ["Support hours", "text", 120],
+  aboutEyebrow: ["About label", "text", 80, "e.g. ABOUT FISHONITORY"],
+  aboutHeadline: ["About headline", "text", 120, "A short headline about your business"],
+  aboutDescription: ["About description", "textarea", 1200, "Describe what Fishonitory helps your business manage."],
+  mission: ["Mission", "textarea", 600, "Describe your business mission."],
+  vision: ["Vision", "textarea", 600, "Describe your business vision."],
+  contactHeadline: ["Contact headline", "text", 120, "e.g. How can we help?"],
+  contactMessage: ["Contact guidance", "textarea", 600, "Tell users how to get support."],
+  supportEmail: ["Support email", "email", 254, "support@example.com"],
+  supportPhone: ["Support phone", "tel", 40, "+639171234567"],
+  supportHours: ["Support hours", "text", 120, "e.g. Monday-Friday, 9 AM-5 PM"],
 };
 
 const inputClass = "mt-1.5 w-full rounded-xl border border-sky-100/15 bg-[#062d48] px-3.5 py-3 font-['Poppins'] text-sm text-[#d9ecef] outline-none transition placeholder:text-[#719ba8] focus:border-[#73c4ca] focus:ring-2 focus:ring-[#73c4ca]/15";
 
+function sanitizeContentInput(value, { multiline = false } = {}) {
+  const normalized = value.normalize("NFKC").replace(/\r\n?/g, "\n");
+  const withoutHiddenCharacters = Array.from(normalized)
+    .filter((character) => {
+      const code = character.codePointAt(0);
+      return code === 0x0a || code === 0x09 || (code >= 0x20 && !(code >= 0x7f && code <= 0x9f)
+        && !(code >= 0x200b && code <= 0x200f) && !(code >= 0x202a && code <= 0x202e)
+        && !(code >= 0x2060 && code <= 0x206f) && code !== 0xfeff);
+    })
+    .join("");
+  return multiline
+    ? withoutHiddenCharacters.replace(/[ \t]+/g, " ")
+    : withoutHiddenCharacters.replace(/[\s\u00a0]+/g, " ");
+}
+
 function AboutContactPanel({ section = "all", editable = false, onSave }) {
   const [content, setContent] = useState(initialContent);
+  const [savedContent, setSavedContent] = useState(initialContent);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -43,7 +59,11 @@ function AboutContactPanel({ section = "all", editable = false, onSave }) {
       .then(async (response) => {
         const data = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(data.message || "Could not load company information.");
-        if (active) setContent({ ...initialContent, ...(data.content || {}) });
+        if (active) {
+          const loadedContent = { ...initialContent, ...(data.content || {}) };
+          setContent(loadedContent);
+          setSavedContent(loadedContent);
+        }
       })
       .catch((requestError) => { if (active) setError(requestError.message); })
       .finally(() => { if (active) setLoading(false); });
@@ -52,17 +72,40 @@ function AboutContactPanel({ section = "all", editable = false, onSave }) {
 
   const aboutVisible = section === "about" || section === "all";
   const contactVisible = section === "contact" || section === "all";
-  const update = (key, value) => setContent((current) => ({ ...current, [key]: value }));
+  const hasChanges = Object.keys(initialContent).some(
+    (key) => content[key] !== savedContent[key],
+  );
+  const update = (key, value) => {
+    const [, type] = fieldMeta[key];
+    let sanitized = sanitizeContentInput(value, { multiline: type === "textarea" });
+    if (key === "supportEmail") sanitized = sanitized.trim().toLowerCase();
+    if (key === "supportPhone") sanitized = sanitized.replace(/[^+\d().\-\s]/g, "");
+    setContent((current) => ({ ...current, [key]: sanitized }));
+  };
 
   const save = async (event) => {
     event.preventDefault();
-    if (!editable || !onSave) return;
+    if (!editable || !onSave || !hasChanges) return;
+    if (!content.aboutHeadline.trim() || !content.aboutDescription.trim() || !content.contactHeadline.trim() || !content.contactMessage.trim()) {
+      setError("About headline, description, contact headline, and contact guidance are required.");
+      return;
+    }
+    if (content.supportEmail && !/^(?=.{1,254}$)(?=.{1,64}@)[A-Z0-9!#$%&'*+/=?^_`{|}~.-]+@(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+[A-Z]{2,63}$/i.test(content.supportEmail)) {
+      setError("Enter a valid support email address.");
+      return;
+    }
+    if (content.supportPhone && (!/^[+\d().\-\s]+$/.test(content.supportPhone) || content.supportPhone.replace(/\D/g, "").length < 7)) {
+      setError("Enter a valid support phone number.");
+      return;
+    }
     setSaving(true);
     setError("");
     setSaved("");
     try {
       const result = await onSave(content);
-      setContent({ ...initialContent, ...(result?.content || content) });
+      const nextContent = { ...initialContent, ...(result?.content || content) };
+      setContent(nextContent);
+      setSavedContent(nextContent);
       setSaved(result?.message || "Changes saved.");
     } catch (requestError) {
       setError(requestError.message || "Could not save changes.");
@@ -72,14 +115,14 @@ function AboutContactPanel({ section = "all", editable = false, onSave }) {
   };
 
   const field = (key) => {
-    const [label, type, maxLength] = fieldMeta[key];
+    const [label, type, maxLength, placeholder] = fieldMeta[key];
     return (
       <label key={key} className="block font-['Poppins'] text-xs font-medium text-[#a9c8cf]">
         {label}
         {type === "textarea" ? (
-          <textarea rows={key === "aboutDescription" ? 4 : 3} maxLength={maxLength} value={content[key]} onChange={(event) => update(key, event.target.value)} readOnly={!editable} className={`${inputClass} resize-y leading-6 read-only:border-transparent read-only:bg-white/[.025] read-only:px-0 read-only:focus:ring-0`} />
+          <textarea rows={key === "aboutDescription" ? 4 : 3} maxLength={maxLength} placeholder={placeholder} value={content[key]} onChange={(event) => update(key, event.target.value)} readOnly={!editable} className={`${inputClass} resize-y leading-6 read-only:border-transparent read-only:bg-white/[.025] read-only:px-0 read-only:focus:ring-0`} />
         ) : (
-          <input type={type} maxLength={maxLength} value={content[key]} onChange={(event) => update(key, event.target.value)} readOnly={!editable} className={`${inputClass} read-only:border-transparent read-only:bg-transparent read-only:px-0 read-only:focus:ring-0`} />
+          <input type={type} maxLength={maxLength} placeholder={placeholder} value={content[key]} onChange={(event) => update(key, event.target.value)} readOnly={!editable} className={`${inputClass} read-only:border-transparent read-only:bg-transparent read-only:px-0 read-only:focus:ring-0`} />
         )}
       </label>
     );
@@ -123,7 +166,7 @@ function AboutContactPanel({ section = "all", editable = false, onSave }) {
               <p className="font-['Poppins'] text-[10px] font-semibold uppercase tracking-[.18em] text-[#73c4ca]">CONTACT & SUPPORT</p>
               {editable ? field("contactHeadline") : <h2 id="contact-panel-title" className="mt-2 font-['Fraunces'] text-3xl text-[#e7f4f5]">{content.contactHeadline}</h2>}
               <div className="mt-3 font-['Poppins'] text-sm leading-7 text-[#a9c8cf]">{editable ? field("contactMessage") : <p>{content.contactMessage}</p>}</div>
-              <Link to="/help" className="mt-5 inline-flex min-h-10 items-center rounded-xl bg-[#75bec4] px-4 py-2 font-['Poppins'] text-sm font-semibold text-[#052d45] no-underline transition hover:bg-[#91d2d5]">Open Help Center</Link>
+              {!editable && <Link to="/help" className="mt-5 inline-flex min-h-10 items-center rounded-xl bg-[#75bec4] px-4 py-2 font-['Poppins'] text-sm font-semibold text-[#052d45] no-underline transition hover:bg-[#91d2d5]">Open Help Center</Link>}
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <article className="rounded-2xl border border-sky-100/10 bg-white/[.04] p-4">
@@ -143,7 +186,7 @@ function AboutContactPanel({ section = "all", editable = false, onSave }) {
         </section>
       )}
 
-      {editable && <div className="sticky bottom-3 flex justify-end rounded-2xl border border-sky-100/10 bg-[#021d2e]/90 p-3 backdrop-blur"><button type="submit" disabled={saving} className="min-h-11 rounded-xl bg-[#75bec4] px-5 py-2.5 font-['Poppins'] text-sm font-semibold text-[#052d45] transition hover:bg-[#91d2d5] disabled:cursor-not-allowed disabled:opacity-60">{saving ? "Saving…" : "Save About & Contact"}</button></div>}
+      {editable && <div className="sticky bottom-3 flex justify-end rounded-2xl border border-sky-100/10 bg-[#021d2e]/90 p-3 backdrop-blur"><button type="submit" disabled={saving || !hasChanges} className="min-h-11 rounded-xl bg-[#75bec4] px-5 py-2.5 font-['Poppins'] text-sm font-semibold text-[#052d45] transition hover:bg-[#91d2d5] disabled:cursor-not-allowed disabled:opacity-60">{saving ? "Saving…" : "Save About & Contact"}</button></div>}
     </form>
   );
 }

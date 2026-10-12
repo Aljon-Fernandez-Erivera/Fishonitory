@@ -1,88 +1,91 @@
 import Swal from "sweetalert2";
 
-const sharedPopupClass = {
+const baseCustomClass = {
+  container: "oceanic-modal-backdrop",
   popup: "oceanic-swal-popup",
   title: "oceanic-swal-title",
   htmlContainer: "oceanic-swal-text",
-  confirmButton: "oceanic-swal-confirm",
-  cancelButton: "oceanic-swal-cancel",
+  inputLabel: "oceanic-swal-input-label",
+  validationMessage: "oceanic-swal-validation",
+  closeButton: "oceanic-swal-close",
+  actions: "oceanic-swal-actions",
+  confirmButton: "oceanic-swal-btn oceanic-swal-btn--confirm",
+  cancelButton: "oceanic-swal-btn oceanic-swal-btn--cancel",
+  input: "oceanic-swal-input",
   footer: "oceanic-swal-footer",
   icon: "oceanic-swal-icon",
-  actions: "oceanic-swal-actions",
 };
 
-export function applyOceanicSwalTheme() {
-  const defaultOptions = {
-    confirmButtonColor: "#75bec4",
-    cancelButtonColor: "#0b2e42",
-    denyButtonColor: "#1d4b68",
-    background: "#062d48",
-    color: "#dff6f9",
-    borderRadius: "20px",
-    backdropClass: "oceanic-modal-backdrop",
-    backdrop: true,
-    customClass: sharedPopupClass,
-    buttonsStyling: false,
-    showClass: {
-      popup: "animate__animated animate__fadeInUp",
+const baseConfig = {
+  background: "#062d48",
+  color: "#dff6f9",
+  buttonsStyling: false,
+  reverseButtons: true,
+  allowOutsideClick: false,
+  backdrop: true,
+  customClass: baseCustomClass,
+  showClass: { popup: "animate__animated animate__fadeInUp" },
+  hideClass: { popup: "animate__animated animate__fadeOutDown" },
+};
+
+const toneClasses = {
+  default: "oceanic-swal-btn oceanic-swal-btn--confirm",
+  success: "oceanic-swal-btn oceanic-swal-btn--confirm oceanic-swal-btn--success",
+  danger: "oceanic-swal-btn oceanic-swal-btn--confirm oceanic-swal-btn--danger",
+};
+
+export function oceanicFire(options = {}, tone = "default") {
+  const selectedTone = toneClasses[tone] ? tone : "default";
+  return Swal.fire({
+    ...baseConfig,
+    ...options,
+    customClass: {
+      ...baseCustomClass,
+      ...(options.customClass || {}),
+      confirmButton:
+        options.customClass?.confirmButton || toneClasses[selectedTone],
     },
-    hideClass: {
-      popup: "animate__animated animate__fadeOutDown",
-    },
-  };
-
-  if (typeof Swal.setDefaults === "function") {
-    Swal.setDefaults(defaultOptions);
-    return;
-  }
-
-  if (typeof Swal.setOptions === "function") {
-    Swal.setOptions(defaultOptions);
-    return;
-  }
-
-  if (typeof Swal.mixin === "function") {
-    Swal.mixin(defaultOptions);
-  }
+  });
 }
 
-export function confirmOceanicAction(options = {}) {
-  const {
-    title = "Are you sure?",
-    text = "This action cannot be undone.",
-    confirmButtonText = "Continue",
-    cancelButtonText = "Cancel",
-    icon = "warning",
-    danger = false,
-  } = options;
+export async function confirmOceanicAction({
+  title = "Are you sure?",
+  text = "This action cannot be undone.",
+  icon = "warning",
+  confirmText = "Continue",
+  cancelText = "Cancel",
+  tone = "default",
+} = {}) {
+  const result = await oceanicFire(
+    {
+      title,
+      text,
+      icon,
+      showCancelButton: true,
+      confirmButtonText: confirmText,
+      cancelButtonText: cancelText,
+    },
+    tone,
+  );
+  return result.isConfirmed;
+}
 
-  return Swal.fire({
+export function oceanicNotice(title, text = "", icon = "info", options = {}) {
+  const { tone = "default", ...noticeOptions } = options;
+  return oceanicFire({
     title,
     text,
     icon,
-    showCancelButton: true,
-    confirmButtonText,
-    cancelButtonText,
-    background: "#062d48",
-    color: "#dff6f9",
-    backdropClass: "oceanic-modal-backdrop",
-    confirmButtonColor: "#75bec4",
-    cancelButtonColor: "#102f46",
-    customClass: {
-      ...sharedPopupClass,
-      confirmButton: danger
-        ? "oceanic-swal-confirm oceanic-swal-danger"
-        : sharedPopupClass.confirmButton,
-    },
-    buttonsStyling: false,
-    reverseButtons: true,
-  });
+    showConfirmButton: true,
+    confirmButtonText: "OK",
+    ...noticeOptions,
+  }, tone);
 }
 
 export function showOceanicLogoutConfirm(onConfirmed) {
   let timerId = null;
 
-  return Swal.fire({
+  return oceanicFire({
     title: "Log out",
     html: `
       <div class="space-y-2 text-center">
@@ -94,18 +97,9 @@ export function showOceanicLogoutConfirm(onConfirmed) {
     showCancelButton: true,
     confirmButtonText: "Log out now",
     cancelButtonText: "Stay signed in",
-    background: "#062d48",
-    color: "#dff6f9",
-    backdropClass: "oceanic-modal-backdrop",
-    confirmButtonColor: "#75bec4",
-    cancelButtonColor: "#102f46",
     customClass: {
-      ...sharedPopupClass,
       popup: "oceanic-swal-popup oceanic-swal-logout",
     },
-    buttonsStyling: false,
-    reverseButtons: true,
-    allowOutsideClick: false,
     didOpen: () => {
       const countdownEl = Swal.getPopup()?.querySelector(".oceanic-swal-countdown");
       if (!countdownEl) return;
@@ -118,9 +112,7 @@ export function showOceanicLogoutConfirm(onConfirmed) {
         if (remaining <= 0) {
           window.clearInterval(timerId);
           Swal.close();
-          if (typeof onConfirmed === "function") {
-            onConfirmed();
-          }
+          if (typeof onConfirmed === "function") onConfirmed();
         }
       }, 1000);
     },
@@ -129,5 +121,3 @@ export function showOceanicLogoutConfirm(onConfirmed) {
     },
   });
 }
-
-applyOceanicSwalTheme();

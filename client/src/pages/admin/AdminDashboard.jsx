@@ -3,8 +3,7 @@ import { useAuth } from "../shared/useAuth.js";
 import { useSearchParams } from "react-router-dom";
 import { API_URL } from "../../config.js";
 import "../../css/owner-dashboard-layout.css";
-import Swal from "sweetalert2";
-import { confirmOceanicAction, showOceanicLogoutConfirm } from "../../utils/oceanicSwal.js";
+import { confirmOceanicAction, oceanicFire, oceanicNotice, showOceanicLogoutConfirm } from "../../utils/oceanicSwal.js";
 
 import AdminOverview from "./AdminOverview.jsx";
 import PendingVerifications from "./PendingVerifications.jsx";
@@ -13,6 +12,7 @@ import ActiveBusinesses from "./ActiveBusinesses.jsx";
 import AdminAccount from "./AdminAccount.jsx";
 import SystemLogs from "./SystemLogs.jsx";
 import AboutContactPanel from "../shared/AboutContactPanel.jsx";
+import { LoadingOverlay } from "../shared/AuthLayout.jsx";
 
 async function apiRequest(path, options = {}) {
   const response = await fetch(`${API_URL}${path}`, {
@@ -38,6 +38,31 @@ async function apiRequest(path, options = {}) {
   }
 
   return data;
+}
+
+// Sidebar section: title, optional description, then indented menu items.
+// Contrast on the sidebar background (#021d2e): menu items #d4eaec 13.8:1,
+// title #8fc5cb 9.1:1, description #8fb3ba 7.7:1 (all WCAG AAA).
+// On mobile the sidebar is a horizontal strip, so the heading is hidden and
+// the wrappers use `display: contents` to keep buttons as direct row items.
+function SidebarGroup({ title, description, children }) {
+  return (
+    <div className="contents md:block">
+      <div className="hidden px-3 pb-1.5 pt-4 md:block">
+        <p className="m-0 font-['Poppins'] text-[0.68rem] font-semibold uppercase tracking-[.14em] text-[#8fc5cb]">
+          {title}
+        </p>
+        {description && (
+          <p className="m-0 mt-1 font-['Poppins'] text-[0.72rem] leading-snug text-[#8fb3ba]">
+            {description}
+          </p>
+        )}
+      </div>
+      <div className="contents md:flex md:flex-col md:gap-0.5 md:pl-3">
+        {children}
+      </div>
+    </div>
+  );
 }
 
 function AdminDashboard() {
@@ -78,6 +103,18 @@ function AdminDashboard() {
   });
   const [accounts, setAccounts] = useState([]);
   const [logs, setLogs] = useState([]);
+  const [logPagination, setLogPagination] = useState({
+    page: 1,
+    limit: 20,
+    total: 0,
+    totalPages: 0,
+  });
+  const [accountPagination, setAccountPagination] = useState({
+    page: 1,
+    limit: 20,
+    total: 0,
+    totalPages: 0,
+  });
 
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -114,16 +151,12 @@ function AdminDashboard() {
   const notify = (type, title) => {
     if (!title) return;
 
-    Swal.fire({
+    oceanicNotice(title, "", type, {
       toast: true,
       position: "top-end",
-      icon: type,
-      title,
       showConfirmButton: false,
       timer: 4000,
       timerProgressBar: true,
-      background: "#062d48",
-      color: "#d9ecef",
     });
   };
 
@@ -315,20 +348,6 @@ function AdminDashboard() {
      Every 60 seconds
   ========================================================= */
 
-  const [logPagination, setLogPagination] = useState({
-    page: 1,
-    limit: 20,
-    total: 0,
-    totalPages: 0,
-  });
-
-  const [accountPagination, setAccountPagination] = useState({
-    page: 1,
-    limit: 20,
-    total: 0,
-    totalPages: 0,
-  });
-
   useEffect(() => {
     if (
       !authReady ||
@@ -377,8 +396,13 @@ function AdminDashboard() {
       return;
     }
 
-    loadOverviewData();
-    loadPending();
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      void loadOverviewData();
+      void loadPending();
+    });
+    return () => { cancelled = true; };
   }, [authReady, user?.role, loadOverviewData, loadPending]);
 
   /* =========================================================
@@ -390,13 +414,13 @@ function AdminDashboard() {
       return;
     }
 
-    if (activePage === "logs") {
-      loadLogs();
-    }
-
-    if (activePage === "pending") {
-      loadPending();
-    }
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      if (activePage === "logs") void loadLogs();
+      if (activePage === "pending") void loadPending();
+    });
+    return () => { cancelled = true; };
   }, [authReady, user?.role, activePage, loadLogs, loadPending]);
 
   /* =========================================================
@@ -551,10 +575,10 @@ function AdminDashboard() {
       title: `Approve ${businessName}?`,
       text: "This owner will be able to log in immediately and will be notified by email.",
       icon: "question",
-      confirmButtonText: "Approve",
+      confirmText: "Approve",
     });
 
-    if (!confirmation.isConfirmed) {
+    if (!confirmation) {
       return;
     }
 
@@ -581,26 +605,13 @@ function AdminDashboard() {
   ========================================================= */
 
   const handleReject = async (ownerId, businessName) => {
-    const { value: reason, isConfirmed } = await Swal.fire({
+    const { value: reason, isConfirmed } = await oceanicFire({
       title: `Reject ${businessName}?`,
       input: "textarea",
       inputLabel: "Reason (shown to the applicant and sent by email)",
       inputPlaceholder: "e.g. The uploaded permit is expired or unreadable.",
       showCancelButton: true,
       confirmButtonText: "Reject",
-      confirmButtonColor: "#d33",
-      background: "#062d48",
-      color: "#d9ecef",
-      backdropClass: "oceanic-modal-backdrop",
-      customClass: {
-        confirmButton: "oceanic-swal-confirm oceanic-swal-danger",
-        cancelButton: "oceanic-swal-cancel",
-        popup: "oceanic-swal-popup",
-        title: "oceanic-swal-title",
-        htmlContainer: "oceanic-swal-text",
-        actions: "oceanic-swal-actions",
-      },
-      buttonsStyling: false,
       inputValidator: (value) =>
         !value.trim() ? "A reason is required." : undefined,
     });
@@ -640,12 +651,12 @@ function AdminDashboard() {
       text: `${label} will ${
         status === "Disabled" ? "lose" : "regain"
       } the ability to log in.`,
-      confirmButtonText: status === "Disabled" ? "Disable" : "Enable",
+      confirmText: status === "Disabled" ? "Disable" : "Enable",
       icon: "warning",
-      danger: status === "Disabled",
+      tone: "default",
     });
 
-    if (!confirmation.isConfirmed) {
+    if (!confirmation) {
       return;
     }
 
@@ -679,6 +690,23 @@ function AdminDashboard() {
     return `dashboard-nav-link ${activePage === page ? "is-active" : ""}`;
   };
 
+  // Shared builder for sidebar buttons.
+  const navItem = (page, label, extra = null) => (
+    <button
+      key={page}
+      className={navButtonClass(page)}
+      type="button"
+      aria-current={activePage === page ? "page" : undefined}
+      onClick={() => {
+        setActivePage(page);
+        setSidebarOpen(false);
+      }}
+    >
+      {label}
+      {extra}
+    </button>
+  );
+
   const saveAboutContact = (content) => apiRequest("/site-content", {
     method: "PATCH",
     body: JSON.stringify(content),
@@ -688,23 +716,7 @@ function AdminDashboard() {
      INITIAL LOADING SCREEN
   ========================================================= */
 
-  if (initialLoading) {
-    return (
-      <main className="grid h-screen place-items-center bg-[radial-gradient(circle_at_88%_12%,#0a5267_0%,#08465d_42%,#021a31_100%)] p-6 text-[#c9e1e5]">
-        <div className="text-center">
-          <img
-            src="/LOGO.svg"
-            alt=""
-            className="mx-auto h-16 w-auto animate-[pulse_1.3s_ease-in-out_infinite]"
-          />
-
-          <p className="mt-4 font-['Poppins'] text-sm">
-            Preparing the admin console…
-          </p>
-        </div>
-      </main>
-    );
-  }
+  if (initialLoading) return <LoadingOverlay label="Preparing the admin console" />;
 
   /* =========================================================
      MAIN DASHBOARD
@@ -762,90 +774,55 @@ function AdminDashboard() {
               Fishonitory
             </strong>
 
-            <small className="block font-['Poppins'] text-[0.58rem] text-[#7fa7ae]">
+            <small className="block font-['Poppins'] text-[0.7rem] text-[#8fb3ba]">
               Super Admin console
             </small>
           </div>
         </button>
 
         {/* Navigation */}
-        <nav className="mt-4 flex min-w-0 gap-0.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:mt-6 md:min-h-0 md:flex-1 md:flex-col md:overflow-y-auto md:overflow-x-hidden md:pr-1">
-          {/* Overview */}
-          <button
-            className={navButtonClass("overview")}
-            type="button"
-            onClick={() => {
-              setActivePage("overview");
-              setSidebarOpen(false);
-            }}
-          >
-            Overview
-          </button>
+        <nav
+          className="mt-4 flex min-w-0 gap-0.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:mt-6 md:min-h-0 md:flex-1 md:flex-col md:overflow-y-auto md:overflow-x-hidden md:pr-1"
+          aria-label="Admin dashboard navigation"
+        >
+          {navItem("overview", "Overview")}
 
-          {/* Pending */}
-          <button
-            className={navButtonClass("pending")}
-            type="button"
-            onClick={() => {
-              setActivePage("pending");
-              setSidebarOpen(false);
-            }}
+          <SidebarGroup
+            title="Review queue"
+            description="Check new applications"
           >
-            Pending Verifications
-            {pendingPagination.total > 0 && (
-              <span className="ml-2 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-400 px-1 text-[10px] font-bold text-[#3a2900]">
-                {pendingPagination.total}
-              </span>
+            {navItem(
+              "pending",
+              "Pending Verifications",
+              pendingPagination.total > 0 && (
+                <span className="ml-2 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-400 px-1 text-[10px] font-bold text-[#3a2900]">
+                  {pendingPagination.total}
+                </span>
+              ),
             )}
-          </button>
+          </SidebarGroup>
 
-          {/* Active businesses */}
-          <button
-            className={navButtonClass("businesses")}
-            type="button"
-            onClick={() => {
-              setActivePage("businesses");
-              setSidebarOpen(false);
-            }}
+          <SidebarGroup
+            title="Business directory"
+            description="View approved businesses"
           >
-            Active Businesses
-          </button>
+            {navItem("businesses", "Active Businesses")}
+          </SidebarGroup>
 
-          {/* Accounts */}
-          <button
-            className={navButtonClass("accounts")}
-            type="button"
-            onClick={() => {
-              setActivePage("accounts");
-              setSidebarOpen(false);
-            }}
+          <SidebarGroup
+            title="Account directory"
+            description="Manage registered users"
           >
-            All Accounts
-          </button>
+            {navItem("accounts", "All Accounts")}
+          </SidebarGroup>
 
-          {/* Logs */}
-          <button
-            className={navButtonClass("logs")}
-            type="button"
-            onClick={() => {
-              setActivePage("logs");
-              setSidebarOpen(false);
-            }}
+          <SidebarGroup
+            title="System tools"
+            description="Logs and console settings"
           >
-            System Logs
-          </button>
-
-          {/* Account, security, and public information settings */}
-          <button
-            className={navButtonClass("settings")}
-            type="button"
-            onClick={() => {
-              setActivePage("settings");
-              setSidebarOpen(false);
-            }}
-          >
-            Settings
-          </button>
+            {navItem("logs", "System Logs")}
+            {navItem("settings", "Settings")}
+          </SidebarGroup>
         </nav>
 
         {/* User / Logout */}
@@ -860,7 +837,7 @@ function AdminDashboard() {
                 Super Admin
               </p>
 
-              <p className="truncate font-['Poppins'] text-[0.62rem] text-[#6f9ca5]">
+              <p className="truncate font-['Poppins'] text-[0.7rem] text-[#8fb3ba]">
                 {user?.email}
               </p>
             </div>
@@ -1003,9 +980,15 @@ function AdminDashboard() {
 
         {activePage === "settings" && (
           <section className="space-y-5">
-            <div>
-              <h1 className="font-['Fraunces'] text-2xl font-semibold text-[#e1f1f1]">Settings</h1>
-              <p className="mt-1 font-['Poppins'] text-sm text-[#9bbbc2]">Manage your administrator account and public business information.</p>
+            <div className="flex flex-col justify-between gap-3 border-b border-cyan-100/10 pb-4 sm:flex-row sm:items-center">
+              <div>
+                <h1 className="font-['Fraunces'] text-2xl font-semibold text-[#e1f1f1]">Settings</h1>
+                <p className="mt-1 font-['Poppins'] text-sm text-[#9bbbc2]">Manage your administrator account and public business information.</p>
+              </div>
+              <span className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 font-['Poppins'] text-xs font-medium text-emerald-300 sm:self-auto">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_#34d399]" />
+                Super Admin Authorized
+              </span>
             </div>
             <div className="flex flex-wrap gap-2 border-b border-cyan-100/10 pb-3" role="tablist" aria-label="Settings sections">
               <button type="button" role="tab" aria-selected={settingsTab === "account"} onClick={() => setSettingsTab("account")} className={`rounded-full px-4 py-2 font-['Poppins'] text-sm transition ${settingsTab === "account" ? "bg-[#75bec4] font-semibold text-[#052d45]" : "border border-cyan-100/15 text-[#b8d8dd] hover:bg-white/[.06]"}`}>

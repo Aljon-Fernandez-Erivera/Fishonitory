@@ -205,56 +205,6 @@ function AccountPage() {
               </div>
             </div>
           )}
-          {false && (
-            <form
-              className="mt-5 grid gap-3 border-t border-sky-100/10 pt-5 sm:grid-cols-2"
-              onSubmit={(event) => event.preventDefault()}
-            >
-              <p className="sm:col-span-2 font-['Poppins'] text-xs text-[#9abcc5]">
-                To disable TOTP, confirm your password and a current
-                authenticator code.
-              </p>
-              <label className="font-['Poppins'] text-[10px] font-medium tracking-[0.12em] text-[#9ebfc8]">
-                PASSWORD
-                <input
-                  className={inputClass}
-                  type="password"
-                  autoComplete="current-password"
-                  value={disableForm.password}
-                  onChange={(event) =>
-                    setDisableForm((value) => ({
-                      ...value,
-                      password: event.target.value,
-                    }))
-                  }
-                  required
-                />
-              </label>
-              <label className="font-['Poppins'] text-[10px] font-medium tracking-[0.12em] text-[#9ebfc8]">
-                AUTHENTICATOR CODE
-                <input
-                  className={inputClass}
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  value={disableForm.code}
-                  onChange={(event) =>
-                    setDisableForm((value) => ({
-                      ...value,
-                      code: event.target.value.replace(/\D/g, "").slice(0, 6),
-                    }))
-                  }
-                  required
-                />
-              </label>
-              <button
-                className="justify-self-start rounded-full border border-red-200/25 px-4 py-2.5 font-['Poppins'] text-sm text-red-100 disabled:opacity-60"
-                disabled={busy}
-                type="submit"
-              >
-                Disable TOTP
-              </button>
-            </form>
-          )}
         </div>
         {recoveryCodes.length > 0 && (
           <section className="mt-6 rounded-2xl border border-amber-200/25 bg-amber-100/[.07] p-5">

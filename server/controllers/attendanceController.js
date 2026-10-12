@@ -5,6 +5,23 @@ const bcrypt = require("bcryptjs");
 const { writeAudit } = require("../utils/audit");
 const { getManilaDateKey } = require("../utils/dateKey");
 
+const timeClockFailures = new Map();
+const TIME_CLOCK_MAX_FAILURES = 5;
+const TIME_CLOCK_LOCK_MS = 10 * 60 * 1000;
+
+function recordTimeClockFailure(email) {
+  const now = Date.now();
+  const current = timeClockFailures.get(email);
+  const entry = current && current.lockedUntil > now
+    ? current
+    : current && current.windowStartedAt > now - TIME_CLOCK_LOCK_MS
+      ? current
+      : { failures: 0, windowStartedAt: now, lockedUntil: 0 };
+  entry.failures += 1;
+  if (entry.failures >= TIME_CLOCK_MAX_FAILURES) entry.lockedUntil = now + TIME_CLOCK_LOCK_MS;
+  timeClockFailures.set(email, entry);
+}
+
 function resolveScheduleSync(staff, owner, assignedTemplateId) {
   const templateId = assignedTemplateId || staff?.shiftTemplateId;
   const template =
@@ -292,22 +309,25 @@ exports.getTodayStatus = async (req, res) => {
 exports.staffTimeClock = async (req, res) => {
   try {
     const { email, password, action } = req.body || {};
+    const normalizedEmail = String(email || "").trim().toLowerCase();
+    const lock = timeClockFailures.get(normalizedEmail);
+    if (lock?.lockedUntil > Date.now()) {
+      return res.status(429).json({ message: "Too many failed attempts. Try again in a few minutes." });
+    }
     if (!/^(clock-in|clock-out)$/.test(String(action)))
       return res.status(400).json({ message: "Choose clock in or clock out." });
     const staff = await User.findOne({
-      email: String(email || "")
-        .trim()
-        .toLowerCase(),
+      email: normalizedEmail,
       role: "Staff",
       accountStatus: "Active",
     });
-    if (
-      !staff ||
-      !(await bcrypt.compare(String(password || ""), staff.password))
-    )
+    if (!staff || !(await bcrypt.compare(String(password || ""), staff.password))) {
+      recordTimeClockFailure(normalizedEmail);
       return res
         .status(401)
         .json({ message: "Invalid staff email or password." });
+    }
+    timeClockFailures.delete(normalizedEmail);
     const dateKey = getManilaDateKey();
     let record = await Attendance.findOne({ userId: staff._id, dateKey });
     if (action === "clock-in") {

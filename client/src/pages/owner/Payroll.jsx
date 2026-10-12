@@ -78,17 +78,6 @@ function formatTime(value) {
   });
 }
 
-function getHoursWorked(checkIn, checkOut) {
-  if (!checkIn || !checkOut) return "-";
-  const start = new Date(checkIn).getTime();
-  const end = new Date(checkOut).getTime();
-  if (Number.isNaN(start) || Number.isNaN(end) || end <= start) return "-";
-  const totalMinutes = Math.max(0, Math.round((end - start) / 60000));
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  return `${hours}h ${minutes}m`;
-}
-
 function getRange(type, value) {
   const safeValue = value || today();
   const [year, month, day] = safeValue.split("-").map(Number);

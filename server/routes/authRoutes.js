@@ -9,6 +9,7 @@ const {
   uploadErrorHandler,
 } = require("../middleware/uploadPermit");
 const ownerProfileController = require("../controllers/ownerProfileController");
+const sanitizeRequestBody = require("../middleware/sanitizeRequestBody");
 
 // Step 1: Send OTP
 router.post("/send-otp", validateRegistration, authController.sendOtp);
@@ -21,6 +22,7 @@ router.post(
   "/verify-and-register",
   uploadBusinessPermit,
   uploadErrorHandler,
+  sanitizeRequestBody,
   validateRegistration,
   authController.verifyAndRegister,
 );

@@ -94,9 +94,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 }
 
 .oceanic-modal-backdrop {
-  background: rgba(2, 26, 49, 0.7);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: rgba(2, 26, 49, 0.78) !important;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }
 
 .location-map-dialog::backdrop {
@@ -106,10 +106,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 
 .oceanic-swal-popup {
   width: min(420px, calc(100vw - 2rem)) !important;
-  border: 1px solid rgba(125, 204, 211, 0.2);
-  box-shadow: 0 22px 70px rgba(4, 13, 28, 0.65) !important;
-  border-radius: 22px !important;
-  background: linear-gradient(135deg, rgba(6, 45, 72, 0.96), rgba(9, 58, 85, 0.96)) !important;
+  border: 1px solid rgba(143, 197, 203, 0.25) !important;
+  box-shadow: 0 24px 72px rgba(0, 10, 24, 0.72) !important;
+  border-radius: 1rem !important;
+  background: #062d48 !important;
+  font-family: "Poppins", sans-serif !important;
 }
 
 .oceanic-swal-title {
@@ -121,47 +122,83 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 }
 
 .oceanic-swal-text,
-.oceanic-swal-footer {
-  color: #afcdd4 !important;
+.oceanic-swal-footer,
+.oceanic-swal-input-label {
+  color: #dff6f9 !important;
   font-family: "Poppins", sans-serif !important;
+}
+
+.oceanic-swal-validation {
+  border: 1px solid rgba(244, 163, 163, 0.45) !important;
+  background: #34191d !important;
+  color: #ffd9d9 !important;
+  font-family: "Poppins", sans-serif !important;
+}
+
+.oceanic-swal-close {
+  color: #dff6f9 !important;
+}
+
+.oceanic-swal-close:focus-visible {
+  outline: 3px solid #73c4ca !important;
+  outline-offset: 2px !important;
 }
 
 .oceanic-swal-actions {
   gap: 0.75rem;
 }
 
-.oceanic-swal-confirm,
-.oceanic-swal-cancel {
+.oceanic-swal-btn {
   min-width: 130px !important;
   border-radius: 9999px !important;
   padding: 0.75rem 1.25rem !important;
   font-family: "Poppins", sans-serif !important;
   font-weight: 600 !important;
   letter-spacing: 0.01em !important;
-  border: 1px solid rgba(125, 204, 211, 0.25) !important;
+  border: 1px solid transparent !important;
   transition: transform 140ms ease, box-shadow 140ms ease !important;
 }
 
-.oceanic-swal-confirm {
-  background: linear-gradient(135deg, #75bec4, #9adce0) !important;
-  color: #052d45 !important;
+.oceanic-swal-btn--confirm,
+.oceanic-swal-btn--success {
+  background: #75bec4 !important;
+  color: #032033 !important;
   box-shadow: 0 10px 20px rgba(117, 190, 196, 0.28) !important;
 }
 
-.oceanic-swal-cancel {
-  background: rgba(17, 42, 60, 0.9) !important;
+.oceanic-swal-btn--cancel {
+  background: transparent !important;
+  border-color: #8fc5cb !important;
   color: #dff6f9 !important;
 }
 
-.oceanic-swal-confirm:hover,
-.oceanic-swal-cancel:hover {
+.oceanic-swal-btn:hover {
   transform: translateY(-1px);
 }
 
-.oceanic-swal-danger {
-  background: linear-gradient(135deg, #d95f68, #ef8b8b) !important;
-  color: #fff7f7 !important;
-  box-shadow: 0 10px 20px rgba(217, 95, 104, 0.28) !important;
+.oceanic-swal-btn--danger {
+  background: #f4a3a3 !important;
+  color: #3a0a0a !important;
+  box-shadow: 0 10px 20px rgba(244, 163, 163, 0.2) !important;
+}
+
+.oceanic-swal-btn:focus-visible,
+.oceanic-swal-input:focus-visible,
+.oceanic-swal-close:focus-visible {
+  outline: 3px solid #73c4ca !important;
+  outline-offset: 3px !important;
+}
+
+.oceanic-swal-input {
+  border: 1px solid #8fc5cb !important;
+  border-radius: 0.75rem !important;
+  background: #031e30 !important;
+  color: #dff6f9 !important;
+  font-family: "Poppins", sans-serif !important;
+}
+
+.oceanic-swal-input::placeholder {
+  color: #a9c8ce !important;
 }
 
 .oceanic-swal-icon {

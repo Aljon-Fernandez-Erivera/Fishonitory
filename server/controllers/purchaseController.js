@@ -85,14 +85,15 @@ exports.createPurchase = async (req, res) => {
     entries.push({ fishId, quantity, unitCost: Math.round(unitCost * 100) / 100 });
   }
 
-  const changed = [];
-
+  const session = await mongoose.startSession();
+  let purchase;
   try {
+    await session.withTransaction(async () => {
     const additions = new Map();
     for (const entry of entries) additions.set(entry.fishId, (additions.get(entry.fishId) || 0) + entry.quantity);
     const tankAdditions = new Map();
     for (const [fishId, addedQuantity] of additions) {
-      const fish = await Fish.findOne({ _id: fishId, ownerId });
+      const fish = await Fish.findOne({ _id: fishId, ownerId }).session(session);
       if (!fish) throw new Error("One selected inventory item was not found.");
       if (fish.tankId && fish.category !== "Fish Food") {
         const key = String(fish.tankId);
@@ -102,12 +103,12 @@ exports.createPurchase = async (req, res) => {
       }
     }
     for (const { tankId, added } of tankAdditions.values()) {
-      const tank = await Tank.findOne({ _id: tankId, ownerId }).select("name capacity");
+      const tank = await Tank.findOne({ _id: tankId, ownerId }).select("name capacity").session(session);
       if (!tank?.capacity) continue;
       const currentFish = await Fish.aggregate([
         { $match: { ownerId: new mongoose.Types.ObjectId(ownerId), tankId } },
         { $group: { _id: null, total: { $sum: "$quantity" } } },
-      ]);
+      ]).session(session);
       if ((currentFish[0]?.total || 0) + added > tank.capacity)
         throw new Error(`Purchase would exceed ${tank.name}'s capacity of ${tank.capacity} fish.`);
     }
@@ -119,10 +120,9 @@ exports.createPurchase = async (req, res) => {
           $inc: { quantity: entry.quantity },
           $set: { costPrice: entry.unitCost },
         },
-        { new: true },
+        { new: true, session },
       );
       if (!fish) throw new Error("One selected inventory item was not found.");
-      changed.push({ id: fish._id, quantity: entry.quantity });
       purchaseItems.push({
         fishId: fish._id,
         name: fish.name,
@@ -132,7 +132,7 @@ exports.createPurchase = async (req, res) => {
       });
     }
     const totalCost = purchaseItems.reduce((sum, item) => sum + item.total, 0);
-    const purchase = await Purchase.create({
+    [purchase] = await Purchase.create([{
       ownerId,
       supplierName: supplierName.value,
       supplierContact: supplierContact.value,
@@ -142,16 +142,13 @@ exports.createPurchase = async (req, res) => {
       totalCost,
       notes: notes.value,
       recordedBy: req.user.userId,
+    }], { session });
     });
     await writeAudit(req, "CREATE", "Purchase", purchase._id, `Purchase from ${supplierName.value}`);
     return res.status(201).json({ message: "Purchase recorded and inventory updated.", purchase });
   } catch (error) {
-    // Undo any stock that was already increased.
-    await Promise.all(
-      changed.map((item) =>
-        Fish.findByIdAndUpdate(item.id, { $inc: { quantity: -item.quantity } }),
-      ),
-    );
     return res.status(400).json({ message: error.message || "Purchase could not be recorded." });
+  } finally {
+    await session.endSession();
   }
 };

@@ -18,6 +18,7 @@ import AboutPage from "./pages/shared/AboutPage.jsx";
 import HelpPage from "./pages/shared/HelpPage.jsx";
 import AccountPage from "./pages/shared/AccountPage.jsx";
 import { AuthProvider } from "./pages/shared/AuthContext.jsx";
+import { LoadingOverlay } from "./pages/shared/AuthLayout.jsx";
 import "./utils/oceanicSwal.js";
 
 // Public pages should block logged-in users to prevent them from returning to
@@ -25,7 +26,7 @@ import "./utils/oceanicSwal.js";
 function PublicRoute({ children }) {
   const { user, authReady } = useAuth();
 
-  if (!authReady) return null;
+  if (!authReady) return <LoadingOverlay label="Restoring your session" />;
   if (user) {
     const destination =
       user.role === "masterStaff"
@@ -37,6 +38,21 @@ function PublicRoute({ children }) {
   }
 
   return children;
+}
+
+function HomeRoute() {
+  const { user, authReady } = useAuth();
+
+  if (!authReady) return <LoadingOverlay label="Restoring your session" />;
+  if (user) {
+    const destination = user.role === "masterStaff"
+      ? "/staff-dashboard"
+      : user.role === "superAdmin"
+        ? "/admin-dashboard"
+        : "/owner-dashboard";
+    return <Navigate to={destination} replace />;
+  }
+  return <LandingPage />;
 }
 
 // The dashboard guard enforces allowed roles on the client side and redirects stale
@@ -57,7 +73,7 @@ function ProtectedRoute({ children, allowedRoles = [] }) {
 
   // Show a real page while session restoration finishes, then replace stale
   // dashboard history entries with the public landing page.
-  if (!authReady) return <LandingPage />;
+  if (!authReady) return <LoadingOverlay label="Restoring your session" />;
   if (!user || !allowedRoles.includes(user.role)) {
     return <Navigate to="/" replace state={{ from: location.pathname }} />;
   }
@@ -68,29 +84,29 @@ function ProtectedRoute({ children, allowedRoles = [] }) {
 // protected screens or public auth screens for users who are already signed in.
 function AppRoutes() {
   const { user, logout } = useAuth();
-  const [idlePrompt, setIdlePrompt] = useState(false);
+  const [idlePromptUser, setIdlePromptUser] = useState(null);
+  const currentUserId = user?.id || user?._id || user?.email || null;
+  const idlePrompt = Boolean(currentUserId && idlePromptUser === currentUserId);
   const [secondsLeft, setSecondsLeft] = useState(120);
 
   useEffect(() => {
-    if (!user) { setIdlePrompt(false); return undefined; }
+    if (!user) return undefined;
     let idleTimer;
-    let countdownTimer;
     let lastActivity = Date.now();
     const resetIdle = () => {
       if (idlePrompt) return;
       lastActivity = Date.now();
       window.clearTimeout(idleTimer);
-      idleTimer = window.setTimeout(() => { setSecondsLeft(120); setIdlePrompt(true); }, 5 * 60 * 1000);
+      idleTimer = window.setTimeout(() => { setSecondsLeft(120); setIdlePromptUser(currentUserId); }, 5 * 60 * 1000);
     };
     const events = ["mousemove", "mousedown", "keydown", "touchstart", "scroll"];
     events.forEach((event) => window.addEventListener(event, resetIdle, { passive: true }));
-    idleTimer = window.setTimeout(() => { setSecondsLeft(120); setIdlePrompt(true); }, Math.max(0, 5 * 60 * 1000 - (Date.now() - lastActivity)));
+    idleTimer = window.setTimeout(() => { setSecondsLeft(120); setIdlePromptUser(currentUserId); }, Math.max(0, 5 * 60 * 1000 - (Date.now() - lastActivity)));
     return () => {
       events.forEach((event) => window.removeEventListener(event, resetIdle));
       window.clearTimeout(idleTimer);
-      window.clearInterval(countdownTimer);
     };
-  }, [user, idlePrompt]);
+  }, [user, currentUserId, idlePrompt]);
 
   useEffect(() => {
     if (!idlePrompt || !user) return undefined;
@@ -101,12 +117,12 @@ function AppRoutes() {
     return () => window.clearInterval(interval);
   }, [idlePrompt, logout, user]);
 
-  const continueSession = () => { setIdlePrompt(false); setSecondsLeft(120); };
+  const continueSession = () => { setIdlePromptUser(null); setSecondsLeft(120); };
 
   return (
     <>
     <Routes>
-      <Route path="/" element={<LandingPage />} />
+      <Route path="/" element={<HomeRoute />} />
       <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
       <Route path="/register" element={<PublicRoute><RegisterBusinessPage /></PublicRoute>} />
       <Route path="/forgot-password" element={<PublicRoute><ForgotPasswordPage /></PublicRoute>} />
@@ -123,7 +139,10 @@ function AppRoutes() {
         element={<ProtectedRoute allowedRoles={["superAdmin"]}><AdminDashboard /></ProtectedRoute>}
       />
       <Route path="/about" element={<AboutPage />} />
-      <Route path="/help" element={<HelpPage />} />
+      <Route
+        path="/help"
+        element={<ProtectedRoute allowedRoles={["Owner", "masterStaff"]}><HelpPage /></ProtectedRoute>}
+      />
       <Route
         path="/account"
         element={<ProtectedRoute allowedRoles={["Owner"]}><AccountPage /></ProtectedRoute>}

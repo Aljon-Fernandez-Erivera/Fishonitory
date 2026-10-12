@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import Swal from "sweetalert2";
-import { confirmOceanicAction } from "../../utils/oceanicSwal.js";
+import { confirmOceanicAction, oceanicFire } from "../../utils/oceanicSwal.js";
 
 const MAX_NOTE_LENGTH = 1000;
 
@@ -247,15 +246,13 @@ function Notes({
   };
 
   const edit = async (item) => {
-    const result = await Swal.fire({
+    const result = await oceanicFire({
       title: "Edit note",
       input: "textarea",
       inputValue: item.text,
       inputAttributes: { maxlength: String(MAX_NOTE_LENGTH) },
       showCancelButton: true,
       confirmButtonText: "Save",
-      background: "#062d48",
-      color: "#d9ecef",
     });
     if (result.isConfirmed && result.value?.trim())
       onUpdateNote(item._id, { text: result.value.trim() });
@@ -265,10 +262,10 @@ function Notes({
     const result = await confirmOceanicAction({
       title: "Delete note?",
       text: "This cannot be undone.",
-      confirmButtonText: "Delete",
-      danger: true,
+      confirmText: "Delete",
+      tone: "danger",
     });
-    if (result.isConfirmed) onDeleteNote(item._id);
+    if (result) onDeleteNote(item._id);
   };
 
   return (

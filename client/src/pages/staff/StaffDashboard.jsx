@@ -8,9 +8,8 @@ import MortalityReportForm from "../../components/MortalityReportForm.jsx";
 import { formatPeso, getDefaultSalesRange } from "../shared/salesUtils.js";
 import { API_URL } from "../../config.js";
 import "../../css/owner-dashboard-layout.css";
-import Swal from "sweetalert2";
 import NotificationBell from "../shared/NotificationBell.jsx";
-import { showOceanicLogoutConfirm } from "../../utils/oceanicSwal.js";
+import { oceanicNotice, showOceanicLogoutConfirm } from "../../utils/oceanicSwal.js";
 
 // Choices para sa mga fish tank statuses na pwedeng i-update ng staff sa dashboard.
 const tankStatuses = [
@@ -56,6 +55,31 @@ async function apiRequest(path, options = {}) {
 
   // Return the data if the request is successful
   return data;
+}
+
+// Sidebar section: title, optional description, then indented menu items.
+// Contrast on the sidebar background (#021d2e): menu items #d4eaec 13.8:1,
+// title #8fc5cb 9.1:1, description #8fb3ba 7.7:1 (all WCAG AAA).
+// On mobile the sidebar is a horizontal strip, so the heading is hidden and
+// the wrappers use `display: contents` to keep buttons as direct row items.
+function SidebarGroup({ title, description, children }) {
+  return (
+    <div className="contents md:block">
+      <div className="hidden px-3 pb-1.5 pt-4 md:block">
+        <p className="m-0 font-['Poppins'] text-[0.68rem] font-semibold uppercase tracking-[.14em] text-[#8fc5cb]">
+          {title}
+        </p>
+        {description && (
+          <p className="m-0 mt-1 font-['Poppins'] text-[0.72rem] leading-snug text-[#8fb3ba]">
+            {description}
+          </p>
+        )}
+      </div>
+      <div className="contents md:flex md:flex-col md:gap-0.5 md:pl-3">
+        {children}
+      </div>
+    </div>
+  );
 }
 
 // Staff dashboard component
@@ -108,11 +132,9 @@ function StaffDashboard() {
 
   useEffect(() => {
     if (!message) return undefined;
-    Swal.fire({
+    oceanicNotice(message, "", "success", {
       toast: true,
       position: "top-end",
-      icon: "success",
-      title: message,
       showConfirmButton: false,
       timer: 5000,
       timerProgressBar: true,
@@ -123,11 +145,9 @@ function StaffDashboard() {
 
   useEffect(() => {
     if (!error) return undefined;
-    Swal.fire({
+    oceanicNotice(error, "", "error", {
       toast: true,
       position: "top-end",
-      icon: "error",
-      title: error,
       showConfirmButton: false,
       timer: 5000,
       timerProgressBar: true,
@@ -458,6 +478,23 @@ function StaffDashboard() {
   const navButtonClass = (page) =>
     `dashboard-nav-link ${activePage === page ? "is-active" : ""}`;
 
+  // Shared builder for sidebar buttons.
+  const navItem = (page, label, extra = null) => (
+    <button
+      key={page}
+      className={navButtonClass(page)}
+      type="button"
+      aria-current={activePage === page ? "page" : undefined}
+      onClick={() => {
+        setActivePage(page);
+        setSidebarOpen(false);
+      }}
+    >
+      {label}
+      {extra}
+    </button>
+  );
+
   const settingsTabClass = (tab) =>
     `rounded-xl px-4 py-2 font-['Poppins'] text-xs sm:text-sm font-medium transition cursor-pointer ${
       settingsTab === tab
@@ -508,7 +545,7 @@ function StaffDashboard() {
             <strong className="block font-['Poppins'] text-[0.9rem] font-medium text-[#cde4e6]">
               Fishonitory
             </strong>
-            <small className="block font-['Poppins'] text-[0.58rem] text-[#7fa7ae]">
+            <small className="block font-['Poppins'] text-[0.7rem] text-[#8fb3ba]">
               Staff workspace
             </small>
           </div>
@@ -519,116 +556,38 @@ function StaffDashboard() {
           className="mt-4 flex min-w-0 gap-0.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:mt-6 md:min-h-0 md:flex-1 md:flex-col md:overflow-y-auto md:overflow-x-hidden md:pr-1 [scrollbar-width:thin]"
           aria-label="Staff dashboard navigation"
         >
-          <button
-            className={navButtonClass("overview")}
-            type="button"
-            onClick={() => {
-              setActivePage("overview");
-              setSidebarOpen(false);
-            }}
+          {navItem("overview", "Overview")}
+
+          <SidebarGroup
+            title="Shift and farm care"
+            description="Clock in, check stock, and update tanks"
           >
-            Overview
-          </button>
-          <button
-            className={navButtonClass("time-clock")}
-            type="button"
-            onClick={() => {
-              setActivePage("time-clock");
-              setSidebarOpen(false);
-            }}
+            {navItem("time-clock", "Staff Time Clock")}
+            {navItem("inventory", "Fish & Feed Inventory")}
+            {navItem("tanks", "Tank Updates")}
+            {navItem("mortality", "Mortality Reports")}
+          </SidebarGroup>
+
+          <SidebarGroup
+            title="Sales desk"
+            description="Point of sale, orders, and sales"
           >
-            Staff Time Clock
-          </button>
-          <button
-            className={navButtonClass("inventory")}
-            type="button"
-            onClick={() => {
-              setActivePage("inventory");
-              setSidebarOpen(false);
-            }}
+            {navItem("calculator", "Point of Sale (POS)")}
+            {navItem("orders", "Orders")}
+            {navItem("sales", "Sales")}
+          </SidebarGroup>
+
+          <SidebarGroup
+            title="Team board"
+            description="Post notes and read announcements"
           >
-            Fish & Feed Inventory
-          </button>
-          <button
-            className={navButtonClass("tanks")}
-            type="button"
-            onClick={() => {
-              setActivePage("tanks");
-              setSidebarOpen(false);
-            }}
-          >
-            Tank Updates
-          </button>
-          <button
-            className={navButtonClass("mortality")}
-            type="button"
-            onClick={() => {
-              setActivePage("mortality");
-              setSidebarOpen(false);
-            }}
-          >
-            Mortality Reports
-          </button>
-          <button
-            className={navButtonClass("calculator")}
-            type="button"
-            onClick={() => {
-              setActivePage("calculator");
-              setSidebarOpen(false);
-            }}
-          >
-            Point of Sale (POS)
-          </button>
-          <button
-            className={navButtonClass("orders")}
-            type="button"
-            onClick={() => {
-              setActivePage("orders");
-              setSidebarOpen(false);
-            }}
-          >
-            Orders
-          </button>
-          <button
-            className={navButtonClass("sales")}
-            type="button"
-            onClick={() => {
-              setActivePage("sales");
-              setSidebarOpen(false);
-            }}
-          >
-            Sales
-          </button>
-          <button
-            className={navButtonClass("leave-note")}
-            type="button"
-            onClick={() => {
-              setActivePage("leave-note");
-              setSidebarOpen(false);
-            }}
-          >
-            Post to Board
-          </button>
-          <button
-            className={navButtonClass("announcements")}
-            type="button"
-            onClick={() => {
-              setActivePage("announcements");
-              setSidebarOpen(false);
-            }}
-          >
-            Announcements
-          </button>
-          <button
-            className={navButtonClass("settings")}
-            type="button"
-            onClick={() => {
-              setActivePage("settings");
-              setSidebarOpen(false);
-            }}
-          >
-            Settings
-          </button>
+            {navItem("leave-note", "Post to Board")}
+            {navItem("announcements", "Announcements")}
+          </SidebarGroup>
+
+          <SidebarGroup title="Preferences">
+            {navItem("settings", "Settings")}
+          </SidebarGroup>
         </nav>
 
         {/* Pinned Bottom Footer */}
@@ -658,7 +617,7 @@ function StaffDashboard() {
               <p className="truncate font-['Poppins'] text-[0.78rem] font-medium text-[#cde4e6]">
                 {user?.staffName || user?.email || "Master Staff"}
               </p>
-              <p className="truncate font-['Poppins'] text-[0.62rem] text-[#6f9ca5]">
+              <p className="truncate font-['Poppins'] text-[0.7rem] text-[#8fb3ba]">
                 {user?.staffPosition || "Operations Staff"}
               </p>
             </div>

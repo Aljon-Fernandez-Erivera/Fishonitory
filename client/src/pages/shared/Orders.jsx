@@ -75,10 +75,10 @@ function Orders({ request, onChanged }) {
       text: completing
         ? "This records payment and adds the completed order to sales."
         : "Confirm that the order has reached this pickup or delivery step.",
-      confirmButtonText: completing ? "Record payment & complete" : "Confirm status",
+      confirmText: completing ? "Record payment & complete" : "Confirm status",
       icon: "question",
     });
-    if (!confirm.isConfirmed) return;
+    if (!confirm) return;
     setBusy(true);
     setError("");
     try {
@@ -98,10 +98,10 @@ function Orders({ request, onChanged }) {
     const confirm = await confirmOceanicAction({
       title: restore ? "Restore this order?" : "Archive completed order?",
       text: restore ? "It will return to the active order list." : "It will be kept in the archive and removed from active orders.",
-      confirmButtonText: restore ? "Restore" : "Archive",
+      confirmText: restore ? "Restore" : "Archive",
       icon: "question",
     });
-    if (!confirm.isConfirmed) return;
+    if (!confirm) return;
     setBusy(true);
     try {
       await request(`/orders/${order._id}/${restore ? "restore" : "archive"}`, { method: "PATCH" });
@@ -119,10 +119,10 @@ function Orders({ request, onChanged }) {
     const confirm = await confirmOceanicAction({
       title: "Cancel this order?",
       text: "The order will be removed and its reserved stock returned to inventory.",
-      confirmButtonText: "Cancel order",
-      danger: true,
+      confirmText: "Cancel order",
+      tone: "danger",
     });
-    if (!confirm.isConfirmed) return;
+    if (!confirm) return;
     setBusy(true);
     try {
       await request(`/orders/${order._id}`, { method: "DELETE" });

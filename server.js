@@ -64,6 +64,9 @@ app.use(
 );
 
 app.use(express.json({ limit: "2mb" }));
+// Clean user-supplied JSON text and reject Mongo operator/dotted keys before
+// request handlers process form submissions. Secret credentials stay intact.
+app.use(require("./server/middleware/sanitizeRequestBody"));
 
 // Monitor Mongoose connection events globally
 mongoose.connection.on("connected", () => {

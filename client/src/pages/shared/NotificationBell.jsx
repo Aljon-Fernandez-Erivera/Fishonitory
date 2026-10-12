@@ -23,6 +23,7 @@ function NotificationBell({
   viewerId = "",
 }) {
   const [open, setOpen] = useState(false);
+  const [maintenanceCutoff, setMaintenanceCutoff] = useState(() => Date.now() + 7 * 86400000);
   const wrapperRef = useRef(null);
   const [readIds, setReadIds] = useState(() => {
     try {
@@ -35,6 +36,11 @@ function NotificationBell({
   useEffect(() => {
     localStorage.setItem(READ_STORAGE_KEY, JSON.stringify(readIds.slice(-100)));
   }, [readIds]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setMaintenanceCutoff(Date.now() + 7 * 86400000), 60000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     const handlePointerDown = (event) => {
@@ -81,7 +87,7 @@ function NotificationBell({
       .filter(
         (tank) =>
           tank.nextMaintenance &&
-          new Date(tank.nextMaintenance) <= new Date(Date.now() + 7 * 86400000),
+          new Date(tank.nextMaintenance).getTime() <= maintenanceCutoff,
       )
       .forEach((tank) =>
         items.push({
@@ -117,7 +123,7 @@ function NotificationBell({
       });
     }
     return items.slice(0, 8);
-  }, [notes, fish, tanks, attendance, announcementPage]);
+  }, [notes, fish, tanks, attendance, announcementPage, viewerId, viewerRole, maintenanceCutoff]);
   const unreadCount = notifications.filter((item) => !readIds.includes(item.id)).length;
 
   const openNotification = (item) => {

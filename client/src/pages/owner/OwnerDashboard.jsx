@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../shared/useAuth.js";
-import { SystemUnavailable } from "../shared/AuthLayout.jsx";
+import { LoadingOverlay, SystemUnavailable } from "../shared/AuthLayout.jsx";
 import OwnerOverview from "./OwnerOverview.jsx";
 import ManageStaff from "./ManageStaff.jsx";
 import Attendance from "./Attendance.jsx";
@@ -8,7 +8,6 @@ import Inventory from "./Inventory.jsx";
 import TankManagement from "./TankManagement.jsx";
 import Notes from "./Notes.jsx";
 import Sales from "../shared/Sales.jsx";
-import Orders from "../shared/Orders.jsx";
 import OwnerOperations from "./OwnerOperations.jsx";
 import Payroll from "./Payroll.jsx";
 import OwnerSettings from "./OwnerSettings.jsx";
@@ -16,10 +15,10 @@ import WorkspaceSetup from "./WorkspaceSetup.jsx";
 import { getDefaultSalesRange } from "../shared/salesUtils.js";
 import { API_URL } from "../../config.js";
 import "../../css/owner-dashboard-layout.css";
-import Swal from "sweetalert2";
 import NotificationBell from "../shared/NotificationBell.jsx";
 import {
   confirmOceanicAction,
+  oceanicNotice,
   showOceanicLogoutConfirm,
 } from "../../utils/oceanicSwal.js";
 
@@ -114,6 +113,31 @@ async function apiRequest(path, options = {}) {
   return data;
 }
 
+// Sidebar section: title, optional description, then indented menu items.
+// Contrast on the sidebar background (#021d2e): menu items #d4eaec 13.8:1,
+// title #8fc5cb 9.1:1, description #8fb3ba 7.7:1 (all WCAG AAA).
+// On mobile the sidebar is a horizontal strip, so the heading is hidden and
+// the wrappers use `display: contents` to keep buttons as direct row items.
+function SidebarGroup({ title, description, children }) {
+  return (
+    <div className="contents md:block">
+      <div className="hidden px-3 pb-1.5 pt-4 md:block">
+        <p className="m-0 font-['Poppins'] text-[0.68rem] font-semibold uppercase tracking-[.14em] text-[#8fc5cb]">
+          {title}
+        </p>
+        {description && (
+          <p className="m-0 mt-1 font-['Poppins'] text-[0.72rem] leading-snug text-[#8fb3ba]">
+            {description}
+          </p>
+        )}
+      </div>
+      <div className="contents md:flex md:flex-col md:gap-0.5 md:pl-3">
+        {children}
+      </div>
+    </div>
+  );
+}
+
 // Main component para sa Owner Dashboard, dito nag lalaman ng lahat ng functionality ng owner workspace.
 function OwnerDashboard() {
   const { user, authReady, logout } = useAuth();
@@ -177,16 +201,12 @@ function OwnerDashboard() {
     const dedupeKey = `${type}:${safeTitle}`;
     if (lastToastRef.current === dedupeKey) return;
     lastToastRef.current = dedupeKey;
-    Swal.fire({
+    oceanicNotice(safeTitle, "", type, {
       toast: true,
       position: "top-end",
-      icon: type,
-      title: safeTitle,
       showConfirmButton: false,
       timer: 4000,
       timerProgressBar: true,
-      background: "#062d48",
-      color: "#d9ecef",
     });
     window.setTimeout(() => {
       if (lastToastRef.current === dedupeKey) lastToastRef.current = "";
@@ -287,10 +307,10 @@ function OwnerDashboard() {
     const confirmation = await confirmOceanicAction({
       title: "Remove shift assignment?",
       text: "This will delete the assigned shift for the selected date.",
-      confirmButtonText: "Remove assignment",
-      danger: true,
+      confirmText: "Remove assignment",
+      tone: "danger",
     });
-    if (!confirmation.isConfirmed) return;
+    if (!confirmation) return;
 
     try {
       await apiRequest(`/attendance/shift-assignments/${id}`, {
@@ -489,9 +509,9 @@ function OwnerDashboard() {
       title: "Save staff changes?",
       text: "The staff account details will be updated.",
       icon: "question",
-      confirmButtonText: "Save changes",
+      confirmText: "Save changes",
     });
-    if (!confirmation.isConfirmed) return;
+    if (!confirmation) return;
     setMessage("");
     setError("");
     setStaffError("");
@@ -563,12 +583,12 @@ function OwnerDashboard() {
         status === "Disabled"
           ? "The staff member will not be able to sign in."
           : "The staff member will regain access.",
-      confirmButtonText:
+      confirmText:
         status === "Disabled" ? "Disable account" : "Enable account",
       icon: "warning",
-      danger: status === "Disabled",
+      tone: "default",
     });
-    if (!confirmation.isConfirmed) return;
+    if (!confirmation) return;
     try {
       await apiRequest(`/owner/staff/${id}/status`, {
         method: "PATCH",
@@ -600,10 +620,10 @@ function OwnerDashboard() {
       title: "Delete shift template?",
       text: "Staff assigned to this shift will fall back to the default schedule.",
       icon: "warning",
-      confirmButtonText: "Delete",
-      danger: true,
+      confirmText: "Delete",
+      tone: "danger",
     });
-    if (!confirmation.isConfirmed) return;
+    if (!confirmation) return;
     try {
       await apiRequest(`/attendance/shift-templates/${id}`, {
         method: "DELETE",
@@ -683,33 +703,31 @@ function OwnerDashboard() {
       title: "Delete record?",
       text: "Delete this attendance record? This cannot be undone.",
       icon: "warning",
-      confirmButtonText: "Yes, delete it",
-      danger: true,
+      confirmText: "Yes, delete it",
+      tone: "danger",
     });
 
-    if (!result.isConfirmed) return;
+    if (!result) return;
 
     try {
       await apiRequest(`/attendance/${id}`, { method: "DELETE" });
-      await Swal.fire({
-        title: "Deleted!",
-        text: "Attendance record deleted successfully.",
-        icon: "success",
-        timer: 1800,
+      await oceanicNotice(
+        "Deleted!",
+        "Attendance record deleted successfully.",
+        "success",
+        {
         showConfirmButton: false,
-        background: "#062d48",
-        color: "#d9ecef",
-      });
+        timer: 1800,
+        },
+      );
 
       await loadDashboardData();
     } catch (requestError) {
-      Swal.fire({
-        title: "Error!",
-        text: requestError.message || "Failed to delete attendance record.",
-        icon: "error",
-        background: "#062d48",
-        color: "#d9ecef",
-      });
+      oceanicNotice(
+        "Error!",
+        requestError.message || "Failed to delete attendance record.",
+        "error",
+      );
     }
   };
 
@@ -771,10 +789,10 @@ function OwnerDashboard() {
     const confirmation = await confirmOceanicAction({
       title: "Delete fish item?",
       text: "This action will remove the fish record from inventory.",
-      confirmButtonText: "Delete item",
-      danger: true,
+      confirmText: "Delete item",
+      tone: "danger",
     });
-    if (!confirmation.isConfirmed) return;
+    if (!confirmation) return;
 
     try {
       await apiRequest(`/fish/${id}`, { method: "DELETE" });
@@ -812,10 +830,10 @@ function OwnerDashboard() {
     const confirmation = await confirmOceanicAction({
       title: "Delete tank?",
       text: "This will remove the selected tank and its stored data.",
-      confirmButtonText: "Delete tank",
-      danger: true,
+      confirmText: "Delete tank",
+      tone: "danger",
     });
-    if (!confirmation.isConfirmed) return;
+    if (!confirmation) return;
 
     try {
       await apiRequest(`/store/tanks/${id}`, { method: "DELETE" });
@@ -860,10 +878,9 @@ function OwnerDashboard() {
           title: "Payroll already exists for this period",
           text: `${requestError.message} Do you want to overwrite it with the new numbers?`,
           icon: "warning",
-          confirmButtonText: "Overwrite",
-          danger: true,
+          confirmText: "Overwrite",
         });
-        if (confirmation.isConfirmed) {
+        if (confirmation) {
           try {
             const retryData = await apiRequest("/payroll", {
               method: "POST",
@@ -885,10 +902,10 @@ function OwnerDashboard() {
     const confirmation = await confirmOceanicAction({
       title: "Delete payroll record?",
       text: "This cannot be undone.",
-      confirmButtonText: "Delete",
-      danger: true,
+      confirmText: "Delete",
+      tone: "danger",
     });
-    if (!confirmation.isConfirmed) return;
+    if (!confirmation) return;
     try {
       const data = await apiRequest(`/payroll/${id}`, { method: "DELETE" });
       setPayrollToast(data.message);
@@ -917,10 +934,10 @@ function OwnerDashboard() {
     const confirmation = await confirmOceanicAction({
       title: "Delete announcement?",
       text: "This announcement will be removed immediately for everyone.",
-      confirmButtonText: "Delete announcement",
-      danger: true,
+      confirmText: "Delete announcement",
+      tone: "danger",
     });
-    if (!confirmation.isConfirmed) return;
+    if (!confirmation) return;
 
     try {
       await apiRequest(`/notes/${id}`, { method: "DELETE" });
@@ -942,7 +959,12 @@ function OwnerDashboard() {
       setBusinessFeatures({ ...defaultBusinessFeatures, ...data.features });
       setWorkspaceSetupOpen(false);
       setMessage(data.message);
-      if (!data.features[activePage]) setActivePage("overview");
+      if (
+        activePage !== "overview" &&
+        activePage !== "settings" &&
+        !data.features[activePage]
+      )
+        setActivePage("overview");
     } catch (requestError) {
       setWorkspaceError(requestError.message);
     } finally {
@@ -1075,8 +1097,6 @@ function OwnerDashboard() {
             }
           />
         );
-      case "orders":
-        return <Orders request={apiRequest} onChanged={loadDashboardData} />;
       case "operations":
         return (
           <OwnerOperations
@@ -1120,11 +1140,13 @@ function OwnerDashboard() {
             attendance={attendance}
             fish={fish}
             tanks={tanks}
+            notes={notes}
             sales={sales}
             salesRange={salesRange}
             onSalesDateChange={(field, value) =>
               setSalesRange((previous) => ({ ...previous, [field]: value }))
             }
+            onAddNote={handleAddNote}
             onRefresh={loadDashboardData}
           />
         );
@@ -1136,25 +1158,28 @@ function OwnerDashboard() {
       <SystemUnavailable onRetry={loadDashboardData} retrying={refreshing} />
     );
 
-  if (initialLoading)
-    return (
-      <main className="grid h-screen place-items-center bg-[radial-gradient(circle_at_88%_12%,#0a5267_0%,#08465d_42%,#021a31_100%)] p-6 text-[#c9e1e5]">
-        <div className="text-center">
-          <img
-            src="/LOGO.svg"
-            alt=""
-            className="mx-auto h-16 w-auto animate-[pulse_1.3s_ease-in-out_infinite]"
-          />
-          <p className="mt-4 font-['Poppins'] text-sm">
-            Preparing your owner workspace…
-          </p>
-        </div>
-      </main>
-    );
+  if (initialLoading) return <LoadingOverlay label="Preparing your owner workspace" />;
 
   const navButtonClass = (page) => {
     return `dashboard-nav-link ${activePage === page ? "is-active" : ""}`;
   };
+
+  // Shared builder for sidebar buttons.
+  const navItem = (page, label, extra = null) => (
+    <button
+      key={page}
+      className={navButtonClass(page)}
+      type="button"
+      aria-current={activePage === page ? "page" : undefined}
+      onClick={() => {
+        setActivePage(page);
+        setSidebarOpen(false);
+      }}
+    >
+      {label}
+      {extra}
+    </button>
+  );
 
   return (
     <main 
@@ -1199,7 +1224,7 @@ function OwnerDashboard() {
             <strong className="block font-['Poppins'] text-[0.9rem] font-medium text-[#cde4e6]">
               Fishonitory
             </strong>
-            <small className="block font-['Poppins'] text-[0.58rem] text-[#7fa7ae]">
+            <small className="block font-['Poppins'] text-[0.7rem] text-[#8fb3ba]">
               Owners workspace
             </small>
           </div>
@@ -1209,127 +1234,43 @@ function OwnerDashboard() {
           className="mt-4 flex min-w-0 gap-0.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:mt-6 md:min-h-0 md:flex-1 md:flex-col md:overflow-y-auto md:overflow-x-hidden md:pr-1 [scrollbar-width:thin]"
           aria-label="Owner dashboard navigation"
         >
-          <button
-            className={navButtonClass("overview")}
-            type="button"
-            onClick={() => {
-              setActivePage("overview");
-              setSidebarOpen(false);
-            }}
+          {navItem("overview", "Overview")}
+
+          <SidebarGroup
+            title="Team and payroll"
           >
-            Overview
-          </button>
-          {businessFeatures.attendance && (
-            <button
-              className={navButtonClass("attendance")}
-              type="button"
-              onClick={() => {
-                setActivePage("attendance");
-                setSidebarOpen(false);
-              }}
-            >
-              Attendance
-            </button>
-          )}
-          {businessFeatures.staff && (
-            <button
-              className={navButtonClass("staff")}
-              type="button"
-              onClick={() => {
-                setActivePage("staff");
-                setSidebarOpen(false);
-              }}
-            >
-              Staff Management
-            </button>
-          )}
-          {businessFeatures.inventory && (
-            <button
-              className={navButtonClass("inventory")}
-              type="button"
-              onClick={() => {
-                setActivePage("inventory");
-                setSidebarOpen(false);
-              }}
-            >
-              Fish Inventory
-            </button>
-          )}
-          {businessFeatures.tanks && (
-            <button
-              className={navButtonClass("tanks")}
-              type="button"
-              onClick={() => {
-                setActivePage("tanks");
-                setSidebarOpen(false);
-              }}
-            >
-              Tank Management
-            </button>
-          )}
-          {businessFeatures.notes && (
-            <button
-              className={navButtonClass("notes")}
-              type="button"
-              onClick={() => {
-                setActivePage("notes");
-                setSidebarOpen(false);
-              }}
-            >
-              Announcement Board
-            </button>
-          )}
-          {businessFeatures.sales && (
-            <button
-              className={navButtonClass("sales")}
-              type="button"
-              onClick={() => {
-                setActivePage("sales");
-                setSidebarOpen(false);
-              }}
-            >
-              Sales
-            </button>
-          )}
-          {businessFeatures.sales && (
-            <button className={navButtonClass("orders")} type="button" onClick={() => { setActivePage("orders"); setSidebarOpen(false); }}>
-              Orders
-            </button>
-          )}
-          {businessFeatures.payroll && (
-            <button
-              className={navButtonClass("payroll")}
-              type="button"
-              onClick={() => {
-                setActivePage("payroll");
-                setSidebarOpen(false);
-              }}
-            >
-              Payroll
-            </button>
-          )}
-          {businessFeatures.operations && (
-            <button
-              className={navButtonClass("operations")}
-              type="button"
-              onClick={() => {
-                setActivePage("operations");
-                setSidebarOpen(false);
-              }}
-            >
-              Operations & Reports
-            </button>
-          )}
-          <button
-            className={navButtonClass("settings")}
-            type="button"
-            onClick={() => {
-              setActivePage("settings");
-              setSidebarOpen(false);
-            }}
+            {businessFeatures.attendance && navItem("attendance", "Attendance")}
+            {businessFeatures.staff && navItem("staff", "Staff Management")}
+            {businessFeatures.payroll && navItem("payroll", "Payroll")}
+          </SidebarGroup>
+
+          <SidebarGroup title="Team announcements">
+            {businessFeatures.notes && navItem("notes", "Announcement Board")}
+          </SidebarGroup>
+
+          <SidebarGroup
+            title="Farm management"
+            description="Inventory and tank care"
           >
-            Settings
-          </button>
+            {businessFeatures.inventory && navItem("inventory", "Fish Inventory")}
+            {businessFeatures.tanks && navItem("tanks", "Tank Management")}
+          </SidebarGroup>
+
+          <SidebarGroup
+            title="Sales and reports"
+            description="Sales and business performance"
+          >
+            {businessFeatures.sales && navItem("sales", "Sales")}
+            {businessFeatures.operations &&
+              navItem("operations", "Operations & Reports")}
+          </SidebarGroup>
+
+          <SidebarGroup
+            title="Workspace"
+            description="Account and business preferences"
+          >
+            {navItem("settings", "Settings")}
+          </SidebarGroup>
         </nav>
 
         <div className="mt-auto shrink-0 border-t border-cyan-100/[.08] pt-2.5 pb-0.5 md:pt-3 md:pb-1">
@@ -1359,7 +1300,7 @@ function OwnerDashboard() {
               <p className="truncate font-['Poppins'] text-[0.78rem] font-medium text-[#cde4e6]">
                 {user?.businessName || "Business account"}
               </p>
-              <p className="truncate font-['Poppins'] text-[0.62rem] text-[#6f9ca5]">
+              <p className="truncate font-['Poppins'] text-[0.7rem] text-[#8fb3ba]">
                 {user?.ownerName || user?.email || "Business owner"}
               </p>
             </div>

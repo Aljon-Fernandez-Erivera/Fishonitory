@@ -1,4 +1,5 @@
 const express = require("express");
+const rateLimit = require("express-rate-limit");
 const attendanceController = require("../controllers/attendanceController");
 const authMiddleware = require("../middleware/authMiddleware");
 const { requireRole } = require("../middleware/authorization");
@@ -9,11 +10,18 @@ const {
 } = require("../middleware/requestValidators");
 
 const router = express.Router();
+const staffTimeClockLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: { message: "Too many time-clock attempts. Try again later." },
+});
 
 router.use(authMiddleware);
 router.use(requireRole(["Owner", "masterStaff", "Staff"]));
 
-router.post("/staff-time-clock", attendanceController.staffTimeClock);
+router.post("/staff-time-clock", staffTimeClockLimiter, attendanceController.staffTimeClock);
 
 router.post(
   "/check-in",
