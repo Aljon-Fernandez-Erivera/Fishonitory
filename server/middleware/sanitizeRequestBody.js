@@ -23,6 +23,7 @@ function sanitizeValue(value, fieldName = "") {
 
   const sanitized = {};
   for (const [key, child] of Object.entries(value)) {
+    
     // Request data must never supply MongoDB operators or dotted paths.
     if (key.startsWith("$") || key.includes(".") || ["__proto__", "prototype", "constructor"].includes(key)) {
       const error = new Error("Request contains an unsupported field.");

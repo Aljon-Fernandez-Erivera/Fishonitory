@@ -162,6 +162,7 @@ app.use("/api/owner", require("./server/routes/ownerRoutes"));
 app.use("/api/fish", require("./server/routes/fishRoutes"));
 app.use("/api/store", require("./server/routes/storeRoutes"));
 app.use("/api/notes", require("./server/routes/noteRoutes"));
+app.use("/api/platform-notices", require("./server/routes/platformNoticeRoutes"));
 app.use("/api/sales", require("./server/routes/salesRoutes"));
 app.use("/api/orders", require("./server/routes/orderRoutes"));
 app.use("/api/site-content", require("./server/routes/siteContentRoutes"));

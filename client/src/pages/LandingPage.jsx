@@ -295,12 +295,23 @@ function LandingPage() {
                 <p className="mt-4 max-w-xl font-['Poppins'] text-sm leading-6 text-[#687d8a]">
                   {feature.description}
                 </p>
-                <a
-                  href="#about"
-                  className="mt-4 inline-flex rounded-full bg-[#e4f5f5] px-4 py-2 font-['Poppins'] text-xs font-semibold text-[#198c9d] no-underline transition hover:bg-[#d2eeee]"
+                <div
+                  className="mt-6 flex items-center gap-3"
+                  aria-hidden="true"
                 >
-                  Learn More
-                </a>
+                  <svg
+                    className="h-4 w-44 text-[#65b7bd] [mask-image:linear-gradient(to_right,black_55%,transparent)]"
+                    viewBox="0 0 192 16"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  >
+                    <path d="M2 8c8 0 8-6 16-6s8 12 16 12 8-12 16-12 8 12 16 12 8-12 16-12 8 12 16 12 8-12 16-12 8 6 16 6" />
+                  </svg>
+                  <span className="h-2 w-2 rounded-full border-2 border-[#65b7bd]/70" />
+                  <span className="h-1 w-1 rounded-full bg-[#65b7bd]/50" />
+                </div>
               </div>
             </article>
           );
@@ -330,7 +341,7 @@ function LandingPage() {
         <div className="flex gap-5 font-['Poppins'] text-xs">
           <Link
             className="text-inherit no-underline hover:text-white"
-            to="/help"
+            to="/landing-help"
           >
             Help
           </Link>

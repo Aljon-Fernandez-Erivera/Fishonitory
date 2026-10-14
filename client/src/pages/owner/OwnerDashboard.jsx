@@ -9,6 +9,7 @@ import Attendance from "./Attendance.jsx";
 import Inventory from "./Inventory.jsx";
 import TankManagement from "./TankManagement.jsx";
 import Notes from "./Notes.jsx";
+import PlatformNoticeBanner from "./PlatformNoticeBanner.jsx";
 import Sales from "../shared/Sales.jsx";
 import OwnerOperations from "./OwnerOperations.jsx";
 import Payroll from "./Payroll.jsx";
@@ -18,6 +19,7 @@ import { getDefaultSalesRange } from "../shared/salesUtils.js";
 import { API_URL } from "../../config.js";
 import "../../css/owner-dashboard-layout.css";
 import NotificationBell from "../shared/NotificationBell.jsx";
+import DashboardToast from "../../components/DashboardToast.jsx";
 import {
   confirmOceanicAction,
   oceanicNotice,
@@ -132,6 +134,7 @@ function OwnerDashboard() {
   const [message, setMessage] = useState("");
   const [staffToast, setStaffToast] = useState("");
   const [payrollToast, setPayrollToast] = useState("");
+  const [toastNotice, setToastNotice] = useState(null);
   const [error, setError] = useState("");
   const [staffError, setStaffError] = useState("");
   const [initialLoading, setInitialLoading] = useState(true);
@@ -153,6 +156,7 @@ function OwnerDashboard() {
   const [tankForm, setTankForm] = useState(emptyTank);
   const [editingTankId, setEditingTankId] = useState(null);
   const [notes, setNotes] = useState([]);
+  const [platformNotices, setPlatformNotices] = useState([]);
   const [notePermissions, setNotePermissions] = useState({
     canModerate: true,
     userId: "",
@@ -184,17 +188,17 @@ function OwnerDashboard() {
     const dedupeKey = `${type}:${safeTitle}`;
     if (lastToastRef.current === dedupeKey) return;
     lastToastRef.current = dedupeKey;
-    oceanicNotice(safeTitle, "", type, {
-      toast: true,
-      position: "top-end",
-      showConfirmButton: false,
-      timer: 4000,
-      timerProgressBar: true,
-    });
+    setToastNotice({ type, title: safeTitle });
     window.setTimeout(() => {
       if (lastToastRef.current === dedupeKey) lastToastRef.current = "";
     }, 4500);
   };
+
+  useEffect(() => {
+    if (!toastNotice) return undefined;
+    const timer = window.setTimeout(() => setToastNotice(null), 4000);
+    return () => window.clearTimeout(timer);
+  }, [toastNotice]);
 
   // Function para i-load ang lahat ng data sa dashboard, ito yung mag fe-fetch ng lahat ng data mula sa server.
   const loadDashboardData = async ({ background = false } = {}) => {
@@ -220,6 +224,7 @@ function OwnerDashboard() {
         workspaceData,
         shiftData,
         shiftAssignmentsData,
+        platformNoticeData,
       ] = await Promise.all([
         apiRequest("/owner/staff"),
         apiRequest("/attendance"),
@@ -234,12 +239,14 @@ function OwnerDashboard() {
         apiRequest("/owner/workspace-settings"),
         apiRequest("/attendance/shift-templates"),
         apiRequest("/attendance/shift-assignments"),
+        apiRequest("/platform-notices"),
       ]);
       setStaff(staffData.staff);
       setAttendance(attendanceData.records);
       setFish(fishData.fish);
       setTanks(tankData.tanks);
       setNotes(noteData.notes || []);
+      setPlatformNotices(platformNoticeData.notices || []);
       setNotePermissions(
         noteData.permissions || { canModerate: true, userId: "" },
       );
@@ -408,7 +415,7 @@ function OwnerDashboard() {
 
   // useEffect para i-update ang current time sa dashboard bawat segundo, para sa real-time na display ng oras.
   useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
     return () => clearInterval(timer);
   }, []);
 
@@ -838,6 +845,8 @@ function OwnerDashboard() {
           taskStatus: payload.isTask
             ? payload.taskStatus || "pending"
             : "pending",
+          dueDate: payload.isTask ? payload.dueDate || null : null,
+          assignedTo: payload.isTask ? payload.assignedTo || null : null,
         }),
       });
       setMessage("Note added successfully.");
@@ -1063,6 +1072,7 @@ function OwnerDashboard() {
         return (
           <Notes
             notes={notes}
+            staff={staff}
             permissions={notePermissions}
             onAddNote={handleAddNote}
             onUpdateNote={handleUpdateNote}
@@ -1169,15 +1179,16 @@ function OwnerDashboard() {
         onLogout={async () => {
           const result = await showOceanicLogoutConfirm(async () => {
             await logout();
-            window.location.replace("/login");
+            window.location.replace("/");
           });
           if (result.isConfirmed) {
             await logout();
-            window.location.replace("/login");
+            window.location.replace("/");
           }
         }}
       />
       <div className="owner-workspace flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        <DashboardToast notice={toastNotice} />
         <DashboardHeader title="BUSINESS CONTROL CENTER" currentTime={currentTime} syncing={refreshing}>
 <NotificationBell
               notes={notes}
@@ -1190,22 +1201,7 @@ function OwnerDashboard() {
             />
       </DashboardHeader>
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6 sm:px-5 lg:px-5 lg:py-8">
-        {message && (
-          <p
-            className="mb-4 w-full max-w-7xl rounded-xl border border-[#75bec4]/30 bg-[#75bec4]/10 px-4 py-3 font-['Poppins'] text-sm text-[#c9e8e9]"
-            role="status"
-          >
-            {message}
-          </p>
-        )}
-        {error && (
-          <p
-            className="mb-4 w-full max-w-7xl rounded-xl border border-red-200/25 bg-red-200/10 px-4 py-3 font-['Poppins'] text-sm text-red-100"
-            role="alert"
-          >
-            {error}
-          </p>
-        )}
+        <PlatformNoticeBanner notices={platformNotices} />
         {renderActivePage()}
         </div>
       </div>

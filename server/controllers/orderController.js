@@ -6,6 +6,7 @@ const Fish = require("../models/Fish");
 const User = require("../models/User");
 const getOwnerId = require("../utils/ownerScope");
 const { writeAudit } = require("../utils/audit");
+const { sendOrderStatusEmail } = require("../utils/mailer");
 
 const ORDER_ROLES = ["Owner", "masterStaff"];
 
@@ -250,9 +251,14 @@ exports.updateOrderStatus = async (req, res) => {
   }
 
   if (!movingToPaid) {
+    const statusChanged = changes.deliveryStatus && changes.deliveryStatus !== order.deliveryStatus;
     order.deliveryStatus = nextDeliveryStatus;
     await order.save();
     await writeAudit(req, "UPDATE", "Order", order._id, "Order status updated.");
+    if (statusChanged && order.customerEmail) {
+      const { error: mailError } = await sendOrderStatusEmail(order);
+      if (mailError) console.error("Order status email failed:", mailError);
+    }
     return res.json({ message: "Order updated.", order });
   }
 
@@ -291,6 +297,10 @@ exports.updateOrderStatus = async (req, res) => {
     order._id,
     `Order marked paid and converted to sale ${sale._id}.`,
   );
+  if (order.customerEmail) {
+    const { error: mailError } = await sendOrderStatusEmail(order);
+    if (mailError) console.error("Order status email failed:", mailError);
+  }
   return res.json({ message: "Order marked as paid and recorded as a sale.", order, sale });
 };
 

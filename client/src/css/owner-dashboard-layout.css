@@ -599,6 +599,16 @@
     color 150ms ease;
 }
 
+.dashboard-nav-icon {
+  display: inline-grid;
+  width: 20px;
+  flex: 0 0 20px;
+  place-items: center;
+  margin-right: 9px;
+  color: #a8c9d0;
+  font-size: 0.95rem;
+}
+
 .dashboard-nav-link:hover:not(.is-active) {
   background: rgba(220, 244, 247, 0.06);
   color: #d9ecef;
@@ -614,6 +624,25 @@
 .dashboard-nav-link.is-active:hover {
   border-color: rgba(117, 190, 196, 0.5);
   background: #3b7279;
+}
+
+.dashboard-nav-link:focus-visible {
+  outline: 2px solid #76c7cd;
+  outline-offset: 2px;
+}
+
+.dashboard-stat-card {
+  min-width: 0;
+  border-radius: 16px;
+  transition: border-color 150ms ease, transform 150ms ease;
+}
+
+.dashboard-stat-card:hover {
+  border-color: rgba(115, 196, 202, 0.3);
+}
+
+.dashboard-nav-link.is-active .dashboard-nav-icon {
+  color: #d9f1f1;
 }
 
 .owner-mobile-menu-toggle {
@@ -836,6 +865,53 @@
   color: #d9f1f1;
   font: 500 0.82rem "Poppins", sans-serif;
   padding: 13px 16px;
+}
+
+.app-notification-toast {
+  position: fixed;
+  z-index: 100;
+  top: 20px;
+  right: 20px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: min(360px, calc(100vw - 32px));
+  border: 1px solid rgba(117, 190, 196, 0.38);
+  border-radius: 12px;
+  background: #063d58;
+  box-shadow: 0 12px 30px rgba(0, 12, 31, 0.28);
+  color: #d9f1f1;
+  font: 500 0.84rem "Poppins", sans-serif;
+  padding: 13px 16px;
+  animation: app-toast-in 180ms ease-out;
+}
+
+.app-notification-toast--error {
+  border-color: rgba(248, 113, 113, 0.45);
+  background: #482b36;
+  color: #ffe4e6;
+}
+
+.app-notification-toast__icon {
+  display: grid;
+  width: 23px;
+  height: 23px;
+  flex: 0 0 23px;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(117, 190, 196, 0.18);
+  color: #a9e6df;
+  font-weight: 700;
+}
+
+.app-notification-toast--error .app-notification-toast__icon {
+  background: rgba(248, 113, 113, 0.18);
+  color: #fecaca;
+}
+
+@keyframes app-toast-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .owner-workspace .staff-otp-loading-dialog[open] {

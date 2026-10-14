@@ -287,7 +287,7 @@ function LoginPage() {
             onClick={() => setHelpOpen((value) => !value)}
             className="inline-flex h-7 items-center gap-1.5 rounded-full border border-[#75bec4]/50 bg-[#75bec4]/15 px-3 font-['Poppins'] text-[11px] font-semibold text-[#d9ecef] transition hover:bg-[#75bec4]/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#d5eef0]"
           >
-            <span aria-hidden="true">?</span> Help
+            <span aria-hidden="true">Help</span> ?
           </button>
           {helpOpen && (
             <div className="auth-popover absolute right-0 top-9 z-10 w-64 rounded-xl border border-[#d9e5df] bg-[#fffefa] p-4 text-left shadow-xl">

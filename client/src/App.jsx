@@ -16,6 +16,7 @@ import StaffDashboard from "./pages/staff/StaffDashboard.jsx";
 import AdminDashboard from "./pages/admin/AdminDashboard.jsx";
 import AboutPage from "./pages/shared/AboutPage.jsx";
 import HelpPage from "./pages/shared/HelpPage.jsx";
+import LandingHelpPage from "./pages/shared/LandingHelpPage.jsx";
 import AccountPage from "./pages/shared/AccountPage.jsx";
 import { AuthProvider } from "./pages/shared/AuthContext.jsx";
 import { LoadingOverlay } from "./pages/shared/AuthLayout.jsx";
@@ -139,6 +140,7 @@ function AppRoutes() {
         element={<ProtectedRoute allowedRoles={["superAdmin"]}><AdminDashboard /></ProtectedRoute>}
       />
       <Route path="/about" element={<AboutPage />} />
+      <Route path="/landing-help" element={<LandingHelpPage />} />
       <Route
         path="/help"
         element={<ProtectedRoute allowedRoles={["Owner", "masterStaff"]}><HelpPage /></ProtectedRoute>}

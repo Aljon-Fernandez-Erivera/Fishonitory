@@ -5,7 +5,7 @@ import { useAuth } from "../shared/useAuth.js";
 import { useSearchParams } from "react-router-dom";
 import { API_URL } from "../../config.js";
 import "../../css/owner-dashboard-layout.css";
-import { confirmOceanicAction, oceanicFire, oceanicNotice, showOceanicLogoutConfirm } from "../../utils/oceanicSwal.js";
+import { confirmOceanicAction, oceanicFire, showOceanicLogoutConfirm } from "../../utils/oceanicSwal.js";
 
 import AdminOverview from "./AdminOverview.jsx";
 import PendingVerifications from "./PendingVerifications.jsx";
@@ -13,6 +13,7 @@ import AllAccounts from "./AllAccounts.jsx";
 import ActiveBusinesses from "./ActiveBusinesses.jsx";
 import AdminAccount from "./AdminAccount.jsx";
 import SystemLogs from "./SystemLogs.jsx";
+import PlatformNotices from "./PlatformNotices.jsx";
 import AboutContactPanel from "../shared/AboutContactPanel.jsx";
 import { LoadingOverlay } from "../shared/AuthLayout.jsx";
 
@@ -57,6 +58,7 @@ function AdminDashboard() {
     "businesses",
     "accounts",
     "logs",
+    "platform-notices",
     "settings",
   ];
   const requestedPage = searchParams.get("page");
@@ -86,12 +88,14 @@ function AdminDashboard() {
   });
   const [accounts, setAccounts] = useState([]);
   const [logs, setLogs] = useState([]);
+  const [platformNotices, setPlatformNotices] = useState([]);
   const [logPagination, setLogPagination] = useState({
     page: 1,
     limit: 20,
     total: 0,
     totalPages: 0,
   });
+  const [platformNoticesLoading, setPlatformNoticesLoading] = useState(false);
   const [accountPagination, setAccountPagination] = useState({
     page: 1,
     limit: 20,
@@ -101,6 +105,7 @@ function AdminDashboard() {
 
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [toastNotice, setToastNotice] = useState(null);
 
   const [currentTime, setCurrentTime] = useState(() => new Date());
 
@@ -133,15 +138,14 @@ function AdminDashboard() {
 
   const notify = (type, title) => {
     if (!title) return;
-
-    oceanicNotice(title, "", type, {
-      toast: true,
-      position: "top-end",
-      showConfirmButton: false,
-      timer: 4000,
-      timerProgressBar: true,
-    });
+    setToastNotice({ type, title });
   };
+
+  useEffect(() => {
+    if (!toastNotice) return undefined;
+    const timer = window.setTimeout(() => setToastNotice(null), 4000);
+    return () => window.clearTimeout(timer);
+  }, [toastNotice]);
 
   /* =========================================================
      OVERVIEW DATA
@@ -326,6 +330,52 @@ function AdminDashboard() {
     }
   }, []);
 
+  const loadPlatformNotices = useCallback(async () => {
+    setPlatformNoticesLoading(true);
+    try {
+      const result = await apiRequest("/admin/platform-notices");
+      setPlatformNotices(result?.notices || []);
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setPlatformNoticesLoading(false);
+    }
+  }, []);
+
+  const createPlatformNotice = async (notice) => {
+    try {
+      const result = await apiRequest("/admin/platform-notices", {
+        method: "POST",
+        body: JSON.stringify(notice),
+      });
+      setPlatformNotices((current) => [result.notice, ...current]);
+      setMessage(result.message);
+      return true;
+    } catch (requestError) {
+      setError(requestError.message);
+      return false;
+    }
+  };
+
+  const deletePlatformNotice = async (notice) => {
+    const confirmed = await confirmOceanicAction({
+      title: "Remove platform notice?",
+      text: `“${notice.title}” will disappear from owner dashboards.`,
+      confirmText: "Remove notice",
+      tone: "danger",
+    });
+    if (!confirmed) return;
+    try {
+      const result = await apiRequest(`/admin/platform-notices/${notice._id}`, {
+        method: "DELETE",
+      });
+      setPlatformNotices((current) => current.filter((item) => item._id !== notice._id));
+      setMessage(result.message);
+    } catch (requestError) {
+      setError(requestError.message);
+    }
+  };
+
   /* =========================================================
      OVERVIEW AUTO REFRESH
      Every 60 seconds
@@ -401,10 +451,11 @@ function AdminDashboard() {
     queueMicrotask(() => {
       if (cancelled) return;
       if (activePage === "logs") void loadLogs();
+      if (activePage === "platform-notices") void loadPlatformNotices();
       if (activePage === "pending") void loadPending();
     });
     return () => { cancelled = true; };
-  }, [authReady, user?.role, activePage, loadLogs, loadPending]);
+  }, [authReady, user?.role, activePage, loadLogs, loadPending, loadPlatformNotices]);
 
   /* =========================================================
      CLOCK
@@ -413,7 +464,7 @@ function AdminDashboard() {
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
-    }, 1000);
+    }, 60000);
 
     return () => clearInterval(timer);
   }, []);
@@ -570,7 +621,7 @@ function AdminDashboard() {
         method: "POST",
       });
 
-      setMessage(data.message);
+      setMessage(`${label}'s account ${status === "Disabled" ? "disabled" : "enabled"}.`);
 
       await Promise.all([
         loadOverviewData({
@@ -709,17 +760,17 @@ function AdminDashboard() {
           { title: "Review queue", description: "Check new applications", items: [{ page: "pending", label: "Pending Verifications", badge: pendingPagination.total > 0 && <span className="ml-2 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-400 px-1 text-[10px] font-bold text-[#3a2900]">{pendingPagination.total}</span> }] },
           { title: "Business directory", description: "View approved businesses", items: [{ page: "businesses", label: "Active Businesses" }] },
           { title: "Account directory", description: "Manage registered users", items: [{ page: "accounts", label: "All Accounts" }] },
-          { title: "System tools", description: "Logs and console settings", items: [{ page: "logs", label: "System Logs" }, { page: "settings", label: "Settings" }] },
+          { title: "System tools", description: "Logs and console settings", items: [{ page: "platform-notices", label: "Platform Notices" }, { page: "logs", label: "System Logs" }, { page: "settings", label: "Settings" }] },
         ]}
         identity={{ avatar: user?.email || "A", title: "Super Admin", subtitle: user?.email }}
         onLogout={async () => {
           const result = await showOceanicLogoutConfirm(async () => {
             await logout();
-            window.location.replace("/login");
+            window.location.replace("/");
           });
           if (result.isConfirmed) {
             await logout();
-            window.location.replace("/login");
+            window.location.replace("/");
           }
         }}
       />
@@ -728,6 +779,18 @@ function AdminDashboard() {
           WORKSPACE
       ===================================================== */}
       <div className="owner-workspace flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        {toastNotice && (
+          <div
+            className={`app-notification-toast app-notification-toast--${toastNotice.type === "error" ? "error" : "success"}`}
+            role="status"
+            aria-live="polite"
+          >
+            <span className="app-notification-toast__icon" aria-hidden="true">
+              {toastNotice.type === "error" ? "!" : "\u2713"}
+            </span>
+            <span>{toastNotice.title}</span>
+          </div>
+        )}
         <DashboardHeader title="PLATFORM ADMINISTRATION" currentTime={currentTime} syncing={refreshing} />
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6 sm:px-5 lg:px-5 lg:py-8">
         {/* Header */}
@@ -810,6 +873,15 @@ function AdminDashboard() {
             logs={logs}
             pagination={logPagination}
             onPageChange={loadLogs}
+          />
+        )}
+
+        {activePage === "platform-notices" && (
+          <PlatformNotices
+            notices={platformNotices}
+            loading={platformNoticesLoading}
+            onCreate={createPlatformNotice}
+            onDelete={deletePlatformNotice}
           />
         )}
 

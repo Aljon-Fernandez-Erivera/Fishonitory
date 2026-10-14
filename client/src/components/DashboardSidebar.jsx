@@ -1,3 +1,31 @@
+
+import {
+  LayoutDashboard, Building2, Users, ScrollText, Settings,
+  UserCog, Package, ShoppingCart, CalendarCheck, Wallet, Droplets,
+  Fish, Megaphone, ClipboardList, ShieldCheck,
+} from "lucide-react";
+
+const icons = {
+  overview: LayoutDashboard,
+  pending: ShieldCheck,
+  businesses: Building2,
+  accounts: Users,
+  logs: ScrollText,
+  "platform-notices": Megaphone,
+  settings: Settings,
+  staff: UserCog,
+  inventory: Package,
+  sales: ShoppingCart,
+  attendance: CalendarCheck,
+  payroll: Wallet,
+  tanks: Droplets,
+  fish: Fish,
+  notes: Megaphone,
+  announcements: Megaphone,
+  operations: ClipboardList,
+  orders: ClipboardList,
+};
+
 function DashboardSidebar({
   sidebarOpen,
   onToggle,
@@ -13,9 +41,12 @@ function DashboardSidebar({
   onLogout,
   thinScrollbar = true,
 }) {
+
   const navClassName = `mt-4 flex min-w-0 gap-0.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:mt-6 md:min-h-0 md:flex-1 md:flex-col md:overflow-y-auto md:overflow-x-hidden md:pr-1${thinScrollbar ? " [scrollbar-width:thin]" : ""}`;
 
-  const renderItem = ({ page, label, badge }) => (
+  const renderItem = ({ page, label, badge }) => {
+  const Icon = icons[page];
+  return (
     <button
       key={page}
       className={`dashboard-nav-link ${activePage === page ? "is-active" : ""}`}
@@ -23,10 +54,14 @@ function DashboardSidebar({
       aria-current={activePage === page ? "page" : undefined}
       onClick={() => onNavigate(page)}
     >
+      <span className="dashboard-nav-icon" aria-hidden="true">
+        {Icon ? <Icon size={18} strokeWidth={1.75} /> : "•"}
+      </span>
       {label}
       {badge}
     </button>
   );
+};
 
   return (
     <>
@@ -79,14 +114,9 @@ function DashboardSidebar({
             return (
               <div className="contents md:block" key={group.title}>
                 <div className="hidden px-3 pb-1.5 pt-4 md:block">
-                  <p className="m-0 font-['Poppins'] text-[0.68rem] font-semibold uppercase tracking-[.14em] text-[#8fc5cb]">
+                  <p className="m-0 font-['Poppins'] text-[0.60rem] font-semibold uppercase tracking-[.14em] text-[#8fc5cb]">
                     {group.title}
                   </p>
-                  {group.description && (
-                    <p className="m-0 mt-1 font-['Poppins'] text-[0.72rem] leading-snug text-[#8fb3ba]">
-                      {group.description}
-                    </p>
-                  )}
                 </div>
                 <div className="contents md:flex md:flex-col md:gap-0.5 md:pl-3">
                   {items}

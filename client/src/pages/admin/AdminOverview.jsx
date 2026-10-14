@@ -12,30 +12,30 @@ function waitingLabel(createdAt) {
 }
 
 function StatCard({ label, value, note, highlight, onClick }) {
-  const classes = `rounded-2xl border p-5 text-left shadow-[0_14px_35px_rgba(0,12,31,.14)] transition ${
+  const classes = `dashboard-stat-card rounded-2xl border p-4 text-left shadow-[0_14px_35px_rgba(0,12,31,.14)] transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#76c7cd] ${
     highlight
-      ? "border-amber-300/30 bg-amber-400/10"
+      ? "border-amber-300/60 bg-amber-400/[.14] shadow-[0_14px_35px_rgba(120,75,0,.14)]"
       : "border-sky-100/10 bg-[#062d48]/80 hover:border-[#73c4ca]/20"
   } ${onClick ? "cursor-pointer hover:border-[#73c4ca]/40" : ""}`;
 
   const content = (
-    <>
-      <span className="font-['Poppins'] text-xs font-medium uppercase tracking-[0.12em] text-[#91b5bf]">
+    <div className="grid min-h-[104px] grid-rows-[16px_40px_1fr]">
+      <span className="font-['Poppins'] text-xs font-medium uppercase tracking-[0.12em] text-[#b0cbd1]">
         {label}
       </span>
 
       <strong
-        className={`mt-3 block font-['Fraunces'] text-4xl font-medium ${
+        className={`mt-1 block self-center font-['Fraunces'] text-4xl font-medium ${
           highlight ? "text-amber-200" : "text-[#d9ecef]"
         }`}
       >
         {value}
       </strong>
 
-      <small className="mt-2 block font-['Poppins'] text-xs text-[#719ba8]">
+      <small className="mt-1 block self-end font-['Poppins'] text-xs leading-relaxed text-[#a6c3cb]">
         {note}
       </small>
-    </>
+    </div>
   );
 
   return onClick ? (
@@ -96,7 +96,7 @@ function AdminOverview({
           note={
             pending > 0
               ? "Awaiting permit approval · click to review"
-              : "No registrations waiting"
+              : "All caught up · no registrations waiting"
           }
           highlight={pending > 0}
           onClick={go("pending")}
@@ -105,20 +105,24 @@ function AdminOverview({
         <StatCard
           label="Approved Businesses"
           value={s.activeOwners}
-          note={`${s.registeredOwners ?? s.totalOwners} registered in total · click to view`}
+          note={`${s.pendingOwners} pending · ${s.rejectedOwners} rejected · ${s.registeredOwners ?? s.totalOwners} registered`}
           onClick={go("businesses")}
         />
 
         <StatCard
           label="Registered This Month"
           value={s.businessesThisMonth}
-          note="New business registrations"
+          note={
+            s.businessesThisMonth === (s.businessesLastMonth ?? 0)
+              ? "Same as last month"
+              : `${s.businessesThisMonth > (s.businessesLastMonth ?? 0) ? "+" : ""}${s.businessesThisMonth - (s.businessesLastMonth ?? 0)} vs last month`
+          }
         />
 
         <StatCard
           label="Approval Rate"
           value={`${s.approvalRate}%`}
-          note={`${s.approvedOwners ?? s.activeOwners} of ${s.reviewedOwners ?? 0} reviewed registrations approved`}
+          note={`${s.approvedOwners ?? s.activeOwners} approved · ${s.rejectedOwners} rejected`}
         />
       </div>
 
@@ -130,7 +134,7 @@ function AdminOverview({
               <p className="font-['Poppins'] text-xs font-semibold uppercase tracking-[0.12em] text-amber-200">
                 Needs attention
               </p>
-              <p className="mt-1 font-['Poppins'] text-xs text-[#a9c8cf]">
+              <p className="mt-1 font-['Poppins'] text-xs text-[#c0d6dc]">
                 Oldest registrations waiting for review.
               </p>
             </div>
@@ -156,7 +160,7 @@ function AdminOverview({
                   <p className="truncate font-['Poppins'] text-sm font-medium text-[#d9ecef]">
                     {owner.businessName}
                   </p>
-                  <p className="truncate font-['Poppins'] text-xs text-[#719ba8]">
+                  <p className="truncate font-['Poppins'] text-xs text-[#a6c3cb]">
                     {owner.ownerName}
                   </p>
                 </div>
@@ -184,7 +188,7 @@ function AdminOverview({
                 Verification Outcomes
               </p>
 
-              <p className="mt-2 font-['Poppins'] text-xs text-[#719ba8]">
+              <p className="mt-2 font-['Poppins'] text-xs text-[#a6c3cb]">
                 Distribution of reviewed business registrations.
               </p>
             </div>
@@ -224,7 +228,7 @@ function AdminOverview({
               Business Status
             </p>
 
-            <p className="mt-2 font-['Poppins'] text-xs text-[#719ba8]">
+              <p className="mt-2 font-['Poppins'] text-xs text-[#a6c3cb]">
               Current distribution of registered businesses.
             </p>
           </div>

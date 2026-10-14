@@ -39,7 +39,7 @@ function NoteActionsMenu({ item, onUpdateNote, edit, remove, perms }) {
       onClick: () => onUpdateNote(item._id, { resolved: !item.resolved }),
     },
     perms.canModerate && {
-      label: item.pinned ? "Unpin note" : "Pin note",
+      label: item.pinned ? "Unpin announcement" : "Pin announcement",
       onClick: () => onUpdateNote(item._id, { pinned: !item.pinned }),
     },
   ].filter(Boolean);
@@ -146,7 +146,7 @@ function NoteItem({ item, onUpdateNote, edit, remove, perms }) {
               </span>
             ) : (
               <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 font-['Poppins'] text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-200">
-                Public
+                All Staff
               </span>
             )}
             {item.isTask && (
@@ -188,6 +188,12 @@ function NoteItem({ item, onUpdateNote, edit, remove, perms }) {
               ? new Date(item.createdAt).toLocaleString()
               : "Just now"}
           </small>
+          {item.isTask && (item.dueDate || item.assignedTo) && (
+            <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 font-['Poppins'] text-xs text-[#b0cbd1]">
+              {item.dueDate && <span>Due {new Date(item.dueDate).toLocaleDateString()}</span>}
+              {item.assignedTo && <span>Assigned to {item.assignedTo.staffName}</span>}
+            </div>
+          )}
         </div>
 
         <NoteActionsMenu
@@ -204,6 +210,7 @@ function NoteItem({ item, onUpdateNote, edit, remove, perms }) {
 
 function Notes({
   notes = [],
+  staff = [],
   permissions = { canModerate: false, userId: "" },
   onAddNote,
   onUpdateNote,
@@ -212,6 +219,8 @@ function Notes({
   const [note, setNote] = useState("");
   const [visibility, setVisibility] = useState("public");
   const [isTask, setIsTask] = useState(false);
+  const [dueDate, setDueDate] = useState("");
+  const [assignedTo, setAssignedTo] = useState("");
   const [expanded, setExpanded] = useState(false);
 
   const perms = useMemo(
@@ -233,10 +242,14 @@ function Notes({
       visibility,
       isTask,
       taskStatus: isTask ? "pending" : undefined,
+      dueDate: isTask ? dueDate || null : null,
+      assignedTo: isTask ? assignedTo || null : null,
     });
     setNote("");
     setIsTask(false);
     setVisibility("public");
+    setDueDate("");
+    setAssignedTo("");
     setExpanded(false);
   };
 
@@ -269,17 +282,18 @@ function Notes({
   };
 
   return (
-    <section className="mx-auto grid w-full max-w-7xl gap-6">
+    <section className="mx-auto grid w-full max-w-7xl gap-4">
       <div>
         <h2 className="font-['Poppins'] text-xs font-semibold uppercase tracking-[.16em] text-[#73c4ca]">
           Announcement Board
         </h2>
-        <p className="mt-3 font-['Poppins'] text-sm text-[#9bbec7]">
+        <p className="mt-2 font-['Poppins'] text-sm text-[#b0cbd1]">
           Publish updates, quick tasks, and team notices without overwhelming inactive staff.
         </p>
       </div>
 
-      <div className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-5 sm:p-6">
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(300px,.85fr)_minmax(0,1.15fr)]">
+      <div className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-4 sm:p-5">
         {!expanded ? (
           <button
             type="button"
@@ -300,14 +314,14 @@ function Notes({
               </label>
               <textarea
                 id="new-note-input"
-                className="mt-2 box-border min-h-24 w-full resize-y rounded-xl border border-sky-100/10 bg-white/[.06] p-3 font-['Poppins'] text-sm text-[#d9ecef] outline-none transition focus:border-[#73c4ca]"
+                className="mt-2 box-border min-h-28 w-full resize-y rounded-xl border border-sky-100/10 bg-white/[.06] p-3 font-['Poppins'] text-sm text-[#d9ecef] outline-none transition placeholder:text-[#b0cbd1] focus:border-[#73c4ca] focus:ring-2 focus:ring-[#73c4ca]/20"
                 value={note}
                 maxLength={MAX_NOTE_LENGTH}
                 onChange={(event) => setNote(event.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Enter the announcement or task details..."
               />
-              <div className="mt-1 flex justify-between gap-3 font-['Poppins'] text-xs text-[#789faa]">
+              <div className="mt-1 flex justify-between gap-3 font-['Poppins'] text-xs text-[#b0cbd1]">
                 <span>Enter adds a line break.</span>
                 <span className={overLimit ? "text-red-300" : ""}>
                   {note.length}/{MAX_NOTE_LENGTH}
@@ -315,8 +329,7 @@ function Notes({
               </div>
             </div>
 
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-xl border border-sky-100/10 bg-white/[.025] px-3 py-2.5">
                 <label className="inline-flex items-center gap-2 font-['Poppins'] text-xs text-[#d9ecef]">
                   <input
                     type="radio"
@@ -324,7 +337,7 @@ function Notes({
                     onChange={() => setVisibility("public")}
                     className="accent-[#73c4ca]"
                   />
-                  Public
+                  All staff
                 </label>
                 <label className="inline-flex items-center gap-2 font-['Poppins'] text-xs text-[#d9ecef]">
                   <input
@@ -335,8 +348,6 @@ function Notes({
                   />
                   Only me
                 </label>
-              </div>
-
               <label className="inline-flex items-center gap-2 font-['Poppins'] text-xs text-[#d9ecef]">
                 <input
                   type="checkbox"
@@ -348,16 +359,41 @@ function Notes({
               </label>
             </div>
 
+            {isTask && (
+              <div className="grid gap-3 rounded-xl border border-amber-300/15 bg-amber-300/[.04] p-3 sm:grid-cols-2">
+                <label className="grid gap-1.5 font-['Poppins'] text-xs font-medium text-[#c5dce1]">
+                  Due date <span className="font-normal text-[#a6c3cb]">(optional)</span>
+                  <input type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} className="rounded-lg border border-sky-100/15 bg-[#062d48] px-3 py-2 text-sm text-[#d9ecef] outline-none focus:border-[#73c4ca] focus:ring-2 focus:ring-[#73c4ca]/20" />
+                </label>
+                <label className="grid gap-1.5 font-['Poppins'] text-xs font-medium text-[#c5dce1]">
+                  Assign to <span className="font-normal text-[#a6c3cb]">(optional)</span>
+                  <select value={assignedTo} onChange={(event) => setAssignedTo(event.target.value)} className="rounded-lg border border-sky-100/15 bg-[#062d48] px-3 py-2 text-sm text-[#d9ecef] outline-none focus:border-[#73c4ca] focus:ring-2 focus:ring-[#73c4ca]/20">
+                    <option value="">Anyone on the team</option>
+                    {staff.filter((member) => member.accountStatus === "Active").map((member) => (
+                      <option key={member._id} value={member._id}>{member.staffName}{member.staffPosition ? ` · ${member.staffPosition}` : ""}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            )}
+
             <div className="flex flex-wrap items-center justify-end gap-3">
-              <button
+              {note.length > 0 && <button
                 type="button"
-                onClick={() => setExpanded(false)}
+                onClick={() => {
+                  setExpanded(false);
+                  setNote("");
+                  setIsTask(false);
+                  setVisibility("public");
+                  setDueDate("");
+                  setAssignedTo("");
+                }}
                 className="rounded-full border border-sky-100/15 bg-transparent px-4 py-2 font-['Poppins'] text-xs text-[#a9c8cf] hover:text-[#d9ecef]"
               >
                 Cancel
-              </button>
+              </button>}
               <button
-                className="rounded-full bg-[#75bec4] px-5 py-2.5 font-['Poppins'] text-sm font-medium text-[#052d45] transition hover:bg-[#8fd0d6] disabled:cursor-not-allowed disabled:opacity-50"
+                className={`rounded-full border px-5 py-2.5 font-['Poppins'] text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#76c7cd] ${trimmed && !overLimit ? "border-[#76c7cd] bg-[#76c7cd] text-[#052d45] shadow-[0_4px_14px_rgba(118,199,205,.18)] hover:bg-[#91d8dc]" : "cursor-not-allowed border-sky-100/10 bg-white/[.07] text-[#789faa]"}`}
                 type="submit"
                 disabled={!trimmed || overLimit}
               >
@@ -368,12 +404,10 @@ function Notes({
         )}
       </div>
 
-      <div>
-        <h2 className="font-['Poppins'] text-xs font-semibold uppercase tracking-[.16em] text-[#73c4ca]">
-          Recent announcements
-        </h2>
-      </div>
-
+      <div className="min-w-0">
+      <h2 className="mb-2 font-['Poppins'] text-xs font-semibold uppercase tracking-[.16em] text-[#73c4ca]">
+        Recent announcements
+      </h2>
       <div className="overflow-hidden rounded-2xl border border-sky-100/10 bg-[#062d48]/80">
         <div className="max-h-[60vh] overflow-y-auto">
           <ul className="grid gap-0 p-0">
@@ -390,11 +424,19 @@ function Notes({
           </ul>
 
           {!notes.length && (
-            <p className="px-5 py-12 text-center font-['Poppins'] text-sm text-[#789faa]">
-              No announcements have been published yet.
-            </p>
+            <div className="flex min-h-48 flex-col items-center justify-center px-5 py-8 text-center">
+              <span className="mb-3 grid h-11 w-11 place-items-center rounded-full border border-[#73c4ca]/20 bg-[#73c4ca]/10 text-[#90d5d9]">
+                <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.7">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M7 8h10M7 12h7m-8 8-3 1 1-4a8 8 0 1 1 3 3Z" />
+                </svg>
+              </span>
+              <p className="m-0 max-w-xs font-['Poppins'] text-sm font-medium text-[#d9ecef]">No announcements yet</p>
+              <p className="mb-0 mt-1 max-w-sm font-['Poppins'] text-xs leading-relaxed text-[#b0cbd1]">Post one to let your team know what’s happening.</p>
+            </div>
           )}
         </div>
+      </div>
+      </div>
       </div>
     </section>
   );

@@ -99,11 +99,7 @@ const MAX_NAME_LENGTH = 120;
 // Strip control characters BUT keep \n (newline) and \t (tab).
 const CONTROL_CHARS = /[\u0000-\u0008\u000B-\u001F\u007F]/g;
 
-/**
- * Only a real primitive string survives. Anything else — an object like
- * { $ne: null }, an array, a number — is rejected outright. This is what
- * stops operator injection, not a character whitelist.
- */
+//even mag type si user ng sq injection or nosql injection, it will be not accepted by the database/syste,.
 const cleanNoteText = (raw) => {
   if (typeof raw !== "string") return null;
   return raw
@@ -144,18 +140,27 @@ const validateNoteCreate = (req, res, next) => {
       .json({ message: "Task status must be 'pending' or 'done'." });
   }
 
+  const dueDate = req.body?.dueDate ? new Date(req.body.dueDate) : null;
+  if (req.body?.dueDate && Number.isNaN(dueDate.getTime()))
+    return res.status(400).json({ message: "Task due date is invalid." });
+  const assignedTo = req.body?.assignedTo || null;
+  if (assignedTo && (typeof assignedTo !== "string" || !mongoose.Types.ObjectId.isValid(assignedTo)))
+    return res.status(400).json({ message: "Assigned staff member is invalid." });
+
   req.validated = {
     text,
     visibility: visibility || "public",
     isTask: Boolean(isTask),
     taskStatus: taskStatus || (isTask ? "pending" : undefined),
+    dueDate: isTask ? dueDate : null,
+    assignedTo: isTask ? assignedTo : null,
   };
   return next();
 };
 
 const validateNoteUpdate = (req, res, next) => {
   const changes = {};
-  const { text, resolved, pinned, visibility, isTask, taskStatus, completedBy } =
+  const { text, resolved, pinned, visibility, isTask, taskStatus, completedBy, dueDate, assignedTo } =
     req.body ?? {};
 
   if (text !== undefined) {
@@ -205,6 +210,20 @@ const validateNoteUpdate = (req, res, next) => {
         .status(400)
         .json({ message: "Task status must be 'pending' or 'done'." });
     changes.taskStatus = taskStatus;
+  }
+
+  if (dueDate !== undefined) {
+    const parsed = dueDate ? new Date(dueDate) : null;
+    if (dueDate && Number.isNaN(parsed.getTime()))
+      return res.status(400).json({ message: "Task due date is invalid." });
+    changes.dueDate = parsed;
+  }
+
+  if (assignedTo !== undefined) {
+    if (assignedTo !== null && assignedTo !== "" &&
+      (typeof assignedTo !== "string" || !mongoose.Types.ObjectId.isValid(assignedTo)))
+      return res.status(400).json({ message: "Assigned staff member is invalid." });
+    changes.assignedTo = assignedTo || null;
   }
 
   // Free-text name a staff member enters when marking a task done. The

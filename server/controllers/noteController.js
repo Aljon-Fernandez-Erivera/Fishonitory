@@ -1,9 +1,11 @@
 const Note = require("../models/Note");
+const User = require("../models/User");
 const getOwnerId = require("../utils/ownerScope");
 const { writeAudit } = require("../utils/audit");
 
 const NOTE_ROLES = ["Owner", "masterStaff", "Staff"];
 const AUTHOR_FIELDS = "ownerName staffName staffPosition role";
+const ASSIGNEE_FIELDS = "staffName staffPosition role";
 
 const canModerate = (role) => role === "Owner" || role === "masterStaff";
 
@@ -35,6 +37,7 @@ exports.listNotes = async (req, res) => {
 
   const notes = await Note.find(matcher)
     .populate("authorId", AUTHOR_FIELDS)
+    .populate("assignedTo", ASSIGNEE_FIELDS)
     .sort({ pinned: -1, createdAt: -1 })
     .lean();
 
@@ -50,18 +53,34 @@ exports.listNotes = async (req, res) => {
 exports.createNote = async (req, res) => {
   const ownerId = await resolveScope(req, res);
   if (!ownerId) return undefined;
+  if (req.validated.isTask && !canModerate(req.user.role))
+    return res.status(403).json({ message: "Only the owner or a master staff can create tasks." });
+
+  const { assignedTo, ...validated } = req.validated;
+  if (assignedTo) {
+    const assignee = await User.findOne({
+      _id: assignedTo,
+      ownerId,
+      role: { $in: ["Staff", "masterStaff"] },
+      accountStatus: "Active",
+    }).select("_id").lean();
+    if (!assignee) return res.status(400).json({ message: "Choose a staff member from this business." });
+  }
 
   const created = await Note.create({
     ownerId,
     authorId: req.user.userId,
+    ...validated,
     text: req.validated.text,
     visibility: req.validated.visibility || "public",
     isTask: Boolean(req.validated.isTask),
     taskStatus: req.validated.isTask ? (req.validated.taskStatus || "pending") : "pending",
+    assignedTo: req.validated.isTask ? assignedTo : null,
   });
 
   const note = await Note.findById(created._id)
     .populate("authorId", AUTHOR_FIELDS)
+    .populate("assignedTo", ASSIGNEE_FIELDS)
     .lean();
 
   await writeAudit(req, "CREATE", "Announcement", created._id, "Announcement board post created.");
@@ -79,6 +98,16 @@ exports.updateNote = async (req, res) => {
   const isAuthor = idOf(existing.authorId) === String(req.user.userId);
   const changes = { ...req.validated };
 
+  if (changes.assignedTo) {
+    const assignee = await User.findOne({
+      _id: changes.assignedTo,
+      ownerId,
+      role: { $in: ["Staff", "masterStaff"] },
+      accountStatus: "Active",
+    }).select("_id").lean();
+    if (!assignee) return res.status(400).json({ message: "Choose a staff member from this business." });
+  }
+
   if (changes.text !== undefined && !isAuthor && !moderator)
     return res
       .status(403)
@@ -95,6 +124,22 @@ exports.updateNote = async (req, res) => {
     return res
       .status(403)
       .json({ message: "Only the owner or a master staff can turn a note into a task." });
+
+  if ((changes.dueDate !== undefined || changes.assignedTo !== undefined) && !moderator)
+    return res.status(403).json({ message: "Only the owner or a master staff can update task details." });
+
+  if (changes.isTask === false) {
+    changes.dueDate = null;
+    changes.assignedTo = null;
+  }
+  if (
+    (changes.dueDate !== undefined || changes.assignedTo !== undefined) &&
+    existing.isTask !== true &&
+    changes.isTask !== true &&
+    changes.isTask !== false
+  ) {
+    return res.status(400).json({ message: "Task details can only be added to a task." });
+  }
 
   // Marking a task done needs a name attached so the owner can see who
   // finished it — mirrors the "shared task, name required" flow requested.
@@ -118,6 +163,7 @@ exports.updateNote = async (req, res) => {
     { new: true, runValidators: true },
   )
     .populate("authorId", AUTHOR_FIELDS)
+    .populate("assignedTo", ASSIGNEE_FIELDS)
     .lean();
 
   await writeAudit(req, "UPDATE", "Announcement", note._id, "Announcement board post updated.");

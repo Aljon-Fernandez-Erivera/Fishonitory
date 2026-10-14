@@ -150,13 +150,14 @@ function OwnerOverview({
           <article
             key={stat.label}
             className={`
+              dashboard-stat-card
               min-w-0
               rounded-2xl
               border border-sky-100/15
               bg-[#062d48]/80
               px-4 py-4
               shadow-[inset_0_1px_0_rgba(255,255,255,.04),0_8px_25px_rgba(0,12,31,.12)]
-              sm:p-5
+              sm:p-4
 
               ${index === 4 ? "col-span-2 sm:col-span-1" : ""}
             `}
@@ -170,7 +171,7 @@ function OwnerOverview({
                 font-semibold
                 uppercase
                 tracking-[0.12em]
-                text-[#91b5bf]
+                text-[#b0cbd1]
                 sm:text-xs
               "
             >
@@ -201,7 +202,7 @@ function OwnerOverview({
                 font-['Poppins']
                 text-[10px]
                 leading-4
-                text-[#719ba8]
+                text-[#a6c3cb]
                 sm:text-xs
               "
             >

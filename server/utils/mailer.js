@@ -155,7 +155,7 @@ exports.sendRegistrationReceivedEmail = async (owner) => {
     paragraphs: [
       `Hi ${owner.ownerName},`,
       `Thank you for registering ${owner.businessName} on Fishonitory. We received your details and your business permit.`,
-      "Our team will review your permit. You will not be able to sign in until the review is finished, and you don't need to do anything else right now.",
+      "Our team will review your permit within 1–2 business days. You will not be able to sign in until the review is finished, and you don't need to do anything else right now.",
       "We will email you at this address as soon as a decision is made, whether approved or not. If you don't see our email, please check your spam folder.",
       supportLine(),
     ],
@@ -226,6 +226,35 @@ exports.sendRejectionEmail = async (owner, reason) => {
   return sendEmail({
     to: owner.email,
     subject: "Fishonitory - Update on your business registration",
+    html,
+    text,
+  });
+};
+
+const orderStatusLabels = {
+  pending: "Order received",
+  preparing: "Being prepared",
+  ready_for_pickup: "Ready for pickup",
+  out_for_delivery: "Out for delivery",
+  fulfilled: "Fulfilled",
+};
+
+exports.sendOrderStatusEmail = async (order) => {
+  const status = orderStatusLabels[order.deliveryStatus] || order.deliveryStatus;
+  const { html, text } = buildNotice({
+    title: `Order update: ${status}`,
+    paragraphs: [
+      `Hi ${order.customerName},`,
+      `Your order from ${order.businessName} has been updated. Its current status is: ${status}.`,
+      `Fulfillment: ${order.deliveryMethod === "pickup" ? "Pickup at the store" : order.deliveryMethod === "rider" ? "Rider delivery" : `Courier delivery${order.courierName ? ` (${order.courierName})` : ""}`}.`,
+      `Order total: ${new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" }).format(Number(order.total) || 0)}.`,
+    ],
+    footer: `${order.businessName} · Order update`,
+  });
+
+  return sendEmail({
+    to: order.customerEmail,
+    subject: `${order.businessName} - Order status: ${status}`,
     html,
     text,
   });

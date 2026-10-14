@@ -173,6 +173,7 @@ exports.getOverviewStats = async (req, res) => {
       rejectedOwners,
       disabledAccounts,
       businessesThisMonth,
+      businessesLastMonth,
       oldestPending,
     ] = await Promise.all([
       User.countDocuments({ role: "Owner" }),
@@ -181,6 +182,13 @@ exports.getOverviewStats = async (req, res) => {
       User.countDocuments({ role: "Owner", accountStatus: "Rejected" }),
       User.countDocuments({ accountStatus: "Disabled" }),
       User.countDocuments({ role: "Owner", createdAt: { $gte: startOfMonth } }),
+      User.countDocuments({
+        role: "Owner",
+        createdAt: {
+          $gte: new Date(now.getFullYear(), now.getMonth() - 1, 1),
+          $lt: startOfMonth,
+        },
+      }),
       User.findOne({ role: "Owner", accountStatus: "Pending Verification" })
         .sort({ createdAt: 1 })
         .select("createdAt")
@@ -200,6 +208,7 @@ exports.getOverviewStats = async (req, res) => {
       rejectedOwners,
       disabledAccounts,
       businessesThisMonth,
+      businessesLastMonth,
 
       // New / clearer fields for the overview cards.
       registeredOwners: totalOwners,

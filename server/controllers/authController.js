@@ -10,7 +10,10 @@ const { cookieNameForRole } = require("../middleware/authMiddleware");
 const { writeAudit } = require("../utils/audit");
 const { getManilaDateKey } = require("../utils/dateKey");
 const crypto = require("crypto");
-const { sendPasswordChangeCodeEmail } = require("../utils/mailer");
+const {
+  sendPasswordChangeCodeEmail,
+  sendRegistrationReceivedEmail,
+} = require("../utils/mailer");
 const { checkNewPassword, isUsablePasswordInput } = require("../utils/validators");
 
 const {
@@ -56,10 +59,6 @@ function secondsUntil(date) {
 }
 
 function setAuthCookie(res, token, role) {
-  // Cross-site cookies (frontend and backend on different domains, as in
-  // production: Vercel + Render) require SameSite=None, which itself
-  // requires Secure. Locally, frontend and backend share "localhost" so
-  // Lax still works there.
   const sameSite = config.nodeEnv === "production" ? "None" : "Lax";
   const secure = config.nodeEnv === "production" ? "; Secure" : "";
   res.setHeader("Set-Cookie", [
@@ -243,7 +242,7 @@ async function verifyRecoveryCode(user, recoveryCode) {
 // why this replaced Nodemailer/Gmail SMTP (Render blocks SMTP ports on its
 // free tier) and Resend (shared sender restricted to your own email until
 // domain verification).
-const BREVO_API_KEY = process.env.BREVO_API_KEY;
+const BREVO_API_KEY = process.env.BREVO_API_KEY;  
 const EMAIL_FROM = process.env.EMAIL_FROM;
 const EMAIL_FROM_NAME = process.env.EMAIL_FROM_NAME || "Fishonitory";
 
@@ -491,9 +490,15 @@ exports.verifyAndRegister = async (req, res) => {
     await newUser.save();
     pendingOTPs.delete(email);
 
+    const { error: notificationError } = await sendRegistrationReceivedEmail(newUser);
+    if (notificationError) {
+      console.error("Registration received email failed:", notificationError);
+    }
+
     res.status(201).json({
-      message:
-        "Your business permit has been submitted. Your account will be reviewed and you'll be able to log in once it's approved.",
+      message: notificationError
+        ? "Your business permit has been submitted. Your account will be reviewed within 1–2 business days. We could not send the confirmation email, so please check your registered address later for the decision."
+        : "Your business permit has been submitted. Your account will be reviewed within 1–2 business days. We sent a confirmation email; please check your inbox or spam folder.",
     });
   } catch (err) {
     console.error("--- VERIFY / REGISTER ERROR DETAILS ---");

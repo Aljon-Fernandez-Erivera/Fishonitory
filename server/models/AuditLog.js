@@ -4,8 +4,9 @@ const auditLogSchema = new mongoose.Schema(
     ownerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      default: null,
     },
+    scope: { type: String, enum: ["business", "platform"], default: "business", index: true },
 
     actorId: {
       type: mongoose.Schema.Types.ObjectId,

@@ -22,14 +22,14 @@ function RegistrationAnalytics({ data = [] }) {
             Registration Trend
           </h2>
 
-          <p className="mt-1 font-['Poppins'] text-xs text-white/50">
+          <p className="mt-1 font-['Poppins'] text-xs text-[#c6dbe0]">
             New business registrations over the last 6 months
           </p>
         </div>
 
         <div className="flex gap-5">
           <div>
-            <p className="font-['Poppins'] text-[10px] uppercase tracking-wider text-white/40">
+            <p className="font-['Poppins'] text-[10px] uppercase tracking-wider text-[#c0d6dc]">
               Total
             </p>
 
@@ -39,7 +39,7 @@ function RegistrationAnalytics({ data = [] }) {
           </div>
 
           <div>
-            <p className="font-['Poppins'] text-[10px] uppercase tracking-wider text-white/40">
+            <p className="font-['Poppins'] text-[10px] uppercase tracking-wider text-[#c0d6dc]">
               Monthly Avg.
             </p>
 
@@ -86,7 +86,7 @@ function RegistrationAnalytics({ data = [] }) {
                   </div>
 
                   <div className="mt-3 text-center">
-                    <span className="font-['Poppins'] text-[11px] font-medium text-white/45">
+                    <span className="font-['Poppins'] text-[11px] font-medium text-[#c6dbe0]">
                       {item.label}
                     </span>
                   </div>
@@ -97,7 +97,7 @@ function RegistrationAnalytics({ data = [] }) {
         </div>
       ) : (
         <div className="flex h-40 items-center justify-center">
-          <p className="font-['Poppins'] text-sm text-white/40">
+          <p className="font-['Poppins'] text-sm text-[#b4cbd2]">
             No registration data available.
           </p>
         </div>

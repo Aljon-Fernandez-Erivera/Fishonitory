@@ -6,8 +6,7 @@ module.exports = validate((req) => {
 
   if (route === "/send-otp") {
     email(body.email);
-    // The password is collected in step 1, so reject a weak one before an OTP
-    // is sent instead of after the user has verified their email.
+    // The password is collected in step 1, so reject a weak one before an OTP is sent instead of after the user has verified their email.
     password(body.password, "Password", { email: body.email });
     return;
   }

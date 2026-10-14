@@ -75,10 +75,16 @@ function sanitizeContentInput(value, { multiline = false } = {}) {
 function AboutContactPanel({ section = "all", editable = false, onSave }) {
   const [content, setContent] = useState(initialContent);
   const [savedContent, setSavedContent] = useState(initialContent);
+  const [saved, setSaved] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [saved, setSaved] = useState("");
+
+  useEffect(() => {
+    if (!saved) return undefined;
+    const timer = window.setTimeout(() => setSaved(""), 4000);
+    return () => window.clearTimeout(timer);
+  }, [saved]);
 
   useEffect(() => {
     let active = true;
@@ -155,7 +161,6 @@ function AboutContactPanel({ section = "all", editable = false, onSave }) {
     }
     setSaving(true);
     setError("");
-    setSaved("");
     try {
       const result = await onSave(content);
       const nextContent = {
@@ -226,22 +231,27 @@ function AboutContactPanel({ section = "all", editable = false, onSave }) {
         </p>
       )}
       {saved && (
-        <p
+        <div
+          className="app-notification-toast app-notification-toast--success"
           role="status"
-          className="rounded-xl border border-[#75bec4]/30 bg-[#75bec4]/10 px-4 py-3 text-sm text-[#c9e8e9]"
+          aria-live="polite"
         >
-          {saved}
-        </p>
+          <span className="app-notification-toast__icon" aria-hidden="true">
+            {"\u2713"}
+          </span>
+          <span>{saved}</span>
+        </div>
       )}
-
       {aboutVisible && (
         <section
           aria-labelledby="about-panel-title"
           className="overflow-hidden rounded-3xl border border-sky-100/10 bg-[radial-gradient(circle_at_90%_10%,rgba(115,196,202,.17),transparent_38%),linear-gradient(135deg,rgba(6,45,72,.96),rgba(3,30,50,.92))] shadow-[0_20px_55px_rgba(0,12,31,.2)]"
         >
-          <div className={`grid gap-8 p-6 sm:p-9 lg:p-11 ${
+          <div
+            className={`grid gap-8 p-6 sm:p-9 lg:p-11 ${
               editable ? "lg:grid-cols-2" : "lg:grid-cols-[1.15fr_.85fr]"
-            }`}>
+            }`}
+          >
             <div>
               <p
                 className={`font-['Poppins'] text-[10px] font-semibold uppercase tracking-[.2em] text-[#73c4ca] ${
@@ -270,20 +280,20 @@ function AboutContactPanel({ section = "all", editable = false, onSave }) {
                 </>
               )}
               {!editable && (
-              <div className="mt-7 flex flex-wrap gap-2">
-                {[
-                  "Tank & livestock records",
-                  "Sales & inventory",
-                  "Staff operations",
-                ].map((tag) => (
-                  <span
-                    key={tag}
-                    className="rounded-full border border-sky-100/15 bg-white/[.04] px-3 py-1.5 font-['Poppins'] text-[11px] text-[#c9e1e5]"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
+                <div className="mt-7 flex flex-wrap gap-2">
+                  {[
+                    "Tank & livestock records",
+                    "Sales & inventory",
+                    "Staff operations",
+                  ].map((tag) => (
+                    <span
+                      key={tag}
+                      className="rounded-full border border-sky-100/15 bg-white/[.04] px-3 py-1.5 font-['Poppins'] text-[11px] text-[#c9e1e5]"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
               )}
             </div>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
@@ -292,7 +302,11 @@ function AboutContactPanel({ section = "all", editable = false, onSave }) {
                   Our mission
                 </p>
                 <div className="mt-3 font-['Poppins'] text-sm leading-6 text-[#c9e1e5]">
-                  {editable ? field("mission", { hideLabel: true }) : <p>{content.mission}</p>}
+                  {editable ? (
+                    field("mission", { hideLabel: true })
+                  ) : (
+                    <p>{content.mission}</p>
+                  )}
                 </div>
               </article>
               <article className="rounded-2xl border border-sky-100/10 bg-white/[.045] p-5">
@@ -300,7 +314,11 @@ function AboutContactPanel({ section = "all", editable = false, onSave }) {
                   Our vision
                 </p>
                 <div className="mt-3 font-['Poppins'] text-sm leading-6 text-[#c9e1e5]">
-                  {editable ? field("vision", { hideLabel: true }) : <p>{content.vision}</p>}
+                  {editable ? (
+                    field("vision", { hideLabel: true })
+                  ) : (
+                    <p className="whitespace-pre-line">{content.vision}</p>
+                  )}
                 </div>
               </article>
             </div>

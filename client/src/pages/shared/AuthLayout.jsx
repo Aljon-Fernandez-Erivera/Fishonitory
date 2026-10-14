@@ -2,21 +2,29 @@ import { Link } from "react-router-dom";
 import { useAuth } from "./useAuth.js";
 
 export function BrandLogo() {
+
+  const handleClick = (event) => {
+    event.preventDefault();
+    if (window.location.pathname === "/") window.location.reload();
+    else window.location.assign("/");
+  };
+
   return (
-    <Link
-      to="/"
+    <a
+      href="/"
+      onClick={handleClick}
       aria-label="Fishonitory home"
-      className="flex shrink-0 items-center gap-2 no-underline sm:gap-2.5"
+      className="flex shrink-0 items-center gap-2.5 no-underline"
     >
       <img
         src="/LOGO.svg"
         alt=""
-        className="block h-9 w-9 shrink-0 object-contain sm:h-10 sm:w-10"
+        className="block h-9 w-9 shrink-0 object-contain"
       />
-      <span className="font-['Sansita'] text-lg font-extrabold italic uppercase leading-none tracking-wide text-[#e0f0f3] sm:text-xl">
+      <span className="font-['Sansita'] text-[19px] font-extrabold italic uppercase leading-none tracking-wide text-[#e0f0f3] sm:text-[21px]">
         Fishonitory
       </span>
-    </Link>
+    </a>
   );
 }
 

@@ -25,7 +25,6 @@ function DashboardHeader({ title, currentTime, syncing = false, children }) {
           {currentTime.toLocaleTimeString("en-PH", {
             hour: "numeric",
             minute: "2-digit",
-            second: "2-digit",
           })}
         </span>
         {children}

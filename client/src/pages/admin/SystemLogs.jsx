@@ -57,7 +57,7 @@ function SystemLogs({ logs, pagination, onPageChange }) {
                   </td>
 
                   <td className="px-5 py-3">
-                    {log.ownerId?.businessName || "—"}
+                    {log.scope === "platform" ? "Platform-wide" : log.ownerId?.businessName || "—"}
                   </td>
 
                   <td className="px-5 py-3">

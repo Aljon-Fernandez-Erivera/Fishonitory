@@ -11,7 +11,8 @@ import { formatPeso, getDefaultSalesRange } from "../shared/salesUtils.js";
 import { API_URL } from "../../config.js";
 import "../../css/owner-dashboard-layout.css";
 import NotificationBell from "../shared/NotificationBell.jsx";
-import { oceanicNotice, showOceanicLogoutConfirm } from "../../utils/oceanicSwal.js";
+import DashboardToast from "../../components/DashboardToast.jsx";
+import { showOceanicLogoutConfirm } from "../../utils/oceanicSwal.js";
 
 // Choices para sa mga fish tank statuses na pwedeng i-update ng staff sa dashboard.
 const tankStatuses = [
@@ -102,6 +103,7 @@ function StaffDashboard() {
 
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [toastNotice, setToastNotice] = useState(null);
   const [timeClock, setTimeClock] = useState({ email: "", password: "" });
   const [timeClockBusy, setTimeClockBusy] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -109,35 +111,29 @@ function StaffDashboard() {
   const [currentTime, setCurrentTime] = useState(() => new Date());
 
   useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
     return () => clearInterval(timer);
   }, []);
 
   useEffect(() => {
     if (!message) return undefined;
-    oceanicNotice(message, "", "success", {
-      toast: true,
-      position: "top-end",
-      showConfirmButton: false,
-      timer: 5000,
-      timerProgressBar: true,
-    });
+    setToastNotice({ type: "success", title: message });
     const timer = window.setTimeout(() => setMessage(""), 5000);
     return () => window.clearTimeout(timer);
   }, [message]);
 
   useEffect(() => {
     if (!error) return undefined;
-    oceanicNotice(error, "", "error", {
-      toast: true,
-      position: "top-end",
-      showConfirmButton: false,
-      timer: 5000,
-      timerProgressBar: true,
-    });
+    setToastNotice({ type: "error", title: error });
     const timer = window.setTimeout(() => setError(""), 5000);
     return () => window.clearTimeout(timer);
   }, [error]);
+
+  useEffect(() => {
+    if (!toastNotice) return undefined;
+    const timer = window.setTimeout(() => setToastNotice(null), 4000);
+    return () => window.clearTimeout(timer);
+  }, [toastNotice]);
 
   const fishInventory = fish.filter(
     (item) => (item.category || "Fish") !== "Fish Food",
@@ -488,17 +484,18 @@ function StaffDashboard() {
         onLogout={async () => {
           const result = await showOceanicLogoutConfirm(async () => {
             await logout();
-            window.location.replace("/login");
+            window.location.replace("/");
           });
           if (result.isConfirmed) {
             await logout();
-            window.location.replace("/login");
+            window.location.replace("/");
           }
         }}
       />
 
       {/* MAIN WORKSPACE AREA */}
       <div className="owner-workspace flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        <DashboardToast notice={toastNotice} />
         <DashboardHeader title="OPERATIONS CONTROL CENTER" currentTime={currentTime}>
 <NotificationBell
               notes={notes}
@@ -517,20 +514,20 @@ function StaffDashboard() {
           {activePage === "overview" && (
             <div className="space-y-6">
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <article className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-5 shadow-[0_14px_35px_rgba(0,12,31,.14)]">
-                  <span className="font-['Poppins'] text-xs font-medium uppercase tracking-[0.12em] text-[#91b5bf]">
+                <article className="dashboard-stat-card rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-4 shadow-[0_14px_35px_rgba(0,12,31,.14)]">
+                  <span className="font-['Poppins'] text-xs font-medium uppercase tracking-[0.12em] text-[#b0cbd1]">
                     Fish Species
                   </span>
                   <strong className="mt-1 block font-['Fraunces'] text-4xl font-bold text-[#d9ecef]">
                     {fishTypesCount}
                   </strong>
-                  <small className="font-['Poppins'] text-[11px] text-[#6f9ca5]">
+                  <small className="font-['Poppins'] text-[11px] text-[#a6c3cb]">
                     Unique fish listed
                   </small>
                 </article>
 
-                <article className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-5 shadow-[0_14px_35px_rgba(0,12,31,.14)]">
-                  <span className="font-['Poppins'] text-xs font-medium uppercase tracking-[0.12em] text-[#91b5bf]">
+                <article className="dashboard-stat-card rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-4 shadow-[0_14px_35px_rgba(0,12,31,.14)]">
+                  <span className="font-['Poppins'] text-xs font-medium uppercase tracking-[0.12em] text-[#b0cbd1]">
                     Total Fish Stock
                   </span>
                   <strong className="mt-1 block font-['Fraunces'] text-4xl font-bold text-[#d9ecef]">
@@ -539,31 +536,31 @@ function StaffDashboard() {
                       0,
                     )}
                   </strong>
-                  <small className="font-['Poppins'] text-[11px] text-[#6f9ca5]">
+                  <small className="font-['Poppins'] text-[11px] text-[#a6c3cb]">
                     Available live units
                   </small>
                 </article>
 
-                <article className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-5 shadow-[0_14px_35px_rgba(0,12,31,.14)]">
-                  <span className="font-['Poppins'] text-xs font-medium uppercase tracking-[0.12em] text-[#91b5bf]">
+                <article className="dashboard-stat-card rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-4 shadow-[0_14px_35px_rgba(0,12,31,.14)]">
+                  <span className="font-['Poppins'] text-xs font-medium uppercase tracking-[0.12em] text-[#b0cbd1]">
                     Food Supplies
                   </span>
                   <strong className="mt-1 block font-['Fraunces'] text-4xl font-bold text-[#d9ecef]">
                     {food.reduce((sum, item) => sum + item.quantity, 0)}
                   </strong>
-                  <small className="font-['Poppins'] text-[11px] text-[#6f9ca5]">
+                  <small className="font-['Poppins'] text-[11px] text-[#a6c3cb]">
                     Feed inventory units
                   </small>
                 </article>
 
-                <article className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-5 shadow-[0_14px_35px_rgba(0,12,31,.14)]">
-                  <span className="font-['Poppins'] text-xs font-medium uppercase tracking-[0.12em] text-[#91b5bf]">
+                <article className="dashboard-stat-card rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-4 shadow-[0_14px_35px_rgba(0,12,31,.14)]">
+                  <span className="font-['Poppins'] text-xs font-medium uppercase tracking-[0.12em] text-[#b0cbd1]">
                     Total Tanks
                   </span>
                   <strong className="mt-1 block font-['Fraunces'] text-4xl font-bold text-[#d9ecef]">
                     {tanks.length}
                   </strong>
-                  <small className="font-['Poppins'] text-[11px] text-[#6f9ca5]">
+                  <small className="font-['Poppins'] text-[11px] text-[#a6c3cb]">
                     Active store tanks
                   </small>
                 </article>
@@ -1417,6 +1414,12 @@ function StaffDashboard() {
                           )}
                         </div>
                         <div>{item.text}</div>
+                        {item.isTask && (item.dueDate || item.assignedTo) && (
+                          <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-[#b0cbd1]">
+                            {item.dueDate && <span>Due {new Date(item.dueDate).toLocaleDateString()}</span>}
+                            {item.assignedTo && <span>Assigned to {item.assignedTo.staffName}</span>}
+                          </div>
+                        )}
                         {item.isTask && (
                           <button
                             type="button"
@@ -1480,6 +1483,12 @@ function StaffDashboard() {
                       :
                     </span>{" "}
                     {item.text}
+                    {item.isTask && (item.dueDate || item.assignedTo) && (
+                      <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-[#b0cbd1]">
+                        {item.dueDate && <span>Due {new Date(item.dueDate).toLocaleDateString()}</span>}
+                        {item.assignedTo && <span>Assigned to {item.assignedTo.staffName}</span>}
+                      </div>
+                    )}
                     {item.isTask && (
                       <button
                         type="button"

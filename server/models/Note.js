@@ -38,6 +38,8 @@ const noteSchema = new mongoose.Schema(
       default: "pending",
       index: true,
     },
+    dueDate: { type: Date, default: null },
+    assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
     completedBy: { type: String, trim: true, maxlength: 120, default: "" },
     resolved: { type: Boolean, default: false },
     pinned: { type: Boolean, default: false },
