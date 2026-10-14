@@ -1,3 +1,5 @@
+import DashboardSidebar from "../../components/DashboardSidebar.jsx";
+import DashboardHeader from "../../components/DashboardHeader.jsx";
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "../shared/useAuth.js";
 import { useSearchParams } from "react-router-dom";
@@ -45,25 +47,6 @@ async function apiRequest(path, options = {}) {
 // title #8fc5cb 9.1:1, description #8fb3ba 7.7:1 (all WCAG AAA).
 // On mobile the sidebar is a horizontal strip, so the heading is hidden and
 // the wrappers use `display: contents` to keep buttons as direct row items.
-function SidebarGroup({ title, description, children }) {
-  return (
-    <div className="contents md:block">
-      <div className="hidden px-3 pb-1.5 pt-4 md:block">
-        <p className="m-0 font-['Poppins'] text-[0.68rem] font-semibold uppercase tracking-[.14em] text-[#8fc5cb]">
-          {title}
-        </p>
-        {description && (
-          <p className="m-0 mt-1 font-['Poppins'] text-[0.72rem] leading-snug text-[#8fb3ba]">
-            {description}
-          </p>
-        )}
-      </div>
-      <div className="contents md:flex md:flex-col md:gap-0.5 md:pl-3">
-        {children}
-      </div>
-    </div>
-  );
-}
 
 function AdminDashboard() {
   const { user, authReady, logout } = useAuth();
@@ -686,26 +669,13 @@ function AdminDashboard() {
      SIDEBAR NAVIGATION
   ========================================================= */
 
-  const navButtonClass = (page) => {
-    return `dashboard-nav-link ${activePage === page ? "is-active" : ""}`;
-  };
-
-  // Shared builder for sidebar buttons.
-  const navItem = (page, label, extra = null) => (
-    <button
-      key={page}
-      className={navButtonClass(page)}
-      type="button"
-      aria-current={activePage === page ? "page" : undefined}
-      onClick={() => {
-        setActivePage(page);
-        setSidebarOpen(false);
-      }}
-    >
-      {label}
-      {extra}
-    </button>
-  );
+  // Underline-style tabs for the Settings page (active = teal line, white text).
+  const settingsTabClass = (tab) =>
+    `-mb-px border-0 border-b-2 bg-transparent px-4 py-2 font-['Poppins'] text-sm transition cursor-pointer ${
+      settingsTab === tab
+        ? "border-[#75bec4] font-semibold text-white"
+        : "border-transparent text-[#b8d8dd] hover:border-cyan-100/30 hover:text-white"
+    }`;
 
   const saveAboutContact = (content) => apiRequest("/site-content", {
     method: "PATCH",
@@ -723,180 +693,45 @@ function AdminDashboard() {
   ========================================================= */
 
   return (
-    <main className="owner-dashboard-main box-border flex h-[100dvh] min-h-0 w-full flex-col overflow-hidden bg-[radial-gradient(circle_at_88%_12%,#0a5267_0%,#08465d_42%,#021a31_100%)] text-[#c9e1e5] md:flex-row">
-      {/* Mobile menu button */}
-      <button
-        type="button"
-        aria-label={
-          sidebarOpen ? "Close dashboard menu" : "Open dashboard menu"
-        }
-        aria-expanded={sidebarOpen}
-        className={`owner-mobile-menu-toggle ${sidebarOpen ? "is-open" : ""}`}
-        onClick={() => setSidebarOpen((open) => !open)}
-      >
-        <span />
-        <span />
-        <span />
-      </button>
-
-      {/* Mobile backdrop */}
-      <div
-        className={`owner-mobile-backdrop ${sidebarOpen ? "is-visible" : ""}`}
-        onClick={() => setSidebarOpen(false)}
-        aria-hidden="true"
+    <main className="owner-dashboard-main box-border flex h-[100dvh] min-h-0 w-full flex-col md:flex-row overflow-hidden bg-[radial-gradient(circle_at_88%_12%,#0a5267_0%,#08465d_42%,#021a31_100%)] text-[#c9e1e5]">
+      <DashboardSidebar
+        sidebarOpen={sidebarOpen}
+        onToggle={() => setSidebarOpen((open) => !open)}
+        onClose={() => setSidebarOpen(false)}
+        activePage={activePage}
+        onNavigate={(page) => { setActivePage(page); setSidebarOpen(false); }}
+        navigationLabel="Admin dashboard navigation"
+        brandSubtitle="Super Admin console"
+        refreshLabel="Refresh admin console"
+        thinScrollbar={false}
+        groups={[
+          { items: [{ page: "overview", label: "Overview" }] },
+          { title: "Review queue", description: "Check new applications", items: [{ page: "pending", label: "Pending Verifications", badge: pendingPagination.total > 0 && <span className="ml-2 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-400 px-1 text-[10px] font-bold text-[#3a2900]">{pendingPagination.total}</span> }] },
+          { title: "Business directory", description: "View approved businesses", items: [{ page: "businesses", label: "Active Businesses" }] },
+          { title: "Account directory", description: "Manage registered users", items: [{ page: "accounts", label: "All Accounts" }] },
+          { title: "System tools", description: "Logs and console settings", items: [{ page: "logs", label: "System Logs" }, { page: "settings", label: "Settings" }] },
+        ]}
+        identity={{ avatar: user?.email || "A", title: "Super Admin", subtitle: user?.email }}
+        onLogout={async () => {
+          const result = await showOceanicLogoutConfirm(async () => {
+            await logout();
+            window.location.replace("/login");
+          });
+          if (result.isConfirmed) {
+            await logout();
+            window.location.replace("/login");
+          }
+        }}
       />
-
-      {/* =====================================================
-          SIDEBAR
-      ===================================================== */}
-
-      <aside
-        className={`owner-sidebar box-border flex w-full shrink-0 flex-col overflow-hidden border-b border-cyan-100/[.08] bg-[#021d2e] px-4 py-3 md:h-full md:w-56 md:border-b-0 md:border-r md:px-3 md:pt-4 md:pb-4 ${
-          sidebarOpen ? "is-open" : ""
-        }`}
-      >
-        {/* Logo */}
-        <button
-          type="button"
-          onClick={() => window.location.reload()}
-          aria-label="Refresh admin console"
-          title="Refresh"
-          className="cursor-pointer flex shrink-0 items-center gap-2.5 rounded-lg border-0 bg-transparent px-1 py-1 text-left transition hover:bg-white/[.04] focus:outline-none focus:ring-2 focus:ring-[#73c4ca]"
-        >
-          <img
-            src="/LOGO.svg"
-            alt="Fishonitory"
-            className="h-10 w-10 object-contain"
-          />
-
-          <div>
-            <strong className="block font-['Poppins'] text-[0.9rem] font-medium text-[#cde4e6]">
-              Fishonitory
-            </strong>
-
-            <small className="block font-['Poppins'] text-[0.7rem] text-[#8fb3ba]">
-              Super Admin console
-            </small>
-          </div>
-        </button>
-
-        {/* Navigation */}
-        <nav
-          className="mt-4 flex min-w-0 gap-0.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:mt-6 md:min-h-0 md:flex-1 md:flex-col md:overflow-y-auto md:overflow-x-hidden md:pr-1"
-          aria-label="Admin dashboard navigation"
-        >
-          {navItem("overview", "Overview")}
-
-          <SidebarGroup
-            title="Review queue"
-            description="Check new applications"
-          >
-            {navItem(
-              "pending",
-              "Pending Verifications",
-              pendingPagination.total > 0 && (
-                <span className="ml-2 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-400 px-1 text-[10px] font-bold text-[#3a2900]">
-                  {pendingPagination.total}
-                </span>
-              ),
-            )}
-          </SidebarGroup>
-
-          <SidebarGroup
-            title="Business directory"
-            description="View approved businesses"
-          >
-            {navItem("businesses", "Active Businesses")}
-          </SidebarGroup>
-
-          <SidebarGroup
-            title="Account directory"
-            description="Manage registered users"
-          >
-            {navItem("accounts", "All Accounts")}
-          </SidebarGroup>
-
-          <SidebarGroup
-            title="System tools"
-            description="Logs and console settings"
-          >
-            {navItem("logs", "System Logs")}
-            {navItem("settings", "Settings")}
-          </SidebarGroup>
-        </nav>
-
-        {/* User / Logout */}
-        <div className="mt-auto shrink-0 border-t border-cyan-100/[.08] pt-2.5 pb-0.5 md:pt-3 md:pb-1">
-          <div className="flex items-center gap-2.5 rounded-lg p-1.5">
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#75bec4]/20 font-['Poppins'] text-sm font-semibold text-[#bce9e9]">
-              {(user?.email || "A").trim().charAt(0).toUpperCase()}
-            </span>
-
-            <div className="min-w-0 flex-1">
-              <p className="truncate font-['Poppins'] text-[0.78rem] font-medium text-[#cde4e6]">
-                Super Admin
-              </p>
-
-              <p className="truncate font-['Poppins'] text-[0.7rem] text-[#8fb3ba]">
-                {user?.email}
-              </p>
-            </div>
-          </div>
-
-          <button
-            className="mt-2.5 w-full rounded-lg border border-cyan-100/10 bg-white/[.05] px-3 py-2 text-center font-['Poppins'] text-[0.75rem] font-medium text-[#b8d8dd] outline-none transition hover:border-red-200/25 hover:bg-red-200/10 hover:text-red-100 cursor-pointer"
-            type="button"
-            onClick={async () => {
-              const result = await showOceanicLogoutConfirm(async () => {
-                await logout();
-                window.location.replace("/login");
-              });
-
-              if (result.isConfirmed) {
-                await logout();
-                window.location.replace("/login");
-              }
-            }}
-          >
-            Logout
-          </button>
-        </div>
-      </aside>
 
       {/* =====================================================
           WORKSPACE
       ===================================================== */}
-
-      <div className="owner-workspace min-h-0 min-w-0 flex-1 overflow-y-auto px-4 py-6 sm:px-5 lg:px-5 lg:py-8">
+      <div className="owner-workspace flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        <DashboardHeader title="PLATFORM ADMINISTRATION" currentTime={currentTime} syncing={refreshing} />
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6 sm:px-5 lg:px-5 lg:py-8">
         {/* Header */}
-        <header className="mb-7 flex w-full max-w-7xl flex-wrap items-start justify-between gap-3 border-b border-sky-100/10 pb-5">
-          <div>
-            <p className="font-['Poppins'] text-[0.65rem] font-medium tracking-[0.16em] text-[#73c4ca]">
-              PLATFORM ADMINISTRATION
-            </p>
-
-            <p className="mt-1 font-['Poppins'] text-xs text-[#759faa]">
-              {currentTime.toLocaleDateString("en-PH", {
-                weekday: "long",
-                month: "long",
-                day: "numeric",
-                year: "numeric",
-              })}
-            </p>
-          </div>
-
-          <div className="flex w-full shrink-0 items-center justify-between gap-2 sm:w-auto sm:justify-end">
-            <span className="inline-flex items-center gap-2 rounded-full border border-sky-100/10 bg-white/[.04] px-3 py-1.5 font-['Poppins'] text-xs text-[#a8c9d0]">
-              <span
-                className={`h-1.5 w-1.5 rounded-full bg-[#73c4ca] shadow-[0_0_10px_#73c4ca] ${
-                  refreshing ? "animate-pulse" : ""
-                }`}
-              />
-
-              {refreshing ? "Syncing…" : "System online"}
-            </span>
-          </div>
-        </header>
+        
 
         {/* ===================================================
             OVERVIEW
@@ -982,19 +817,40 @@ function AdminDashboard() {
           <section className="space-y-5">
             <div className="flex flex-col justify-between gap-3 border-b border-cyan-100/10 pb-4 sm:flex-row sm:items-center">
               <div>
-                <h1 className="font-['Fraunces'] text-2xl font-semibold text-[#e1f1f1]">Settings</h1>
-                <p className="mt-1 font-['Poppins'] text-sm text-[#9bbbc2]">Manage your administrator account and public business information.</p>
+                <h1 className="font-['Fraunces'] text-2xl font-semibold text-[#e1f1f1]">
+                  Settings
+                </h1>
+                <p className="mt-1 font-['Poppins'] text-sm text-[#9bbbc2]">
+                  Manage your administrator account and public business
+                  information.
+                </p>
               </div>
               <span className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 font-['Poppins'] text-xs font-medium text-emerald-300 sm:self-auto">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_#34d399]" />
                 Super Admin Authorized
               </span>
             </div>
-            <div className="flex flex-wrap gap-2 border-b border-cyan-100/10 pb-3" role="tablist" aria-label="Settings sections">
-              <button type="button" role="tab" aria-selected={settingsTab === "account"} onClick={() => setSettingsTab("account")} className={`rounded-full px-4 py-2 font-['Poppins'] text-sm transition ${settingsTab === "account" ? "bg-[#75bec4] font-semibold text-[#052d45]" : "border border-cyan-100/15 text-[#b8d8dd] hover:bg-white/[.06]"}`}>
+            <div
+              className="flex flex-wrap gap-2 border-b border-cyan-100/10"
+              role="tablist"
+              aria-label="Settings sections"
+            >
+              <button
+                type="button"
+                role="tab"
+                aria-selected={settingsTab === "account"}
+                onClick={() => setSettingsTab("account")}
+                className={settingsTabClass("account")}
+              >
                 Account &amp; Security
               </button>
-              <button type="button" role="tab" aria-selected={settingsTab === "about-contact"} onClick={() => setSettingsTab("about-contact")} className={`rounded-full px-4 py-2 font-['Poppins'] text-sm transition ${settingsTab === "about-contact" ? "bg-[#75bec4] font-semibold text-[#052d45]" : "border border-cyan-100/15 text-[#b8d8dd] hover:bg-white/[.06]"}`}>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={settingsTab === "about-contact"}
+                onClick={() => setSettingsTab("about-contact")}
+                className={settingsTabClass("about-contact")}
+              >
                 About &amp; Contact
               </button>
             </div>
@@ -1012,6 +868,7 @@ function AdminDashboard() {
             )}
           </section>
         )}
+        </div>
       </div>
     </main>
   );

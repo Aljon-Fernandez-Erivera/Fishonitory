@@ -1,3 +1,5 @@
+import DashboardSidebar from "../../components/DashboardSidebar.jsx";
+import DashboardHeader from "../../components/DashboardHeader.jsx";
 import { useEffect, useState } from "react";
 import { useAuth } from "../shared/useAuth.js";
 import Sales from "../shared/Sales.jsx";
@@ -62,25 +64,6 @@ async function apiRequest(path, options = {}) {
 // title #8fc5cb 9.1:1, description #8fb3ba 7.7:1 (all WCAG AAA).
 // On mobile the sidebar is a horizontal strip, so the heading is hidden and
 // the wrappers use `display: contents` to keep buttons as direct row items.
-function SidebarGroup({ title, description, children }) {
-  return (
-    <div className="contents md:block">
-      <div className="hidden px-3 pb-1.5 pt-4 md:block">
-        <p className="m-0 font-['Poppins'] text-[0.68rem] font-semibold uppercase tracking-[.14em] text-[#8fc5cb]">
-          {title}
-        </p>
-        {description && (
-          <p className="m-0 mt-1 font-['Poppins'] text-[0.72rem] leading-snug text-[#8fb3ba]">
-            {description}
-          </p>
-        )}
-      </div>
-      <div className="contents md:flex md:flex-col md:gap-0.5 md:pl-3">
-        {children}
-      </div>
-    </div>
-  );
-}
 
 // Staff dashboard component
 function StaffDashboard() {
@@ -475,26 +458,6 @@ function StaffDashboard() {
     return null;
   }
 
-  const navButtonClass = (page) =>
-    `dashboard-nav-link ${activePage === page ? "is-active" : ""}`;
-
-  // Shared builder for sidebar buttons.
-  const navItem = (page, label, extra = null) => (
-    <button
-      key={page}
-      className={navButtonClass(page)}
-      type="button"
-      aria-current={activePage === page ? "page" : undefined}
-      onClick={() => {
-        setActivePage(page);
-        setSidebarOpen(false);
-      }}
-    >
-      {label}
-      {extra}
-    </button>
-  );
-
   const settingsTabClass = (tab) =>
     `rounded-xl px-4 py-2 font-['Poppins'] text-xs sm:text-sm font-medium transition cursor-pointer ${
       settingsTab === tab
@@ -503,172 +466,41 @@ function StaffDashboard() {
     }`;
 
   return (
-    <main className="owner-dashboard-main box-border flex h-[100dvh] min-h-0 w-full flex-col overflow-hidden bg-[radial-gradient(circle_at_88%_12%,#0a5267_0%,#08465d_42%,#021a31_100%)] text-[#c9e1e5] md:flex-row">
-      <button
-        type="button"
-        aria-label={
-          sidebarOpen ? "Close dashboard menu" : "Open dashboard menu"
-        }
-        aria-expanded={sidebarOpen}
-        className={`owner-mobile-menu-toggle ${sidebarOpen ? "is-open" : ""}`}
-        onClick={() => setSidebarOpen((open) => !open)}
-      >
-        <span />
-        <span />
-        <span />
-      </button>
-
-      <div
-        className={`owner-mobile-backdrop ${sidebarOpen ? "is-visible" : ""}`}
-        onClick={() => setSidebarOpen(false)}
-        aria-hidden="true"
+    <main className="owner-dashboard-main box-border flex h-[100dvh] min-h-0 w-full flex-col md:flex-row overflow-hidden bg-[radial-gradient(circle_at_88%_12%,#0a5267_0%,#08465d_42%,#021a31_100%)] text-[#c9e1e5]">
+      <DashboardSidebar
+        sidebarOpen={sidebarOpen}
+        onToggle={() => setSidebarOpen((open) => !open)}
+        onClose={() => setSidebarOpen(false)}
+        activePage={activePage}
+        onNavigate={(page) => { setActivePage(page); setSidebarOpen(false); }}
+        navigationLabel="Staff dashboard navigation"
+        brandSubtitle="Staff workspace"
+        refreshLabel="Refresh Fishonitory workspace"
+        groups={[
+          { items: [{ page: "overview", label: "Overview" }] },
+          { title: "Shift and farm care", description: "Clock in, check stock, and update tanks", items: [{ page: "time-clock", label: "Staff Time Clock" }, { page: "inventory", label: "Fish & Feed Inventory" }, { page: "tanks", label: "Tank Updates" }, { page: "mortality", label: "Mortality Reports" }] },
+          { title: "Sales desk", description: "Point of sale, orders, and sales", items: [{ page: "calculator", label: "Point of Sale (POS)" }, { page: "orders", label: "Orders" }, { page: "sales", label: "Sales" }] },
+          { title: "Team board", description: "Post notes and read announcements", items: [{ page: "leave-note", label: "Post to Board" }, { page: "announcements", label: "Announcements" }] },
+          { title: "Preferences", items: [{ page: "settings", label: "Settings" }] },
+        ]}
+        identity={{ avatar: user?.staffName || user?.email || "S", title: user?.staffName || user?.email || "Master Staff", subtitle: user?.staffPosition || "Operations Staff" }}
+        onIdentityClick={() => { setActivePage("settings"); setSidebarOpen(false); }}
+        onLogout={async () => {
+          const result = await showOceanicLogoutConfirm(async () => {
+            await logout();
+            window.location.replace("/login");
+          });
+          if (result.isConfirmed) {
+            await logout();
+            window.location.replace("/login");
+          }
+        }}
       />
 
-      {/* SIDEBAR */}
-      <aside
-        className={`owner-sidebar box-border flex w-full shrink-0 flex-col overflow-hidden border-b border-cyan-100/[.08] bg-[#021d2e] px-4 py-3 md:h-full md:w-56 md:border-b-0 md:border-r md:px-3 md:pt-4 md:pb-4 ${sidebarOpen ? "is-open" : ""}`}
-      >
-        {/* Brand */}
-        <button
-          type="button"
-          onClick={() => window.location.reload()}
-          aria-label="Refresh Fishonitory workspace"
-          title="Refresh dashboard"
-          className="flex shrink-0 items-center gap-2.5 rounded-lg border-0 bg-transparent px-1 py-1 text-left transition hover:bg-white/[.04] focus:outline-none focus:ring-2 focus:ring-[#73c4ca] cursor-pointer"
-        >
-          <img
-            src="/LOGO.svg"
-            alt="Fishonitory"
-            className="h-10 w-10 object-contain"
-          />
-          <div>
-            <strong className="block font-['Poppins'] text-[0.9rem] font-medium text-[#cde4e6]">
-              Fishonitory
-            </strong>
-            <small className="block font-['Poppins'] text-[0.7rem] text-[#8fb3ba]">
-              Staff workspace
-            </small>
-          </div>
-        </button>
-
-        {/* Navigation list with independent scroll */}
-        <nav
-          className="mt-4 flex min-w-0 gap-0.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:mt-6 md:min-h-0 md:flex-1 md:flex-col md:overflow-y-auto md:overflow-x-hidden md:pr-1 [scrollbar-width:thin]"
-          aria-label="Staff dashboard navigation"
-        >
-          {navItem("overview", "Overview")}
-
-          <SidebarGroup
-            title="Shift and farm care"
-            description="Clock in, check stock, and update tanks"
-          >
-            {navItem("time-clock", "Staff Time Clock")}
-            {navItem("inventory", "Fish & Feed Inventory")}
-            {navItem("tanks", "Tank Updates")}
-            {navItem("mortality", "Mortality Reports")}
-          </SidebarGroup>
-
-          <SidebarGroup
-            title="Sales desk"
-            description="Point of sale, orders, and sales"
-          >
-            {navItem("calculator", "Point of Sale (POS)")}
-            {navItem("orders", "Orders")}
-            {navItem("sales", "Sales")}
-          </SidebarGroup>
-
-          <SidebarGroup
-            title="Team board"
-            description="Post notes and read announcements"
-          >
-            {navItem("leave-note", "Post to Board")}
-            {navItem("announcements", "Announcements")}
-          </SidebarGroup>
-
-          <SidebarGroup title="Preferences">
-            {navItem("settings", "Settings")}
-          </SidebarGroup>
-        </nav>
-
-        {/* Pinned Bottom Footer */}
-        <div className="mt-auto shrink-0 border-t border-cyan-100/[.08] pt-2.5 pb-0.5 md:pt-3 md:pb-1">
-          <div
-            className="flex cursor-pointer items-center gap-2.5 rounded-lg p-1.5 transition hover:bg-white/[.04]"
-            onClick={() => {
-              setActivePage("settings");
-              setSidebarOpen(false);
-            }}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                setActivePage("settings");
-                setSidebarOpen(false);
-              }
-            }}
-          >
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#75bec4]/20 font-['Poppins'] text-sm font-semibold text-[#bce9e9]">
-              {(user?.staffName || user?.email || "S")
-                .trim()
-                .charAt(0)
-                .toUpperCase()}
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="truncate font-['Poppins'] text-[0.78rem] font-medium text-[#cde4e6]">
-                {user?.staffName || user?.email || "Master Staff"}
-              </p>
-              <p className="truncate font-['Poppins'] text-[0.7rem] text-[#8fb3ba]">
-                {user?.staffPosition || "Operations Staff"}
-              </p>
-            </div>
-          </div>
-          <button
-            className="mt-2.5 w-full rounded-lg border border-cyan-100/10 bg-white/[.05] px-3 py-2 text-center font-['Poppins'] text-[0.75rem] font-medium text-[#b8d8dd] outline-none transition hover:border-red-200/25 hover:bg-red-200/10 hover:text-red-100 focus:outline-none focus:ring-2 focus:ring-[#73c4ca]/50 cursor-pointer"
-            type="button"
-            onClick={async () => {
-              const result = await showOceanicLogoutConfirm(async () => {
-                await logout();
-                window.location.replace("/login");
-              });
-              if (result.isConfirmed) {
-                await logout();
-                window.location.replace("/login");
-              }
-            }}
-          >
-            Logout
-          </button>
-        </div>
-      </aside>
-
       {/* MAIN WORKSPACE AREA */}
-      <div className="owner-workspace min-h-0 min-w-0 flex-1 overflow-y-auto px-4 py-6 sm:px-5 lg:px-5 lg:py-8">
-        {/* Header bar */}
-        <header className="mb-7 flex w-full max-w-7xl items-start justify-between gap-4 border-b border-sky-100/10 pb-5">
-          <div>
-            <p className="font-['Poppins'] text-[0.65rem] font-medium tracking-[0.16em] text-[#73c4ca]">
-              OPERATIONS CONTROL CENTER
-            </p>
-            <p className="mt-1 font-['Poppins'] text-xs text-[#759faa]">
-              {currentTime.toLocaleDateString("en-PH", {
-                weekday: "long",
-                month: "long",
-                day: "numeric",
-                year: "numeric",
-              })}
-            </p>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <span className="inline-flex items-center gap-2 rounded-full border border-sky-100/10 bg-white/[.04] px-3 py-1.5 font-['Poppins'] text-xs text-[#a8c9d0]">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#73c4ca] shadow-[0_0_10px_#73c4ca]" />
-              System online ·{" "}
-              {currentTime.toLocaleTimeString("en-PH", {
-                hour: "numeric",
-                minute: "2-digit",
-                second: "2-digit",
-              })}
-            </span>
-            <NotificationBell
+      <div className="owner-workspace flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        <DashboardHeader title="OPERATIONS CONTROL CENTER" currentTime={currentTime}>
+<NotificationBell
               notes={notes}
               fish={fish}
               tanks={tanks}
@@ -677,9 +509,8 @@ function StaffDashboard() {
               viewerRole="masterStaff"
               viewerId={user?.id}
             />
-          </div>
-        </header>
-
+      </DashboardHeader>
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6 sm:px-5 lg:px-5 lg:py-8">
         {/* DASHBOARD PAGE CONTENT */}
         <section className="mx-auto grid w-full max-w-7xl gap-6">
           {/* 1. OVERVIEW */}
@@ -2027,6 +1858,7 @@ function StaffDashboard() {
             </div>
           )}
         </section>
+        </div>
       </div>
     </main>
   );
