@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+﻿import { useState, useRef, useEffect, useMemo } from "react";
 import { confirmOceanicAction, oceanicFire } from "../../utils/oceanicSwal.js";
 
 const MAX_NOTE_LENGTH = 1000;
@@ -10,8 +10,12 @@ const authorLabel = (note) => {
   const author = note.authorId || {};
   const name = author.staffName || author.ownerName || "Unknown sender";
   const role =
-    author.role === "Owner" ? "Owner" : author.staffPosition || "Staff";
-  return `${name} | ${role}`;
+    author.role === "Owner"
+      ? "Owner"
+      : author.role === "masterStaff"
+        ? "Master Staff"
+        : "Staff";
+  return { name, role, position: author.staffPosition || "" };
 };
 
 function NoteActionsMenu({ item, onUpdateNote, edit, remove, perms }) {
@@ -179,14 +183,19 @@ function NoteItem({ item, onUpdateNote, edit, remove, perms }) {
             </button>
           )}
 
-          <small className="mt-2 block font-['Poppins'] text-xs text-[#789faa]">
-            {item.pinned && (
-              <span className="font-semibold text-amber-400">Pinned · </span>
+          <small className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 font-['Poppins'] text-xs text-[#789faa]">
+            {item.pinned && <span className="font-semibold text-amber-400">Pinned</span>}
+            <span className="font-medium text-[#c3dfe3]">{authorLabel(item).name}</span>
+            <span className="rounded-full border border-sky-100/10 bg-white/[.04] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#9fc5cc]">
+              {authorLabel(item).role}
+            </span>
+            {authorLabel(item).position && authorLabel(item).role !== "Owner" && (
+              <span>{authorLabel(item).position}</span>
             )}
-            {authorLabel(item)} ·{" "}
-            {item.createdAt
-              ? new Date(item.createdAt).toLocaleString()
-              : "Just now"}
+            <span aria-hidden="true">·</span>
+            <time dateTime={item.createdAt || undefined}>
+              {item.createdAt ? new Date(item.createdAt).toLocaleString() : "Just now"}
+            </time>
           </small>
           {item.isTask && (item.dueDate || item.assignedTo) && (
             <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 font-['Poppins'] text-xs text-[#b0cbd1]">
@@ -215,6 +224,7 @@ function Notes({
   onAddNote,
   onUpdateNote,
   onDeleteNote,
+  showComposer = true,
 }) {
   const [note, setNote] = useState("");
   const [visibility, setVisibility] = useState("public");
@@ -253,7 +263,7 @@ function Notes({
     setExpanded(false);
   };
 
-  // Plain Enter is left alone on purpose — it inserts a newline.
+  // Plain Enter is left alone on purpose â€” it inserts a newline.
   const handleKeyDown = (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key === "Enter") handleAddNote(e);
   };
@@ -292,7 +302,8 @@ function Notes({
         </p>
       </div>
 
-      <div className="grid items-start gap-4 lg:grid-cols-[minmax(300px,.85fr)_minmax(0,1.15fr)]">
+      <div className={`grid items-start gap-4 ${showComposer ? "lg:grid-cols-[minmax(300px,.85fr)_minmax(0,1.15fr)]" : "grid-cols-1"}`}>
+      {showComposer && (
       <div className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-4 sm:p-5">
         {!expanded ? (
           <button
@@ -370,7 +381,7 @@ function Notes({
                   <select value={assignedTo} onChange={(event) => setAssignedTo(event.target.value)} className="rounded-lg border border-sky-100/15 bg-[#062d48] px-3 py-2 text-sm text-[#d9ecef] outline-none focus:border-[#73c4ca] focus:ring-2 focus:ring-[#73c4ca]/20">
                     <option value="">Anyone on the team</option>
                     {staff.filter((member) => member.accountStatus === "Active").map((member) => (
-                      <option key={member._id} value={member._id}>{member.staffName}{member.staffPosition ? ` · ${member.staffPosition}` : ""}</option>
+                      <option key={member._id} value={member._id}>{member.staffName}{member.staffPosition ? ` Â· ${member.staffPosition}` : ""}</option>
                     ))}
                   </select>
                 </label>
@@ -403,6 +414,7 @@ function Notes({
           </form>
         )}
       </div>
+      )}
 
       <div className="min-w-0">
       <h2 className="mb-2 font-['Poppins'] text-xs font-semibold uppercase tracking-[.16em] text-[#73c4ca]">
@@ -431,7 +443,7 @@ function Notes({
                 </svg>
               </span>
               <p className="m-0 max-w-xs font-['Poppins'] text-sm font-medium text-[#d9ecef]">No announcements yet</p>
-              <p className="mb-0 mt-1 max-w-sm font-['Poppins'] text-xs leading-relaxed text-[#b0cbd1]">Post one to let your team know what’s happening.</p>
+              <p className="mb-0 mt-1 max-w-sm font-['Poppins'] text-xs leading-relaxed text-[#b0cbd1]">Post one to let your team know whatâ€™s happening.</p>
             </div>
           )}
         </div>

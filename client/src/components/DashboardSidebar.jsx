@@ -2,7 +2,8 @@
 import {
   LayoutDashboard, Building2, Users, ScrollText, Settings,
   UserCog, Package, ShoppingCart, CalendarCheck, Wallet, Droplets,
-  Fish, Megaphone, ClipboardList, ShieldCheck,
+  Fish, Megaphone, ClipboardList, ShieldCheck, Clock3, HeartPulse,
+  Calculator, StickyNote,
 } from "lucide-react";
 
 const icons = {
@@ -24,6 +25,10 @@ const icons = {
   announcements: Megaphone,
   operations: ClipboardList,
   orders: ClipboardList,
+  "time-clock": Clock3,
+  mortality: HeartPulse,
+  calculator: Calculator,
+  "leave-note": StickyNote,
 };
 
 function DashboardSidebar({

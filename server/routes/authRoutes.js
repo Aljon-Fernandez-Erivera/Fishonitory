@@ -65,6 +65,11 @@ router.get("/me", authMiddleware, authController.getCurrentUser);
 router.post("/password/change/code", authMiddleware, authController.requestPasswordChangeCode);
 router.post("/password/change", authMiddleware, authController.changePassword);
 
-router.patch("/profile", authMiddleware, requireRole(["Owner"]), ownerProfileController.updateProfile);
+router.patch(
+  "/profile",
+  authMiddleware,
+  requireRole(["Owner", "Staff", "masterStaff"]),
+  ownerProfileController.updateProfile,
+);
 
 module.exports = router;

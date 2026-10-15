@@ -158,7 +158,7 @@ function TankManagement({
                     </td>
                     <td className="px-5 py-4">
                       <div className="flex gap-2">
-                        <button className="rounded-full border border-sky-100/15 px-3 py-1.5 text-xs text-[#b9dfe1]" type="button" onClick={() => setViewTank(tank)}>View more</button>
+                        <button className="rounded-full border  bg-white/[.05] border-sky-100/15 px-3 py-1.5 text-xs text-[#b9dfe1]" type="button" onClick={() => setViewTank(tank)}>View more</button>
                         <button
                           className="rounded-full border border-emerald-200/25 bg-white/[.05] px-3 py-1.5 font-['Poppins'] text-xs font-medium text-[#8ccdd0] transition hover:bg-emerald-500/20 hover:text-emerald-100 hover:border-emerald-300/40 focus:outline-none focus:ring-2 focus:ring-[#73c4ca]"
                           type="button"

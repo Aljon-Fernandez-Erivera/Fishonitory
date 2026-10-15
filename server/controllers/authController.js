@@ -226,7 +226,7 @@ async function verifyRecoveryCode(user, recoveryCode) {
   const normalized = String(recoveryCode || "")
     .trim()
     .toUpperCase();
-  if (!/^[A-F0-9]{10}$/.test(normalized)) return false;
+  if (!/^[A-F0-9]{10}$/.test(normalized)) return false;anmake 
   const hashes = user.totpRecoveryCodeHashes || [];
   for (let index = 0; index < hashes.length; index += 1) {
     if (await bcrypt.compare(normalized, hashes[index])) {
@@ -242,7 +242,7 @@ async function verifyRecoveryCode(user, recoveryCode) {
 // why this replaced Nodemailer/Gmail SMTP (Render blocks SMTP ports on its
 // free tier) and Resend (shared sender restricted to your own email until
 // domain verification).
-const BREVO_API_KEY = process.env.BREVO_API_KEY;  
+const BREVO_API_KEY = process.env.BREVO_API_KEY;
 const EMAIL_FROM = process.env.EMAIL_FROM;
 const EMAIL_FROM_NAME = process.env.EMAIL_FROM_NAME || "Fishonitory";
 

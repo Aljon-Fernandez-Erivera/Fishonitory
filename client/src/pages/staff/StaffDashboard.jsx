@@ -1,4 +1,4 @@
-import DashboardSidebar from "../../components/DashboardSidebar.jsx";
+﻿import DashboardSidebar from "../../components/DashboardSidebar.jsx";
 import DashboardHeader from "../../components/DashboardHeader.jsx";
 import { useEffect, useState } from "react";
 import { useAuth } from "../shared/useAuth.js";
@@ -13,6 +13,7 @@ import "../../css/owner-dashboard-layout.css";
 import NotificationBell from "../shared/NotificationBell.jsx";
 import DashboardToast from "../../components/DashboardToast.jsx";
 import { showOceanicLogoutConfirm } from "../../utils/oceanicSwal.js";
+import Notes from "../owner/Notes.jsx";
 
 // Choices para sa mga fish tank statuses na pwedeng i-update ng staff sa dashboard.
 const tankStatuses = [
@@ -85,6 +86,7 @@ function StaffDashboard() {
   const [fish, setFish] = useState([]);
   const [tanks, setTanks] = useState([]);
   const [notes, setNotes] = useState([]);
+  const [notePermissions, setNotePermissions] = useState({ canModerate: false, userId: "" });
   const [sales, setSales] = useState([]);
   const [mortality, setMortality] = useState([]);
   const [salesRange, setSalesRange] = useState({
@@ -94,7 +96,6 @@ function StaffDashboard() {
 
   const [cart, setCart] = useState([]);
   const [discount, setDiscount] = useState(0);
-  const [note, setNote] = useState("");
   const [customerDetails, setCustomerDetails] = useState({
     customerName: "",
     customerEmail: "",
@@ -106,6 +107,8 @@ function StaffDashboard() {
   const [toastNotice, setToastNotice] = useState(null);
   const [timeClock, setTimeClock] = useState({ email: "", password: "" });
   const [timeClockBusy, setTimeClockBusy] = useState(false);
+  const [profileDraft, setProfileDraft] = useState({ staffName: "", phoneNumber: "" });
+  const [profileSaving, setProfileSaving] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const [currentTime, setCurrentTime] = useState(() => new Date());
@@ -114,6 +117,13 @@ function StaffDashboard() {
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    setProfileDraft({
+      staffName: user?.staffName || "",
+      phoneNumber: user?.phoneNumber || "",
+    });
+  }, [user?.staffName, user?.phoneNumber]);
 
   useEffect(() => {
     if (!message) return undefined;
@@ -158,6 +168,7 @@ function StaffDashboard() {
       setFish(fishData.fish);
       setTanks(tankData.tanks);
       setNotes(noteData.notes);
+      setNotePermissions(noteData.permissions || { canModerate: false, userId: "" });
       setSales(salesData.sales);
       setMortality(mortalityData.records || []);
       setSalesRange((currentRange) => {
@@ -279,20 +290,20 @@ function StaffDashboard() {
 
   const total = subtotal - discountAmount;
 
-  const addNote = async (event) => {
-    event.preventDefault();
-
+  const addNote = async (payload) => {
     try {
       await apiRequest("/notes", {
         method: "POST",
         body: JSON.stringify({
-          text: note,
-          visibility: "public",
-          isTask: false,
+          text: payload.text,
+          visibility: payload.visibility || "public",
+          isTask: Boolean(payload.isTask),
+          taskStatus: payload.isTask ? payload.taskStatus || "pending" : "pending",
+          dueDate: payload.isTask ? payload.dueDate || null : null,
+          assignedTo: payload.isTask ? payload.assignedTo || null : null,
         }),
       });
 
-      setNote("");
       setMessage("Your announcement has been posted.");
       await loadData();
     } catch (requestError) {
@@ -300,16 +311,43 @@ function StaffDashboard() {
     }
   };
 
-  const updateTaskStatus = async (id, taskStatus) => {
+  const updateNote = async (id, changes) => {
     try {
       const data = await apiRequest(`/notes/${id}`, {
         method: "PATCH",
-        body: JSON.stringify({ taskStatus }),
+        body: JSON.stringify(changes),
       });
-      setMessage(data.message || "Task updated.");
-      await loadData();
+      setNotes((current) => current.map((item) => item._id === id ? data.note : item));
+      setMessage("Announcement updated.");
     } catch (requestError) {
       setError(requestError.message);
+    }
+  };
+
+  const deleteNote = async (id) => {
+    try {
+      await apiRequest(`/notes/${id}`, { method: "DELETE" });
+      setNotes((current) => current.filter((item) => item._id !== id));
+      setMessage("Announcement deleted.");
+    } catch (requestError) {
+      setError(requestError.message);
+    }
+  };
+
+  const saveStaffProfile = async (event) => {
+    event.preventDefault();
+    setProfileSaving(true);
+    try {
+      const data = await apiRequest("/auth/profile", {
+        method: "PATCH",
+        body: JSON.stringify(profileDraft),
+      });
+      setProfileDraft((current) => ({ ...current, ...(data.profile || {}) }));
+      setMessage(data.message || "Profile updated.");
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setProfileSaving(false);
     }
   };
 
@@ -479,7 +517,7 @@ function StaffDashboard() {
           { title: "Team board", description: "Post notes and read announcements", items: [{ page: "leave-note", label: "Post to Board" }, { page: "announcements", label: "Announcements" }] },
           { title: "Preferences", items: [{ page: "settings", label: "Settings" }] },
         ]}
-        identity={{ avatar: user?.staffName || user?.email || "S", title: user?.staffName || user?.email || "Master Staff", subtitle: user?.staffPosition || "Operations Staff" }}
+        identity={{ avatar: profileDraft.staffName || user?.email || "S", title: profileDraft.staffName || user?.email || "Master Staff", subtitle: user?.staffPosition || "Operations Staff" }}
         onIdentityClick={() => { setActivePage("settings"); setSidebarOpen(false); }}
         onLogout={async () => {
           const result = await showOceanicLogoutConfirm(async () => {
@@ -633,14 +671,14 @@ function StaffDashboard() {
                                 "Unknown"}
                             </td>
                             <td className="px-4 py-3">
-                              {item.tankId?.name || "—"}
+                              {item.tankId?.name || "â€”"}
                             </td>
                             <td className="px-4 py-3">
-                              {item.species || item.fishName} ·{" "}
-                              {item.lifeStage || "—"}
+                              {item.species || item.fishName} Â·{" "}
+                              {item.lifeStage || "â€”"}
                             </td>
                             <td className="px-4 py-3">
-                              {item.quantity} / {item.initialStockCount ?? "—"}
+                              {item.quantity} / {item.initialStockCount ?? "â€”"}
                             </td>
                             <td className="px-4 py-3">
                               {item.suspectedCause || item.reason}
@@ -698,7 +736,7 @@ function StaffDashboard() {
                           />
                         ) : (
                           <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-[#0a4261] text-xl">
-                            🐟
+                            ðŸŸ
                           </div>
                         )}
                         <div>
@@ -765,7 +803,7 @@ function StaffDashboard() {
                           />
                         ) : (
                           <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-[#0a4261] text-xl">
-                            🐟
+                            ðŸŸ
                           </div>
                         )}
                         <div>
@@ -958,7 +996,7 @@ function StaffDashboard() {
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <label className="text-[#89afb9]">Discount (₱)</label>
+                    <label className="text-[#89afb9]">Discount (â‚±)</label>
                     <input
                       type="number"
                       min="0"
@@ -1048,7 +1086,7 @@ function StaffDashboard() {
                         onClick={() => setInventoryOpen(false)}
                         className="cursor-pointer bg-transparent border-0 text-lg text-[#89afb9] hover:text-[#d9ecef]"
                       >
-                        ✕
+                        âœ•
                       </button>
                     </div>
 
@@ -1067,7 +1105,7 @@ function StaffDashboard() {
                               />
                             ) : (
                               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#0a4261]">
-                                🐟
+                                ðŸŸ
                               </div>
                             )}
                             <div>
@@ -1135,8 +1173,8 @@ function StaffDashboard() {
                     <label className="mt-5 block font-['Poppins'] text-xs font-medium text-[#a9c8cf]">
                       Checkout type
                       <select value={checkoutMode} onChange={(event) => setCheckoutMode(event.target.value)} className="mt-1.5 w-full rounded-xl border border-sky-100/15 bg-[#062d48] px-3 py-2.5 text-sm text-[#d9ecef] outline-none focus:border-[#73c4ca]">
-                        <option value="sale">Point-of-sale sale · paid now</option>
-                        <option value="order">Customer order · pickup or delivery</option>
+                        <option value="sale">Point-of-sale sale Â· paid now</option>
+                        <option value="order">Customer order Â· pickup or delivery</option>
                       </select>
                     </label>
                     {checkoutMode === "order" && (
@@ -1186,10 +1224,10 @@ function StaffDashboard() {
                     </h3>
                     <p className="mt-1 font-['Poppins'] text-xs text-[#89afb9]">
                       Cashier:{" "}
-                      {receipt.soldBy?.staffName || user?.role || "Staff"} ·{" "}
+                      {receipt.soldBy?.staffName || user?.role || "Staff"} Â·{" "}
                       {new Date(receipt.createdAt).toLocaleString()}
                     </p>
-                    {receipt.receiptKind === "order" && <p className="mt-2 rounded-lg border border-sky-100/10 bg-white/[.03] px-3 py-2 font-['Poppins'] text-xs text-[#b7d2d7]">{receipt.deliveryMethod === "pickup" ? "Pickup" : receipt.deliveryMethod === "rider" ? "Rider delivery" : `Courier delivery${receipt.courierName ? ` · ${receipt.courierName}` : ""}`} · Requested {new Date(receipt.requestedDate).toLocaleDateString("en-PH", { dateStyle: "medium" })}</p>}
+                    {receipt.receiptKind === "order" && <p className="mt-2 rounded-lg border border-sky-100/10 bg-white/[.03] px-3 py-2 font-['Poppins'] text-xs text-[#b7d2d7]">{receipt.deliveryMethod === "pickup" ? "Pickup" : receipt.deliveryMethod === "rider" ? "Rider delivery" : `Courier delivery${receipt.courierName ? ` Â· ${receipt.courierName}` : ""}`} Â· Requested {new Date(receipt.requestedDate).toLocaleDateString("en-PH", { dateStyle: "medium" })}</p>}
 
                     <div className="mt-4 max-h-56 space-y-2 overflow-y-auto border-t border-b border-sky-100/10 py-3">
                       {receipt.items.map((item) => (
@@ -1217,7 +1255,7 @@ function StaffDashboard() {
                         <span>{formatPeso(receipt.discount)}</span>
                       </div>
                       <div className="flex justify-between font-semibold text-[#d9ecef]">
-                        <span>{receipt.receiptKind === "order" ? "Order Total · unpaid" : "Total Paid"}</span>
+                        <span>{receipt.receiptKind === "order" ? "Order Total Â· unpaid" : "Total Paid"}</span>
                         <span className="font-['Fraunces'] text-base font-bold text-[#73c4ca]">
                           {formatPeso(receipt.total)}
                         </span>
@@ -1295,11 +1333,11 @@ function StaffDashboard() {
                             {sale.customerName || "Walk-in Customer"}
                           </div>
                           <div className="mt-1 font-['Poppins'] text-xs text-[#9bbec7]">
-                            {sale.customerEmail || "No email"} ·{" "}
+                            {sale.customerEmail || "No email"} Â·{" "}
                             {sale.customerPhone || "No phone"}
                           </div>
                           <div className="mt-1 font-['Poppins'] text-[11px] text-[#7fa7ae]">
-                            {new Date(sale.createdAt).toLocaleString()} ·{" "}
+                            {new Date(sale.createdAt).toLocaleString()} Â·{" "}
                             {sale.items.length} product(s)
                           </div>
                         </div>
@@ -1352,190 +1390,13 @@ function StaffDashboard() {
 
           {/* 7. LEAVE NOTE */}
           {activePage === "leave-note" && (
-            <div className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-6 shadow-[0_14px_35px_rgba(0,12,31,.14)]">
-              <h3 className="font-['Fraunces'] text-xl font-medium text-[#d9ecef]">
-                Leave Note for Next Shift
-              </h3>
-              <p className="mt-0.5 font-['Poppins'] text-xs text-[#9bbec7]">
-                Communicate shift events, feeding instructions, and tasks with
-                co-workers.
-              </p>
-
-              <form className="mt-5 space-y-4" onSubmit={addNote}>
-                <div>
-                  <label className="block font-['Poppins'] text-[10px] font-semibold uppercase tracking-wider text-[#89afb9]">
-                    Note Description
-                  </label>
-                  <textarea
-                    value={note}
-                    onChange={(event) => setNote(event.target.value)}
-                    required
-                    rows={4}
-                    placeholder="Post an update for the next shift or owner..."
-                    className="mt-1 w-full rounded-xl border border-sky-100/15 bg-white/[.06] p-3.5 font-['Poppins'] text-sm text-[#d9ecef] outline-none transition focus:border-[#73c4ca]"
-                  />
-                </div>
-
-                <div className="flex justify-end">
-                  <button
-                    type="submit"
-                    className="rounded-full bg-[#75bec4] px-5 py-2.5 font-['Poppins'] text-xs font-semibold text-[#052d45] transition hover:bg-[#86d0d6] cursor-pointer"
-                  >
-                    Add Note
-                  </button>
-                </div>
-              </form>
-
-              <div className="mt-8 border-t border-sky-100/10 pt-5">
-                <h4 className="font-['Poppins'] text-xs font-semibold uppercase tracking-wider text-[#73c4ca]">
-                  Announcement Board
-                </h4>
-                <div className="mt-3 space-y-2">
-                  {notes.length === 0 ? (
-                    <p className="font-['Poppins'] text-xs text-[#7fa7ae]">
-                      No announcements have been posted.
-                    </p>
-                  ) : (
-                    notes.map((item) => (
-                      <div
-                        key={item._id}
-                        className="rounded-xl border border-sky-100/[.08] bg-white/[.03] p-3.5 font-['Poppins'] text-xs text-[#c9e1e5]"
-                      >
-                        <div className="mb-2 flex flex-wrap items-center gap-2">
-                          {item.isTask && (
-                            <span className="rounded-full border border-amber-300/30 bg-amber-400/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-200">
-                              Task
-                            </span>
-                          )}
-                          {item.taskStatus === "done" && item.isTask && (
-                            <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-200">
-                              Done
-                            </span>
-                          )}
-                        </div>
-                        <div>{item.text}</div>
-                        {item.isTask && (item.dueDate || item.assignedTo) && (
-                          <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-[#b0cbd1]">
-                            {item.dueDate && <span>Due {new Date(item.dueDate).toLocaleDateString()}</span>}
-                            {item.assignedTo && <span>Assigned to {item.assignedTo.staffName}</span>}
-                          </div>
-                        )}
-                        {item.isTask && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              updateTaskStatus(
-                                item._id,
-                                item.taskStatus === "done" ? "pending" : "done",
-                              )
-                            }
-                            className="mt-3 rounded-full border border-sky-100/15 bg-white/[.03] px-3 py-1.5 font-['Poppins'] text-[10px] font-semibold uppercase tracking-[0.12em] text-[#d9ecef] hover:bg-white/[.08]"
-                          >
-                            {item.taskStatus === "done"
-                              ? "Mark pending"
-                              : "Mark done"}
-                          </button>
-                        )}
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            </div>
+            <Notes notes={notes} permissions={notePermissions} onAddNote={addNote} onUpdateNote={updateNote} onDeleteNote={deleteNote} />
           )}
-
           {/* 8. ANNOUNCEMENTS */}
           {activePage === "announcements" && (
-            <div className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-6 shadow-[0_14px_35px_rgba(0,12,31,.14)]">
-              <h3 className="font-['Fraunces'] text-xl font-medium text-[#d9ecef]">
-                Announcements
-              </h3>
-              <p className="mt-0.5 font-['Poppins'] text-xs text-[#9bbec7]">
-                Bulletins from management and scheduled tank maintenance.
-              </p>
-
-              <div className="mt-5 space-y-3">
-                {notes.map((item) => (
-                  <div
-                    key={item._id}
-                    className="rounded-xl border border-cyan-400/20 bg-cyan-400/10 p-4 font-['Poppins'] text-xs text-[#d9ecef]"
-                  >
-                    <div className="mb-2 flex flex-wrap items-center gap-2">
-                      {item.isTask && (
-                        <span className="rounded-full border border-amber-300/30 bg-amber-400/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-200">
-                          Task
-                        </span>
-                      )}
-                      {item.taskStatus === "done" && item.isTask && (
-                        <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-200">
-                          Done
-                        </span>
-                      )}
-                    </div>
-                    <span className="font-semibold text-[#73c4ca]">
-                      {item.authorId?.staffName ||
-                        item.authorId?.ownerName ||
-                        "Unknown sender"}{" "}
-                      |{" "}
-                      {item.authorId?.role === "Owner"
-                        ? "Owner"
-                        : item.authorId?.staffPosition || "Staff"}
-                      :
-                    </span>{" "}
-                    {item.text}
-                    {item.isTask && (item.dueDate || item.assignedTo) && (
-                      <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-[#b0cbd1]">
-                        {item.dueDate && <span>Due {new Date(item.dueDate).toLocaleDateString()}</span>}
-                        {item.assignedTo && <span>Assigned to {item.assignedTo.staffName}</span>}
-                      </div>
-                    )}
-                    {item.isTask && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          updateTaskStatus(
-                            item._id,
-                            item.taskStatus === "done" ? "pending" : "done",
-                          )
-                        }
-                        className="mt-3 block rounded-full border border-sky-100/15 bg-white/[.03] px-3 py-1.5 font-['Poppins'] text-[10px] font-semibold uppercase tracking-[0.12em] text-[#d9ecef] hover:bg-white/[.08]"
-                      >
-                        {item.taskStatus === "done"
-                          ? "Mark pending"
-                          : "Mark done"}
-                      </button>
-                    )}
-                  </div>
-                ))}
-
-                {tanks
-                  .filter((tank) => tank.nextMaintenance)
-                  .map((tank) => (
-                    <div
-                      key={`maintenance-${tank._id}`}
-                      className="rounded-xl border border-amber-300/20 bg-amber-400/10 p-4 font-['Poppins'] text-xs text-[#d9ecef]"
-                    >
-                      <span className="font-semibold text-amber-200">
-                        Scheduled maintenance:
-                      </span>{" "}
-                      {tank.name} maintenance scheduled for{" "}
-                      <span className="font-bold text-amber-100">
-                        {new Date(tank.nextMaintenance).toLocaleDateString()}
-                      </span>
-                    </div>
-                  ))}
-
-                {notes.length === 0 &&
-                  tanks.filter((t) => t.nextMaintenance).length === 0 && (
-                    <p className="font-['Poppins'] text-xs text-[#7fa7ae]">
-                      No active bulletins or upcoming maintenance schedules.
-                    </p>
-                  )}
-              </div>
-            </div>
+            <Notes notes={notes} permissions={notePermissions} onAddNote={addNote} onUpdateNote={updateNote} onDeleteNote={deleteNote} showComposer={false} />
           )}
-
-          {/* 8. SETTINGS — styled to match the Owner settings page */}
+          {/* 8. SETTINGS â€” styled to match the Owner settings page */}
           {activePage === "settings" && (
             <div className="grid gap-6 pb-6">
               {/* Header */}
@@ -1595,13 +1456,13 @@ function StaffDashboard() {
                   <div className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-6 shadow-[0_14px_35px_rgba(0,12,31,.14)] lg:col-span-1">
                     <div className="flex flex-col items-center text-center">
                       <span className="grid h-20 w-20 place-items-center rounded-full bg-[#75bec4]/20 font-['Poppins'] text-3xl font-semibold text-[#bce9e9] shadow-inner">
-                        {(user?.staffName || user?.email || "S")
+                        {(profileDraft.staffName || user?.email || "S")
                           .trim()
                           .charAt(0)
                           .toUpperCase()}
                       </span>
                       <h3 className="mt-4 font-['Fraunces'] text-xl font-medium text-[#d9ecef]">
-                        {user?.staffName || "Staff Member"}
+                        {profileDraft.staffName || "Staff Member"}
                       </h3>
                       <p className="font-['Poppins'] text-xs text-[#7fa7ae]">
                         {user?.email || "staff@fishonitory.com"}
@@ -1634,8 +1495,42 @@ function StaffDashboard() {
                       Account Details
                     </h3>
                     <p className="mt-1 font-['Poppins'] text-xs text-[#9bbec7]">
-                      Your staff credentials on record for this workspace.
+                      Update your name and contact number. Email, position, and role are managed by the owner.
                     </p>
+
+                    <form onSubmit={saveStaffProfile} className="mt-5 grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+                      <label className="font-['Poppins'] text-[10px] font-semibold uppercase tracking-wider text-[#6f9ca5]">
+                        Full Name
+                        <input
+                          value={profileDraft.staffName}
+                          onChange={(event) => setProfileDraft((current) => ({ ...current, staffName: event.target.value }))}
+                          required
+                          maxLength={100}
+                          autoComplete="name"
+                          className="mt-1.5 w-full rounded-xl border border-sky-100/10 bg-white/[.06] px-3 py-2.5 text-sm font-normal normal-case tracking-normal text-[#d9ecef] outline-none focus:border-[#73c4ca]"
+                        />
+                      </label>
+                      <label className="font-['Poppins'] text-[10px] font-semibold uppercase tracking-wider text-[#6f9ca5]">
+                        Phone Number
+                        <input
+                          type="tel"
+                          value={profileDraft.phoneNumber}
+                          onChange={(event) => setProfileDraft((current) => ({ ...current, phoneNumber: event.target.value }))}
+                          required
+                          maxLength={24}
+                          autoComplete="tel"
+                          placeholder="+639171234567"
+                          className="mt-1.5 w-full rounded-xl border border-sky-100/10 bg-white/[.06] px-3 py-2.5 text-sm font-normal normal-case tracking-normal text-[#d9ecef] outline-none focus:border-[#73c4ca]"
+                        />
+                      </label>
+                      <button
+                        type="submit"
+                        disabled={profileSaving}
+                        className="rounded-full bg-[#75bec4] px-5 py-2.5 font-['Poppins'] text-xs font-semibold text-[#052d45] transition hover:bg-[#86d0d6] disabled:cursor-wait disabled:opacity-60"
+                      >
+                        {profileSaving ? "Saving..." : "Save Profile"}
+                      </button>
+                    </form>
 
                     <div className="mt-6 grid gap-4 sm:grid-cols-2">
                       <div className="rounded-xl border border-sky-100/10 bg-white/[.03] p-4">
@@ -1643,7 +1538,7 @@ function StaffDashboard() {
                           Full Name
                         </label>
                         <p className="mt-1 font-['Poppins'] text-sm font-medium text-[#d9ecef]">
-                          {user?.staffName || "Not specified"}
+                          {profileDraft.staffName || "Not specified"}
                         </p>
                       </div>
 
@@ -1682,7 +1577,7 @@ function StaffDashboard() {
                         Staff Access Notice
                       </h4>
                       <p className="mt-1.5 font-['Poppins'] text-xs leading-relaxed text-[#c9e8e9]">
-                        This account has access to daily operations — inventory,
+                        This account has access to daily operations â€” inventory,
                         tank updates, point of sale, and the announcement board.
                         Business tools, staff account management, and financial
                         reports remain owner-only.
@@ -1736,7 +1631,7 @@ function StaffDashboard() {
                         <span className="text-[#73c4ca] font-bold">2.</span>
                         <span>
                           <strong>Keep It Personal:</strong> Never share your
-                          login with other staff — each clock-in and clock-out
+                          login with other staff â€” each clock-in and clock-out
                           is tied to your own account.
                         </span>
                       </li>
@@ -1831,7 +1726,7 @@ function StaffDashboard() {
                       <input
                         type="password"
                         autoComplete="current-password"
-                        placeholder="••••••••"
+                        placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
                         value={timeClock.password}
                         onChange={(event) =>
                           setTimeClock((value) => ({
@@ -1850,7 +1745,7 @@ function StaffDashboard() {
                         onClick={() => submitTimeClock("clock-in")}
                         className="flex-1 rounded-xl bg-[#75bec4] py-3.5 text-center font-['Poppins'] text-sm font-semibold text-[#052d45] transition hover:bg-[#86d0d6] disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
                       >
-                        {timeClockBusy ? "Clocking in…" : "Clock In"}
+                        {timeClockBusy ? "Clocking inâ€¦" : "Clock In"}
                       </button>
                       <button
                         type="button"
@@ -1858,7 +1753,7 @@ function StaffDashboard() {
                         onClick={() => submitTimeClock("clock-out")}
                         className="flex-1 rounded-xl border border-sky-100/15 bg-white/[.04] py-3.5 text-center font-['Poppins'] text-sm font-semibold text-[#d9ecef] transition hover:border-[#73c4ca]/40 hover:bg-white/[.08] disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
                       >
-                        {timeClockBusy ? "Clocking out…" : "Clock Out"}
+                        {timeClockBusy ? "Clocking outâ€¦" : "Clock Out"}
                       </button>
                     </div>
                   </div>

@@ -16,6 +16,10 @@ const toCoordinate = (value, min, max) => {
 };
  
 const profileView = (user) => ({
+  staffName: user.staffName,
+  staffPosition: user.staffPosition,
+  email: user.email,
+  role: user.role,
   ownerName: user.ownerName,
   phoneNumber: user.phoneNumber,
   businessAddress: user.businessAddress,
@@ -26,6 +30,35 @@ const profileView = (user) => ({
 exports.updateProfile = async (req, res) => {
   try {
     const body = req.body && typeof req.body === "object" ? req.body : {};
+
+    const user = await User.findById(req.user.userId);
+    if (!user || user.accountStatus !== "Active" || user.role !== req.user.role) {
+      return res.status(401).json({ message: "Session is no longer valid." });
+    }
+
+    if (["Staff", "masterStaff"].includes(user.role)) {
+      const name = checkDisplayName(body.staffName, { max: 100 });
+      if (name.error) return res.status(400).json({ message: name.error });
+
+      const phone = checkPhone(body.phoneNumber);
+      if (phone.error) return res.status(400).json({ message: phone.error });
+
+      user.staffName = name.value;
+      user.phoneNumber = phone.value;
+      await user.save({ validateBeforeSave: false });
+
+      try {
+        await writeAudit(req, "UPDATE", "User", user._id, "Staff profile updated.");
+      } catch (auditError) {
+        console.error("Staff profile audit failed:", auditError.message);
+      }
+
+      return res.json({ message: "Profile updated.", profile: profileView(user) });
+    }
+
+    if (user.role !== "Owner") {
+      return res.status(403).json({ message: "This account cannot update this profile." });
+    }
  
     const name = checkDisplayName(body.ownerName, { max: 100 });
     if (name.error) return res.status(400).json({ message: name.error });
@@ -63,11 +96,6 @@ exports.updateProfile = async (req, res) => {
           .status(400)
           .json({ message: "Pin your business location on the map." });
       }
-    }
- 
-    const user = await User.findById(req.user.userId);
-    if (!user || user.role !== "Owner" || user.accountStatus !== "Active") {
-      return res.status(401).json({ message: "Session is no longer valid." });
     }
  
     user.ownerName = name.value;
