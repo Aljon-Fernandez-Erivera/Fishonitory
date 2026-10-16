@@ -641,7 +641,7 @@
   border-color: rgba(115, 196, 202, 0.3);
 }
 
-.dashboard-nav-link.is-active .dashboard-nav-icon {
+.dashboard-nav-link.is-active .dashboard-nav-icon z{
   color: #d9f1f1;
 }
 

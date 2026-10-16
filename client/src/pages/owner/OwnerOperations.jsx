@@ -291,7 +291,7 @@ function OwnerOperations({
       </div>
 
       {/* QUICK SUMMARY */}
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <article className="rounded-2xl border border-sky-100/10 bg-[#062d48]/65 p-4 shadow-[0_8px_24px_rgba(0,12,31,.1)]">
           <p className="font-['Poppins'] text-[10px] font-semibold uppercase tracking-[0.12em] text-[#89afb9]">
             Purchase records

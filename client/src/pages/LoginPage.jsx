@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import QRCode from "qrcode";
 import { API_URL } from "../config.js";
@@ -74,6 +74,29 @@ function LoginPage() {
   const [resetMode, setResetMode] = useState(false);
   const [resetNotice, setResetNotice] = useState("");
   const [helpOpen, setHelpOpen] = useState(false);
+  const helpRef = useRef(null);
+
+  useEffect(() => {
+    if (!helpOpen) return undefined;
+
+    const handlePointerDown = (event) => {
+      if (helpRef.current && !helpRef.current.contains(event.target)) {
+        setHelpOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") setHelpOpen(false);
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [helpOpen]);
 
   useEffect(() => {
     if (!lockSeconds) return undefined;
@@ -279,7 +302,7 @@ function LoginPage() {
       />
 
       <section className="auth-card relative box-border w-full rounded-3xl border border-[#d9e5df] bg-[#fffefa] px-6 pb-6 pt-12 text-[#18383e] shadow-[0_24px_60px_rgba(21,62,67,.12)] sm:px-9 sm:pb-9 sm:pt-12">
-        <div className="absolute right-4 top-4">
+        <div ref={helpRef} className="absolute right-4 top-4">
           <button
             type="button"
             aria-label="Help"
@@ -515,7 +538,7 @@ function LoginPage() {
           )}
 
           {lockSeconds > 0 && (
-            <div className="rounded-xl border border-red-300/20 bg-red-400/10 p-3">
+            <div className="rounded-xl border border-red-300/20 bg-white p-3 ">
               <p className={errorClass}>
                 Please try again in{" "}
                 <span className="font-semibold">
