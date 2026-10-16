@@ -723,10 +723,21 @@ function OwnerDashboard() {
 
   const handleFishSubmit = async (event) => {
     event.preventDefault();
-
+    
     const price = Number(fishForm.price);
     const costPrice = Number(fishForm.costPrice);
     const quantity = Number(fishForm.quantity);
+
+    // Species: letters only (plus spaces, apostrophes, periods, hyphens), no digits.
+    const species = String(fishForm.species || "").trim().replace(/\s+/g, " ");
+    if (
+      !/^[A-Za-z\u00C0-\u024F][A-Za-z\u00C0-\u024F\s'.\-]{0,99}$/.test(species)
+    ) {
+      setError(
+        "Species can only contain letters, spaces, apostrophes, periods, and hyphens.",
+      );
+      return false;
+    }
 
     if (
       ![price, costPrice, quantity].every(
@@ -734,7 +745,7 @@ function OwnerDashboard() {
       )
     ) {
       setError("Price, cost price, and quantity must be at least 1.");
-      return;
+      return false;
     }
 
     try {
@@ -743,6 +754,7 @@ function OwnerDashboard() {
         method: editingFishId ? "PATCH" : "POST",
         body: JSON.stringify({
           ...fishForm,
+          species,
           photoUrl: String(fishForm.photoUrl || "").trim(),
           price,
           costPrice,
@@ -757,11 +769,13 @@ function OwnerDashboard() {
       setFishForm(emptyFish);
       setEditingFishId(null);
       await loadDashboardData();
+      return true;
     } catch (requestError) {
       setError(
         requestError.message ||
           "Price, cost price, and quantity must be at least 1.",
       );
+      return false;
     }
   };
 

@@ -17,6 +17,19 @@ const frequencyOptions = [
 const fieldClass =
   "mt-1.5 box-border w-full rounded-xl border border-sky-100/10 bg-white/[.06] px-3 py-2.5 font-['Poppins'] text-sm text-[#d9ecef] outline-none [color-scheme:dark] focus:border-[#73c4ca]";
 
+const formatMaintenanceDate = (value) => {
+  if (!value) return "Not scheduled";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? "Not scheduled"
+    : date.toLocaleDateString("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+        timeZone: "UTC",
+      });
+};
+
 function TankManagement({
   tanks,
   fish = [],
@@ -148,7 +161,7 @@ function TankManagement({
                     </td>
 
                     <td className="px-5 py-4">
-                      {tank.nextMaintenance || "Not scheduled"}
+                      {formatMaintenanceDate(tank.nextMaintenance)}
                     </td>
                     <td className="px-5 py-4 text-xs text-[#789faa]">
                       {tank.updatedBy?.staffName ||
@@ -307,7 +320,7 @@ function TankManagement({
         <div className="fixed inset-0 z-50 grid place-items-center bg-[#021a31]/75 p-4 backdrop-blur-sm" role="presentation" onClick={(event) => { if (event.target === event.currentTarget) setViewTank(null); }}>
           <section role="dialog" aria-modal="true" aria-labelledby="tank-details-title" className="w-[min(560px,calc(100%-2rem))] rounded-2xl border border-sky-100/15 bg-[#062d48] p-6 text-[#d9ecef] shadow-2xl">
             <div className="flex items-start justify-between"><h3 id="tank-details-title" className="font-['Fraunces'] text-2xl">{viewTank.name}</h3><button type="button" onClick={() => setViewTank(null)} aria-label="Close details">✕</button></div>
-            <dl className="mt-5 grid gap-3 sm:grid-cols-2 text-sm"><div><dt className="text-[#89afb9]">Status</dt><dd>{viewTank.status || "—"}</dd></div><div><dt className="text-[#89afb9]">Capacity</dt><dd>{viewTank.capacity ? `${viewTank.capacity} fish` : "Not set"}</dd></div><div><dt className="text-[#89afb9]">Current occupancy</dt><dd>{fish.filter((item) => String(item.tankId?._id || item.tankId) === String(viewTank._id)).reduce((sum, item) => sum + Number(item.quantity || 0), 0)} fish</dd></div><div><dt className="text-[#89afb9]">Next maintenance</dt><dd>{viewTank.nextMaintenance ? new Date(viewTank.nextMaintenance).toLocaleDateString() : "Not scheduled"}</dd></div><div><dt className="text-[#89afb9]">Cleaning frequency</dt><dd>{viewTank.cleaningFrequencyDays ? `Every ${viewTank.cleaningFrequencyDays} days` : "Not set"}</dd></div><div className="sm:col-span-2"><dt className="text-[#89afb9]">Fish assigned</dt><dd>{fish.filter((item) => String(item.tankId?._id || item.tankId) === String(viewTank._id)).map((item) => `${item.name} (${item.quantity})`).join(", ") || "No fish assigned"}</dd></div><div className="sm:col-span-2"><dt className="text-[#89afb9]">Maintenance notes</dt><dd className="whitespace-pre-wrap">{viewTank.notes || "No notes"}</dd></div><div className="sm:col-span-2"><dt className="text-[#89afb9]">Last updated by</dt><dd>{viewTank.updatedBy?.staffName || viewTank.updatedBy?.ownerName || viewTank.updatedBy?.staffPosition || "—"}</dd></div></dl>
+            <dl className="mt-5 grid gap-3 sm:grid-cols-2 text-sm"><div><dt className="text-[#89afb9]">Status</dt><dd>{viewTank.status || "—"}</dd></div><div><dt className="text-[#89afb9]">Capacity</dt><dd>{viewTank.capacity ? `${viewTank.capacity} fish` : "Not set"}</dd></div><div><dt className="text-[#89afb9]">Current occupancy</dt><dd>{fish.filter((item) => String(item.tankId?._id || item.tankId) === String(viewTank._id)).reduce((sum, item) => sum + Number(item.quantity || 0), 0)} fish</dd></div><div><dt className="text-[#89afb9]">Next maintenance</dt><dd>{formatMaintenanceDate(viewTank.nextMaintenance)}</dd></div><div><dt className="text-[#89afb9]">Cleaning frequency</dt><dd>{viewTank.cleaningFrequencyDays ? `Every ${viewTank.cleaningFrequencyDays} days` : "Not set"}</dd></div><div className="sm:col-span-2"><dt className="text-[#89afb9]">Fish assigned</dt><dd>{fish.filter((item) => String(item.tankId?._id || item.tankId) === String(viewTank._id)).map((item) => `${item.name} (${item.quantity})`).join(", ") || "No fish assigned"}</dd></div><div className="sm:col-span-2"><dt className="text-[#89afb9]">Maintenance notes</dt><dd className="whitespace-pre-wrap">{viewTank.notes || "No notes"}</dd></div><div className="sm:col-span-2"><dt className="text-[#89afb9]">Last updated by</dt><dd>{viewTank.updatedBy?.staffName || viewTank.updatedBy?.ownerName || viewTank.updatedBy?.staffPosition || "—"}</dd></div></dl>
             <button className="mt-5 rounded-full bg-[#75bec4] px-4 py-2 text-sm text-[#052d45]" type="button" onClick={() => setViewTank(null)}>Close</button>
           </section>
         </div>

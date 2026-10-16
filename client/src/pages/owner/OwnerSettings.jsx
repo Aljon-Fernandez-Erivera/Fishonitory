@@ -511,7 +511,7 @@ function OwnerSettings({ user: authUser, features, onEditWorkspace }) {
               <li className="flex gap-2">
                 <span className="text-[#73c4ca] font-bold">1.</span>
                 <span>
-                  <strong>Lockout Protection:</strong> Accounts are automatically locked for 5 minutes after 5 consecutive failed login attempts.
+                  <strong>Lockout Protection:</strong> The system temporarily limits repeated failed sign-in attempts. Attempt counters are held in server memory and are not saved to your account.
                 </span>
               </li>
               <li className="flex gap-2">

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { formatPeso } from "../shared/salesUtils.js";
 
 const NEW_OPTION = "__new__";
+const COMMON_FISH_SPECIES = ["Koi", "Goldfish", "Betta", "Guppy", "Angelfish", "Molly", "Platy", "Swordtail", "Discus", "Oscar", "Arowana", "Flowerhorn", "Tetra", "Cichlid", "Gourami", "Catfish", " danio"].map((name) => name.trim());
 
 function ViewModeIcon({ mode }) {
   if (mode === "grid") {
@@ -114,6 +115,7 @@ function Inventory({
   const existingSpecies = [
     ...new Set(fish.map((item) => item.species).filter(Boolean)),
   ].sort();
+  const suggestedSpecies = [...new Set([...COMMON_FISH_SPECIES, ...existingSpecies])].sort();
 
   const updateField = (event) =>
     setFishForm((previous) => ({
@@ -853,15 +855,33 @@ function Inventory({
                 Species
 
                 {speciesMode === "new" ? (
-                  <input
-                    className="min-h-[44px] rounded-xl border border-sky-100/10 bg-white/[.06] px-3 text-sm text-[#d9ecef] outline-none focus:border-[#73c4ca]"
-                    name="species"
-                    maxLength={100}
-                    placeholder="Enter new species"
-                    value={fishForm.species}
-                    onChange={updateField}
-                    required
-                  />
+                  <>
+                    <input
+                      className="min-h-[44px] rounded-xl border border-sky-100/10 bg-white/[.06] px-3 text-sm text-[#d9ecef] outline-none focus:border-[#73c4ca]"
+                      name="species"
+                      list="fish-species-suggestions"
+                      maxLength={100}
+                      pattern="[A-Za-z\u00C0-\u024F][A-Za-z\u00C0-\u024F\s'.\-]*"
+                      title="Species can only contain letters, spaces, apostrophes, periods, and hyphens."
+                      placeholder="Search or enter a species, e.g. Koi"
+                      value={fishForm.species}
+                      onChange={(event) =>
+                        setFishForm((previous) => ({
+                          ...previous,
+                          species: event.target.value.replace(
+                            /[^A-Za-z\u00C0-\u024F\s'.\-]/g,
+                            "",
+                          ),
+                        }))
+                      }
+                      required
+                    />
+                    <datalist id="fish-species-suggestions">
+                      {suggestedSpecies.map((species) => (
+                        <option key={species} value={species} />
+                      ))}
+                    </datalist>
+                  </>
                 ) : (
                   <select
                     className="min-h-[44px] rounded-xl border border-sky-100/10 bg-[#062d48] px-3 text-sm text-[#d9ecef] outline-none focus:border-[#73c4ca]"

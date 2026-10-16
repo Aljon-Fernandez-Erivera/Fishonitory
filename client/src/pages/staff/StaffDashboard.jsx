@@ -21,6 +21,32 @@ const tankStatuses = [
   "Available",
 ];
 
+function MillisecondClock() {
+  const [time, setTime] = useState(() => new Date());
+  useEffect(() => {
+    const timer = window.setInterval(() => setTime(new Date()), 50);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  return time.toLocaleTimeString("en-PH", {
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+}
+
+const formatMaintenanceDate = (value) => {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? ""
+    : date.toLocaleDateString("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+        timeZone: "UTC",
+      });
+};
+
 const escapeHtml = (value) =>
   String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -890,7 +916,7 @@ function StaffDashboard() {
                       <p className="mt-3 font-['Poppins'] text-[11px] text-[#7fa7ae]">
                         Next maintenance:{" "}
                         <span className="font-medium text-[#bce9e9]">
-                          {new Date(tank.nextMaintenance).toLocaleDateString()}
+                          {formatMaintenanceDate(tank.nextMaintenance)}
                         </span>
                       </p>
                     )}
@@ -1672,10 +1698,7 @@ function StaffDashboard() {
                   </h3>
                 </div>
                 <span className="rounded-full border border-sky-100/15 bg-white/[.04] px-3 py-1 font-['Poppins'] text-xs text-[#73c4ca]">
-                  {currentTime.toLocaleTimeString("en-PH", {
-                    hour: "numeric",
-                    minute: "2-digit",
-                  })}
+                  <MillisecondClock />
                 </span>
                 {/* Side info panel */}
                 <div className="flex flex-col justify-between rounded-xl border border-sky-100/[.08] bg-white/[.03] p-5">
@@ -1726,7 +1749,7 @@ function StaffDashboard() {
                       <input
                         type="password"
                         autoComplete="current-password"
-                        placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+                        placeholder="*******"
                         value={timeClock.password}
                         onChange={(event) =>
                           setTimeClock((value) => ({

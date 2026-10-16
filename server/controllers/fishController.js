@@ -63,6 +63,8 @@ function checkText(raw, label, { min = 1, max = 100, optional = false } = {}) {
   if (value === null) return { error: `${label} must be text.` };
   if (value.length < min || value.length > max)
     return { error: `${label} must be ${min}-${max} characters.` };
+  if (label === "Species" && !/\p{L}/u.test(value))
+    return { error: "Species must include a name, not only numbers or symbols." };
   if (/[<>{}`$\\]/.test(value))
     return { error: `${label} contains characters that are not allowed.` };
   return { value };

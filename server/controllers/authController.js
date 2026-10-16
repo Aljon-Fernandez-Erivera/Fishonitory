@@ -4,7 +4,6 @@ const { randomInt } = require("crypto");
 const cloudinary = require("cloudinary").v2;
 const User = require("../models/User");
 const Attendance = require("../models/Attendance");
-const LoginAttempt = require("../models/LoginAttempt");
 const config = require("../config/config");
 const { cookieNameForRole } = require("../middleware/authMiddleware");
 const { writeAudit } = require("../utils/audit");
@@ -77,68 +76,43 @@ function clearAuthCookie(res, role) {
   );
 }
 
-async function getActiveIpLock(ip) {
-  const record = await LoginAttempt.findOne({ ip });
-  if (!record?.blockedUntil) return null;
+// Login lockouts are process-local: failed-attempt metadata is never persisted.
+const ipLoginAttempts = new Map();
+const accountLoginAttempts = new Map();
 
-  if (record.blockedUntil > new Date()) {
-    return record.blockedUntil;
-  }
-
-  await LoginAttempt.updateOne(
-    { _id: record._id },
-    {
-      $set: {
-        blockedUntil: null,
-        failedAttempts: 0,
-        windowStartedAt: new Date(),
-      },
-    },
-  );
+function activeLock(map, key, windowMs) {
+  const id = String(key);
+  const record = map.get(id);
+  if (!record) return null;
+  if (record.blockedUntil && record.blockedUntil > new Date()) return record.blockedUntil;
+  if (Date.now() - record.windowStartedAt >= windowMs) map.delete(id);
   return null;
 }
 
-async function recordIpFailure(ip) {
-  const now = new Date();
-  let record = await LoginAttempt.findOne({ ip });
-
-  if (
-    !record ||
-    now.getTime() - record.windowStartedAt.getTime() >= IP_WINDOW_MS
-  ) {
-    record = await LoginAttempt.findOneAndUpdate(
-      { ip },
-      {
-        $set: {
-          failedAttempts: 1,
-          windowStartedAt: now,
-          blockedUntil: null,
-        },
-        $setOnInsert: { ip },
-      },
-      { upsert: true, new: true, setDefaultsOnInsert: true },
-    );
-  } else {
-    record.failedAttempts += 1;
-    if (record.failedAttempts >= IP_ATTEMPT_LIMIT) {
-      record.blockedUntil = new Date(now.getTime() + IP_LOCK_MS);
+function recordAttempt(map, key, limit, windowMs, lockMs) {
+  const id = String(key);
+  const now = Date.now();
+  for (const [entryId, entry] of map) {
+    if (now - entry.windowStartedAt >= windowMs && (!entry.blockedUntil || entry.blockedUntil <= new Date(now))) {
+      map.delete(entryId);
     }
-    await record.save();
   }
-
+  let record = map.get(id);
+  if (!record || now - record.windowStartedAt >= windowMs) {
+    record = { failedAttempts: 0, windowStartedAt: now, blockedUntil: null };
+  }
+  record.failedAttempts += 1;
+  if (record.failedAttempts >= limit) record.blockedUntil = new Date(now + lockMs);
+  map.set(id, record);
+  while (map.size > 10000) map.delete(map.keys().next().value);
   return record;
 }
 
-async function recordAccountFailure(user) {
-  const failedAttempts = (user.failedLoginAttempts || 0) + 1;
-  const update = { failedLoginAttempts: failedAttempts };
-
-  if (failedAttempts >= ACCOUNT_ATTEMPT_LIMIT) {
-    update.loginLockedUntil = new Date(Date.now() + ACCOUNT_LOCK_MS);
-  }
-
-  await User.updateOne({ _id: user._id }, { $set: update });
-  return update.loginLockedUntil || null;
+function getActiveIpLock(ip) { return activeLock(ipLoginAttempts, ip, IP_WINDOW_MS); }
+function recordIpFailure(ip) { return recordAttempt(ipLoginAttempts, ip, IP_ATTEMPT_LIMIT, IP_WINDOW_MS, IP_LOCK_MS); }
+function getAccountLock(userId) { return activeLock(accountLoginAttempts, userId, ACCOUNT_LOCK_MS); }
+function recordAccountFailure(user) {
+  return recordAttempt(accountLoginAttempts, user._id, ACCOUNT_ATTEMPT_LIMIT, ACCOUNT_LOCK_MS, ACCOUNT_LOCK_MS).blockedUntil;
 }
 
 async function recordTotpFailure(user) {
@@ -160,30 +134,9 @@ function totpLockResponse(lockedUntil) {
 }
 
 async function completeLogin(req, res, user, loginRole) {
-  const clientIp = getClientIp(req);
-  await Promise.all([
-    User.updateOne(
-      { _id: user._id },
-      {
-        $set: {
-          failedLoginAttempts: 0,
-          loginLockedUntil: null,
-          totpFailedAttempts: 0,
-          totpLockedUntil: null,
-        },
-      },
-    ),
-    LoginAttempt.updateOne(
-      { ip: clientIp },
-      {
-        $set: {
-          failedAttempts: 0,
-          blockedUntil: null,
-          windowStartedAt: new Date(),
-        },
-      },
-    ),
-  ]);
+  accountLoginAttempts.delete(String(user._id));
+  ipLoginAttempts.delete(String(getClientIp(req)));
+  await User.updateOne({ _id: user._id }, { $set: { totpFailedAttempts: 0, totpLockedUntil: null } });
 
   let alreadyClockedIn = false;
   if (loginRole === "Staff") {
@@ -590,8 +543,6 @@ exports.resetPassword = async (req, res) => {
     }
 
     user.password = req.body.password;
-    user.failedLoginAttempts = 0;
-    user.loginLockedUntil = null;
     // Skip full-document validation here: this endpoint is only changing the
     // password, and revalidating unrelated fields (like a phoneNumber saved
     // before E.164 formatting was enforced) would otherwise block a
@@ -674,18 +625,13 @@ exports.login = async (req, res) => {
       });
     }
 
-    if (user.loginLockedUntil && user.loginLockedUntil > new Date()) {
+    const accountLock = getAccountLock(user._id);
+    if (accountLock) {
       return res.status(423).json({
         code: "ACCOUNT_LOCKED",
         message: "Login locked.",
-        retryAfterSeconds: secondsUntil(user.loginLockedUntil),
+        retryAfterSeconds: secondsUntil(accountLock),
       });
-    }
-
-    if (user.loginLockedUntil && user.loginLockedUntil <= new Date()) {
-      user.loginLockedUntil = null;
-      user.failedLoginAttempts = 0;
-      await user.save({ validateBeforeSave: false });
     }
 
     // Older accounts may still have role Staff while their position is Master Staff.
@@ -1305,11 +1251,12 @@ exports.changePassword = async (req, res) => {
       return res.status(401).json({ message: "Session is no longer valid." });
     }
  
-    if (user.loginLockedUntil && user.loginLockedUntil > new Date()) {
+    const accountLock = getAccountLock(user._id);
+    if (accountLock) {
       return res.status(423).json({
         code: "ACCOUNT_LOCKED",
         message: "Too many incorrect attempts. Please try again later.",
-        retryAfterSeconds: secondsUntil(user.loginLockedUntil),
+        retryAfterSeconds: secondsUntil(accountLock),
       });
     }
  
@@ -1331,8 +1278,6 @@ exports.changePassword = async (req, res) => {
     }
  
     user.password = newPassword; // hashed by the User model's pre-save hook
-    user.failedLoginAttempts = 0;
-    user.loginLockedUntil = null;
     await user.save({ validateBeforeSave: false });
  
     // The password is already changed; an audit problem must not undo that.
@@ -1370,13 +1315,14 @@ async function verifyCurrentPassword(req, currentPassword) {
     return { status: 401, body: { message: "Session is no longer valid." } };
   }
  
-  if (user.loginLockedUntil && user.loginLockedUntil > new Date()) {
+  const accountLock = getAccountLock(user._id);
+  if (accountLock) {
     return {
       status: 423,
       body: {
         code: "ACCOUNT_LOCKED",
         message: "Too many incorrect attempts. Please try again later.",
-        retryAfterSeconds: secondsUntil(user.loginLockedUntil),
+        retryAfterSeconds: secondsUntil(accountLock),
       },
     };
   }
@@ -1522,8 +1468,6 @@ exports.changePassword = async (req, res) => {
     if (emailProblem) return res.status(400).json({ message: emailProblem });
  
     user.password = newPassword; // hashed by the User model's pre-save hook
-    user.failedLoginAttempts = 0;
-    user.loginLockedUntil = null;
     await user.save({ validateBeforeSave: false });
  
     pendingPasswordCodes.delete(userId); // single use

@@ -54,6 +54,9 @@ const validateFish = validate((req) => {
   const body = req.body || {};
   string(body.name, "Fish name", { min: 2, max: 100 });
   string(body.species, "Species", { min: 2, max: 100 });
+  if (typeof body.species !== "string" || !/\p{L}/u.test(body.species)) {
+    throw Object.assign(new Error("Species must include a name, not only numbers or symbols."), { statusCode: 400 });
+  }
   oneOf(body.category || "Fish", "Category", ["Fish", "Fish Food"]);
   number(body.price, "Price", { min: 1, max: 10000000 });
   number(body.costPrice ?? 0, "Cost price", { min: 1, max: 10000000 });

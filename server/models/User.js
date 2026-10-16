@@ -139,15 +139,6 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
-    failedLoginAttempts: {
-      type: Number,
-      min: 0,
-      default: 0,
-    },
-    loginLockedUntil: {
-      type: Date,
-      default: null,
-    },
     displayName: {
       type: String,
       trim: true,

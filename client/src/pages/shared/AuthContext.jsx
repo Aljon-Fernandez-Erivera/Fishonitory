@@ -113,6 +113,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   const logout = useCallback(async () => {
+    const userId = user?.id || user?._id || user?.email;
     try {
       await fetch(`${API_URL}/auth/logout`, {
         method: "POST",
@@ -124,9 +125,12 @@ export function AuthProvider({ children }) {
       sessionStorage.removeItem("fishonitory_tab_session");
       sessionStorage.removeItem("role");
       sessionStorage.removeItem("fishonitory_auth_token");
+      if (userId) {
+        sessionStorage.removeItem(`fishonitory_idle_timer_${encodeURIComponent(userId)}`);
+      }
       setUser(null);
     }
-  }, [user?.role]);
+  }, [user?.id, user?._id, user?.email, user?.role]);
 
   return (
     <AuthContext.Provider value={{ user, authReady, login, logout }}>
