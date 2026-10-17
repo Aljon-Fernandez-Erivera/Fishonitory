@@ -4,6 +4,7 @@ import { API_URL } from "../../config.js";
 import ChangePasswordDialog from "../../components/ChangePasswordDialog.jsx";
 import OwnerEditProfileDialog from "./OwnerEditProfileDialog.jsx";
 import AboutContactPanel from "../shared/AboutContactPanel.jsx";
+import { oceanicNotice } from "../../utils/oceanicSwal.js";
 
 async function ownerRequest(path, options = {}) {
   const response = await fetch(`${API_URL}${path}`, {
@@ -20,7 +21,7 @@ async function ownerRequest(path, options = {}) {
   return data;
 }
 
-function OwnerSettings({ user: authUser, features, onEditWorkspace }) {
+function OwnerSettings({ user: authUser, features, onEditWorkspace, onProfileSaveStart, onProfileSaveEnd, onProfileSaved }) {
   // Saved profile edits are layered over the signed-in user so this page shows
   // them straight away, without waiting for the session to be reloaded.
   const [profileEdits, setProfileEdits] = useState({});
@@ -37,7 +38,6 @@ function OwnerSettings({ user: authUser, features, onEditWorkspace }) {
   const [busy, setBusy] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [profileMessage, setProfileMessage] = useState("");
 
   useEffect(() => {
     if (user?.role !== "Owner") return;
@@ -64,12 +64,26 @@ function OwnerSettings({ user: authUser, features, onEditWorkspace }) {
 
   // Throws on failure so the dialog can show the message.
   const saveProfile = async (payload) => {
-    const data = await ownerRequest("/auth/profile", {
-      method: "PATCH",
-      body: JSON.stringify(payload),
-    });
-    setProfileEdits((previous) => ({ ...previous, ...(data.profile || {}) }));
-    setProfileMessage(data.message || "Profile updated.");
+    onProfileSaveStart?.();
+    try {
+      const data = await ownerRequest("/auth/profile", {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      });
+      const savedProfile = data.profile || {};
+      setProfileEdits((previous) => ({ ...previous, ...savedProfile }));
+      await onProfileSaved?.(savedProfile);
+      onProfileSaveEnd?.();
+      await oceanicNotice(
+        "Profile updated",
+        "Your profile changes have been saved.",
+        "success",
+        { tone: "success" },
+      );
+    } catch (error) {
+      onProfileSaveEnd?.();
+      throw error;
+    }
   };
 
   const handleStartTotpSetup = async () => {
@@ -253,7 +267,6 @@ function OwnerSettings({ user: authUser, features, onEditWorkspace }) {
               <button
                 type="button"
                 onClick={() => {
-                  setProfileMessage("");
                   setProfileOpen(true);
                 }}
                 className="cursor-pointer rounded-full border border-sky-100/15 bg-white/[.05] px-5 py-2.5 font-['Poppins'] text-xs font-medium text-[#cfe6ea] transition hover:bg-white/[.1]"
@@ -261,12 +274,6 @@ function OwnerSettings({ user: authUser, features, onEditWorkspace }) {
                 Edit profile
               </button>
             </div>
-
-            {profileMessage && (
-              <p className="mt-4 rounded-xl border border-[#75bec4]/30 bg-[#75bec4]/10 px-4 py-3 font-['Poppins'] text-xs text-[#c9e8e9]">
-                {profileMessage}
-              </p>
-            )}
 
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
               <div className="rounded-xl border border-sky-100/10 bg-white/[.03] p-4">

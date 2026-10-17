@@ -24,6 +24,24 @@ function OwnerOverview({
       ["Present", "Late"].includes(record.status),
   ).length;
 
+  const todayAttendance = attendance.filter(
+    (record) =>
+      record.dateKey === todayKey || record.date?.startsWith(todayKey),
+  );
+
+  const attendanceStatuses = [
+    { label: "Present", color: "bg-[#73c4ca]" },
+    { label: "Late", color: "bg-amber-300" },
+    { label: "Absent", color: "bg-rose-400" },
+    { label: "Leave", color: "bg-violet-300" },
+    { label: "Day Off", status: "DayOff", color: "bg-sky-300" },
+  ].map((status) => ({
+    ...status,
+    count: todayAttendance.filter(
+      (record) => record.status === (status.status || status.label),
+    ).length,
+  }));
+
   const fishInventory = fish.filter(
     (item) => (item.category || "Fish") !== "Fish Food",
   );
@@ -33,13 +51,30 @@ function OwnerOverview({
   );
 
   const totalFish = fishInventory.reduce(
-    (total, item) => total + item.quantity,
+    (total, item) => total + (Number(item.quantity) || 0),
     0,
   );
 
   const totalFood = foodInventory.reduce(
-    (total, item) => total + item.quantity,
+    (total, item) => total + (Number(item.quantity) || 0),
     0,
+  );
+
+  const inventoryByCategory = Object.values(
+    fish.reduce((categories, item) => {
+      const category = item.category || "Fish";
+      categories[category] ??= { label: category, quantity: 0 };
+      categories[category].quantity += Number(item.quantity) || 0;
+      return categories;
+    }, {}),
+  ).sort((a, b) => b.quantity - a.quantity);
+  const maxCategoryQuantity = Math.max(
+    ...inventoryByCategory.map((category) => category.quantity),
+    1,
+  );
+  const maxAttendanceCount = Math.max(
+    ...attendanceStatuses.map((status) => status.count),
+    1,
   );
 
   const stats = [
@@ -56,12 +91,12 @@ function OwnerOverview({
     {
       label: "Fish",
       value: totalFish,
-      description: "Live units",
+      description: "Live pieces",
     },
     {
       label: "Food",
       value: totalFood,
-      description: "Feed units",
+      description: "Feed stocks",
     },
     {
       label: "Tanks",
@@ -191,7 +226,7 @@ function OwnerOverview({
                 sm:text-4xl
               "
             >
-              {stat.value}
+              {Number(stat.value).toLocaleString("en-US")}
             </strong>
 
             <small
@@ -222,6 +257,89 @@ function OwnerOverview({
         />
       </section>
 
+      {/* ================= ADDITIONAL VISUALIZATIONS ================= */}
+      <section className="mt-5 grid min-w-0 gap-5 lg:grid-cols-2">
+        <article className="min-w-0 rounded-2xl border border-sky-100/15 bg-[#062d48]/80 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,.04),0_8px_25px_rgba(0,12,31,.12)] sm:p-6">
+          <p className="font-['Poppins'] text-[10px] font-semibold uppercase tracking-[0.14em] text-[#73c4ca] sm:text-xs">
+            Workforce
+          </p>
+          <h3 className="m-0 mt-1.5 font-['Fraunces'] text-xl font-medium text-[#d9ecef] sm:text-2xl">
+            Today&apos;s Attendance by Status
+          </h3>
+          <p className="mt-1 font-['Poppins'] text-xs text-[#89afb9]">
+            Staff attendance records for {todayKey} (Philippine time)
+          </p>
+
+          {todayAttendance.length ? (
+            <div
+              className="mt-5 space-y-4"
+              role="img"
+              aria-label={`Today's attendance by status: ${attendanceStatuses.map(({ label, count }) => `${label} ${count}`).join(", ")}`}
+            >
+              {attendanceStatuses.map(({ label, count, color }) => (
+                <div key={label}>
+                  <div className="mb-1.5 flex items-center justify-between gap-3 font-['Poppins'] text-xs">
+                    <span className="text-[#b7d2d7]">{label}</span>
+                    <span className="font-semibold text-[#d9ecef]">{count}</span>
+                  </div>
+                  <div className="h-2.5 overflow-hidden rounded-full bg-white/[.07]">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${color}`}
+                      style={{ width: `${(count / maxAttendanceCount) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-5 rounded-xl border border-dashed border-sky-100/10 px-4 py-5 font-['Poppins'] text-sm text-[#89afb9]">
+              No attendance records for today yet.
+            </p>
+          )}
+        </article>
+
+        <article className="min-w-0 rounded-2xl border border-sky-100/15 bg-[#062d48]/80 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,.04),0_8px_25px_rgba(0,12,31,.12)] sm:p-6">
+          <p className="font-['Poppins'] text-[10px] font-semibold uppercase tracking-[0.14em] text-[#73c4ca] sm:text-xs">
+            Inventory
+          </p>
+          <h3 className="m-0 mt-1.5 font-['Fraunces'] text-xl font-medium text-[#d9ecef] sm:text-2xl">
+            Stock by Category
+          </h3>
+          <p className="mt-1 font-['Poppins'] text-xs text-[#89afb9]">
+            Current inventory quantity grouped by category
+          </p>
+
+          {inventoryByCategory.length ? (
+            <div
+              className="mt-5 space-y-4"
+              role="img"
+              aria-label={`Inventory quantity by category: ${inventoryByCategory.map(({ label, quantity }) => `${label} ${quantity} pieces`).join(", ")}`}
+            >
+              {inventoryByCategory.map(({ label, quantity }, index) => (
+                <div key={label}>
+                  <div className="mb-1.5 flex items-center justify-between gap-3 font-['Poppins'] text-xs">
+                    <span className="truncate text-[#b7d2d7]">{label}</span>
+                    <span className="shrink-0 font-semibold text-[#d9ecef]">
+                      {quantity.toLocaleString()} pieces
+                    </span>
+                  </div>
+                  <div className="h-2.5 overflow-hidden rounded-full bg-white/[.07]">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${index % 2 === 0 ? "bg-[#73c4ca]" : "bg-[#7aa8f5]"}`}
+                      style={{ width: `${(quantity / maxCategoryQuantity) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-5 rounded-xl border border-dashed border-sky-100/10 px-4 py-5 font-['Poppins'] text-sm text-[#89afb9]">
+              No inventory categories to display.
+            </p>
+          )}
+        </article>
+      </section>
+
       {/* ================= ATTENDANCE ================= */}
       <section
         className="
@@ -245,7 +363,8 @@ function OwnerOverview({
         </div>
 
         {attendance.length ? (
-          <div className="mt-4 w-full max-w-full overflow-x-auto">
+          <>
+          <div className="mt-4 hidden w-full max-w-full overflow-x-auto lg:block">
             <table className="min-w-[620px] w-full border-collapse font-['Poppins'] text-xs text-[#a9c8cf] sm:text-sm">
               <thead>
                 <tr className="border-b border-sky-100/10 text-left text-[10px] font-medium uppercase tracking-[0.08em] text-[#7dabb5] sm:text-xs">
@@ -314,6 +433,28 @@ function OwnerOverview({
               </tbody>
             </table>
           </div>
+          <div className="mt-4 divide-y divide-sky-100/[.08] overflow-hidden rounded-xl border border-sky-100/10 bg-white/[.025] lg:hidden">
+            {attendance.slice(0, 5).map((record) => {
+              const name = record.userId?.staffName || record.userId?.ownerName || record.userId?.email || "Unknown";
+              const role = record.userId?.role === "Owner" ? "Owner" : record.userId?.staffPosition || "Staff";
+              return (
+                <article key={record._id} className="space-y-2.5 p-3.5 font-['Poppins'] text-xs text-[#a9c8cf]">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="m-0 truncate text-sm font-medium text-[#d9ecef]">{name}</p>
+                      <p className="m-0 mt-0.5 text-[#89afb9]">{role}</p>
+                    </div>
+                    <span className="shrink-0 rounded-full bg-white/[.06] px-2.5 py-1">{record.status}</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 border-t border-sky-100/[.07] pt-2">
+                    <p className="m-0"><span className="block text-[#789faa]">Clock in</span>{record.checkIn ? new Date(record.checkIn).toLocaleString("en-PH") : "—"}</p>
+                    <p className="m-0"><span className="block text-[#789faa]">Clock out</span>{record.checkOut ? new Date(record.checkOut).toLocaleString("en-PH") : "—"}</p>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+          </>
         ) : (
           <p className="m-4 rounded-xl border border-dashed border-sky-100/10 px-4 py-5 font-['Poppins'] text-sm text-[#7dabb5] sm:m-6">
             No attendance records yet.

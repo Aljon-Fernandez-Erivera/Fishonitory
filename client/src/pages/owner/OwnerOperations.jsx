@@ -135,15 +135,15 @@ function OwnerOperations({
     return actionMatch && entityMatch;
   });
 
-  const visiblePurchases = getFilteredByDays(
-    purchases,
-    purchaseFilter,
-  ).slice(0, purchaseLimit);
+  const visiblePurchases = getFilteredByDays(purchases, purchaseFilter).slice(
+    0,
+    purchaseLimit,
+  );
 
-  const visibleMortality = getFilteredByDays(
-    mortality,
-    mortalityFilter,
-  ).slice(0, mortalityLimit);
+  const visibleMortality = getFilteredByDays(mortality, mortalityFilter).slice(
+    0,
+    mortalityLimit,
+  );
 
   const visibleAuditLogs = getFilteredByDays(
     filteredAuditLogs,
@@ -187,7 +187,6 @@ function OwnerOperations({
 
     setPurchaseFormOpen(false);
   };
-
 
   // all shared classes ng mga elements sa page
   const fieldLabelClass =
@@ -237,8 +236,7 @@ function OwnerOperations({
           </h2>
 
           <p className="mt-2 font-['Poppins'] text-sm text-[#9bbec7]">
-            Track purchases, stock losses, reports, and business
-            accountability.
+            Track purchases, stock losses, reports, and business accountability.
           </p>
         </div>
 
@@ -252,7 +250,8 @@ function OwnerOperations({
                 ...sales.map((sale) => {
                   const cost = sale.items.reduce(
                     (sum, item) =>
-                      sum + Number(item.costPrice || 0) * Number(item.quantity || 0),
+                      sum +
+                      Number(item.costPrice || 0) * Number(item.quantity || 0),
                     0,
                   );
 
@@ -296,7 +295,7 @@ function OwnerOperations({
           <p className="font-['Poppins'] text-[10px] font-semibold uppercase tracking-[0.12em] text-[#89afb9]">
             Purchase records
           </p>
-          <p className="mt-2 font-['Fraunces'] text-3xl font-medium text-[#d9ecef]">
+          <p className="mt-2 font-['Fraunces'] text-2xl font-medium text-[#d9ecef] sm:text-3xl">
             {purchases.length}
           </p>
         </article>
@@ -305,11 +304,10 @@ function OwnerOperations({
           <p className="font-['Poppins'] text-[10px] font-semibold uppercase tracking-[0.12em] text-[#89afb9]">
             Purchase cost
           </p>
-          <p className="mt-2 font-['Fraunces'] text-2xl font-medium text-[#73c4ca]">
+          <p className="mt-2 font-['Fraunces'] text-2xl font-medium text-[#d9ecef] sm:text-3xl">
             {formatPeso(totalPurchaseCost)}
           </p>
         </article>
-
         <article className="rounded-2xl border border-rose-300/15 bg-[#062d48]/65 p-4 shadow-[0_8px_24px_rgba(0,12,31,.1)]">
           <p className="font-['Poppins'] text-[10px] font-semibold uppercase tracking-[0.12em] text-[#89afb9]">
             Mortality reports
@@ -376,7 +374,10 @@ function OwnerOperations({
               </button>
             </div>
 
-            <form className="grid gap-4 sm:grid-cols-2" onSubmit={submitPurchase}>
+            <form
+              className="grid gap-4 sm:grid-cols-2"
+              onSubmit={submitPurchase}
+            >
               <label className={fieldLabelClass}>
                 Supplier name
                 <input
@@ -604,18 +605,18 @@ function OwnerOperations({
       {/* PURCHASE AND MORTALITY REPORTS */}
       <div className="grid gap-6 xl:grid-cols-2">
         <div className={reportCardClass}>
-          <div className="flex items-center justify-between gap-4 border-b border-sky-100/10 px-5 py-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-sky-100/10 px-4 py-4 sm:px-5">
             <div>
               <p className="font-['Poppins'] text-[10px] font-semibold uppercase tracking-[.12em] text-[#73c4ca]">
                 Stock activity
               </p>
 
-              <h3 className="mt-1 font-['Fraunces'] text-2xl text-[#d9ecef]">
+              <h3 className="mt-1 font-['Fraunces'] text-xl text-[#d9ecef] sm:text-2xl">
                 Purchase history
               </h3>
             </div>
 
-            <div className="flex shrink-0 items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2.5 py-1 font-['Poppins'] text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-300">
                 {purchases.length} records
               </span>
@@ -656,7 +657,7 @@ function OwnerOperations({
               </label>
             </div>
 
-            <div className="max-h-72 overflow-auto rounded-xl border border-sky-100/10 bg-white/[.025]">
+            <div className="hidden max-h-72 overflow-auto rounded-xl border border-sky-100/10 bg-white/[.025] lg:block">
               <table className="min-w-full border-separate border-spacing-0">
                 <thead className="sticky top-0 z-10">
                   <tr>
@@ -676,7 +677,9 @@ function OwnerOperations({
                       >
                         <td className={tableCellClass}>
                           {item.purchasedAt
-                            ? new Date(item.purchasedAt).toLocaleDateString()
+                            ? new Date(item.purchasedAt).toLocaleDateString(
+                                "en-PH",
+                              )
                             : "—"}
                         </td>
 
@@ -687,7 +690,9 @@ function OwnerOperations({
                         <td className={tableCellClass}>
                           {item.items?.length
                             ? item.items
-                                .map((line) => `${line.name} × ${line.quantity}`)
+                                .map(
+                                  (line) => `${line.name} × ${line.quantity}`,
+                                )
                                 .join(", ")
                             : "—"}
                         </td>
@@ -710,17 +715,54 @@ function OwnerOperations({
                 </tbody>
               </table>
             </div>
+
+            <div className="max-h-72 divide-y divide-sky-100/[.08] overflow-y-auto rounded-xl border border-sky-100/10 bg-white/[.025] lg:hidden">
+              {visiblePurchases.length ? (
+                visiblePurchases.map((item) => (
+                  <article key={item._id} className="space-y-2.5 p-3.5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="m-0 text-xs text-[#89afb9]">
+                          {item.purchasedAt
+                            ? new Date(item.purchasedAt).toLocaleDateString(
+                                "en-PH",
+                              )
+                            : "—"}
+                        </p>
+                        <p className="mt-1 truncate font-['Poppins'] text-sm font-medium text-[#d9ecef]">
+                          {item.supplierName || "—"}
+                        </p>
+                      </div>
+                      <strong className="shrink-0 font-['Fraunces'] text-base text-[#73c4ca]">
+                        {formatPeso(item.totalCost)}
+                      </strong>
+                    </div>
+                    <p className="m-0 break-words font-['Poppins'] text-xs leading-5 text-[#b7d2d7]">
+                      {item.items?.length
+                        ? item.items
+                            .map((line) => `${line.name} × ${line.quantity}`)
+                            .join(", ")
+                        : "—"}
+                    </p>
+                  </article>
+                ))
+              ) : (
+                <p className="m-0 px-3 py-8 text-center font-['Poppins'] text-sm text-[#789faa]">
+                  No purchases recorded in this range.
+                </p>
+              )}
+            </div>
           </div>
         </div>
 
         <div className={reportCardClass}>
-          <div className="flex items-center justify-between gap-4 border-b border-sky-100/10 px-5 py-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-sky-100/10 px-4 py-4 sm:px-5">
             <div>
               <p className="font-['Poppins'] text-[10px] font-semibold uppercase tracking-[.12em] text-rose-300">
                 Stock health
               </p>
 
-              <h3 className="mt-1 font-['Fraunces'] text-2xl text-[#d9ecef]">
+              <h3 className="mt-1 font-['Fraunces'] text-xl text-[#d9ecef] sm:text-2xl">
                 Mortality report
               </h3>
 
@@ -729,7 +771,7 @@ function OwnerOperations({
               </p>
             </div>
 
-            <div className="flex shrink-0 items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="rounded-full border border-rose-400/30 bg-rose-500/10 px-2.5 py-1 font-['Poppins'] text-[10px] font-semibold uppercase tracking-[0.12em] text-rose-300">
                 Monitor
               </span>
@@ -770,7 +812,7 @@ function OwnerOperations({
               </label>
             </div>
 
-            <div className="max-h-72 overflow-auto rounded-xl border border-sky-100/10 bg-white/[.025]">
+            <div className="hidden max-h-72 overflow-auto rounded-xl border border-sky-100/10 bg-white/[.025] lg:block">
               <table className="min-w-[780px] border-separate border-spacing-0">
                 <thead className="sticky top-0 z-10">
                   <tr>
@@ -901,6 +943,55 @@ function OwnerOperations({
                 </tbody>
               </table>
             </div>
+
+            <div className="max-h-72 divide-y divide-sky-100/[.08] overflow-y-auto rounded-xl border border-sky-100/10 bg-white/[.025] lg:hidden">
+              {visibleMortality.length ? (
+                visibleMortality.map((item) => (
+                  <article key={item._id} className="space-y-2.5 p-3.5 font-['Poppins'] text-xs text-[#b7d2d7]">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="m-0 text-[#89afb9]">
+                          {item.recordedAt
+                            ? new Date(item.recordedAt).toLocaleString("en-PH")
+                            : "—"}
+                        </p>
+                        <p className="mt-1 truncate text-sm font-medium text-[#d9ecef]">
+                          {item.tankId?.name || "Unknown facility"} · {item.species || item.fishName || "Unknown species"}
+                          {item.lifeStage ? ` / ${item.lifeStage}` : ""}
+                        </p>
+                      </div>
+                      <strong className="shrink-0 text-sm text-rose-200">
+                        {item.quantity} dead
+                      </strong>
+                    </div>
+                    <p className="m-0 leading-5">
+                      {item.suspectedCause || item.reason || "No cause recorded"}
+                      {item.treatmentGiven && item.treatmentGiven !== "None" && item.treatmentGiven !== "None / no treatment given"
+                        ? ` · ${item.treatmentGiven}`
+                        : ""}
+                    </p>
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-sky-100/[.07] pt-2 text-[#89afb9]">
+                      <span>Recorded by {item.recordedBy?.staffName || item.recordedBy?.ownerName || "Unknown"}</span>
+                      <details>
+                        <summary className="cursor-pointer text-[#73c4ca]">Full report</summary>
+                        <dl className="mt-2 grid gap-1.5 leading-5">
+                          <div><dt className="inline text-[#789faa]">Batch: </dt><dd className="inline">{item.batchNumber || "—"}</dd></div>
+                          <div><dt className="inline text-[#789faa]">Initial stock: </dt><dd className="inline">{item.initialStockCount ?? "—"}</dd></div>
+                          <div><dt className="inline text-[#789faa]">Signs: </dt><dd className="inline">{item.signsObserved?.length ? item.signsObserved.join(", ") : "None reported"}</dd></div>
+                          <div><dt className="inline text-[#789faa]">Disposal: </dt><dd className="inline">{item.disposalMethod || "—"}</dd></div>
+                          <div><dt className="inline text-[#789faa]">Remarks: </dt><dd className="inline">{item.remarks || "—"}</dd></div>
+                        </dl>
+                        {item.photoUrl && <a className="mt-2 inline-block text-[#73c4ca] underline" href={item.photoUrl} target="_blank" rel="noreferrer">View photo</a>}
+                      </details>
+                    </div>
+                  </article>
+                ))
+              ) : (
+                <p className="m-0 px-3 py-8 text-center font-['Poppins'] text-sm text-[#789faa]">
+                  No mortality records in this range.
+                </p>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -953,26 +1044,22 @@ function OwnerOperations({
 
               <select
                 value={auditActionFilter}
-                onChange={(event) =>
-                  setAuditActionFilter(event.target.value)
-                }
+                onChange={(event) => setAuditActionFilter(event.target.value)}
                 className={filterSelectClass}
               >
                 <option className="bg-[#062d48]" value="all">
                   All actions
                 </option>
 
-                {[...new Set(auditLogs.map((log) => log.action).filter(Boolean))].map(
-                  (action) => (
-                    <option
-                      className="bg-[#062d48]"
-                      key={action}
-                      value={action}
-                    >
-                      {action}
-                    </option>
+                {[
+                  ...new Set(
+                    auditLogs.map((log) => log.action).filter(Boolean),
                   ),
-                )}
+                ].map((action) => (
+                  <option className="bg-[#062d48]" key={action} value={action}>
+                    {action}
+                  </option>
+                ))}
               </select>
             </label>
 
@@ -981,9 +1068,7 @@ function OwnerOperations({
 
               <select
                 value={auditEntityFilter}
-                onChange={(event) =>
-                  setAuditEntityFilter(event.target.value)
-                }
+                onChange={(event) => setAuditEntityFilter(event.target.value)}
                 className={filterSelectClass}
               >
                 <option className="bg-[#062d48]" value="all">
@@ -995,11 +1080,7 @@ function OwnerOperations({
                     auditLogs.map((log) => log.entityType).filter(Boolean),
                   ),
                 ].map((entity) => (
-                  <option
-                    className="bg-[#062d48]"
-                    key={entity}
-                    value={entity}
-                  >
+                  <option className="bg-[#062d48]" key={entity} value={entity}>
                     {entity}
                   </option>
                 ))}
@@ -1007,7 +1088,7 @@ function OwnerOperations({
             </label>
           </div>
 
-          <div className="max-h-72 overflow-auto rounded-xl border border-sky-100/10 bg-white/[.025]">
+          <div className="hidden max-h-72 overflow-auto rounded-xl border border-sky-100/10 bg-white/[.025] lg:block">
             <table className="min-w-[760px] w-full border-separate border-spacing-0">
               <thead className="sticky top-0 z-10">
                 <tr>
@@ -1057,6 +1138,19 @@ function OwnerOperations({
                 )}
               </tbody>
             </table>
+          </div>
+          <div className="max-h-72 divide-y divide-sky-100/[.08] overflow-y-auto rounded-xl border border-sky-100/10 bg-white/[.025] lg:hidden">
+            {visibleAuditLogs.length ? visibleAuditLogs.map((log) => (
+              <article key={log._id} className="space-y-2 p-3.5 font-['Poppins'] text-xs text-[#b7d2d7]">
+                <div className="flex items-start justify-between gap-3">
+                  <strong className="min-w-0 break-words text-sm text-[#d9ecef]">{log.action || "—"}</strong>
+                  <span className="shrink-0 text-right text-[#89afb9]">{log.createdAt ? new Date(log.createdAt).toLocaleString("en-PH") : "—"}</span>
+                </div>
+                <p className="m-0 break-all">{log.actorId?.email || "—"}</p>
+                <p className="m-0 text-[#89afb9]">{log.entityType || "—"}</p>
+                {log.details && <p className="m-0 break-words leading-5 text-[#9bbec7]">{log.details}</p>}
+              </article>
+            )) : <p className="m-0 px-3 py-8 text-center font-['Poppins'] text-sm text-[#789faa]">No audit activity in this range.</p>}
           </div>
         </div>
       </div>

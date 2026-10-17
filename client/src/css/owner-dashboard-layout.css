@@ -2,6 +2,40 @@
   box-sizing: border-box;
 }
 
+.dashboard-page-transition {
+  animation: dashboard-page-enter 220ms ease-out both;
+}
+
+.profile-sync-dots {
+  display: inline-block;
+  animation: profile-sync-pulse 900ms ease-in-out infinite;
+}
+
+@keyframes profile-sync-pulse {
+  50% { opacity: 0.3; }
+}
+
+@keyframes dashboard-page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-page-transition {
+    animation: none;
+  }
+
+  .profile-sync-dots {
+    animation: none;
+  }
+}
+
 #root {
   width: 100%;
   max-width: none;
@@ -1269,8 +1303,8 @@
   }
 
   .owner-workspace {
-    padding-left: 1rem !important;
-    padding-right: 1rem !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
   }
 
   .content-header,

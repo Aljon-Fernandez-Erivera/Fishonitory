@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import ChangePasswordDialog from "../../components/ChangePasswordDialog.jsx";
+import { formatPhoneInput } from "../shared/phoneUtils.js";
 
 // Same rules as the server (server/utils/validators.js).
 const NAME_PATTERN = /^[\p{L}\p{M}][\p{L}\p{M} .'-]*$/u;
@@ -88,7 +89,7 @@ function EditProfileDialog({ profile, onClose, onSave }) {
 
   const setField = (name) => (event) => {
     let value = cleanText(event.target.value);
-    if (name === "phoneNumber") value = value.replace(/[^\d+\s.()-]/g, "").slice(0, 24);
+    if (name === "phoneNumber") value = formatPhoneInput(value);
     else value = value.replace(/[^\p{L}\p{M} .'-]/gu, "").slice(0, 60);
 
     setValues((previous) => ({ ...previous, [name]: value }));

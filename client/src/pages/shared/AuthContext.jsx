@@ -7,6 +7,10 @@ export function AuthProvider({ children }) {
   const [authReady, setAuthReady] = useState(false);
   const [, setToastMessage] = useState("");
 
+  const updateUser = useCallback((updates) => {
+    setUser((current) => current ? { ...current, ...updates } : current);
+  }, []);
+
   const refreshSession = useCallback(async () => {
     const tabSessionKey = "fishonitory_tab_session";
     const hasTabSession = sessionStorage.getItem(tabSessionKey) === "active";
@@ -133,7 +137,7 @@ export function AuthProvider({ children }) {
   }, [user?.id, user?._id, user?.email, user?.role]);
 
   return (
-    <AuthContext.Provider value={{ user, authReady, login, logout }}>
+    <AuthContext.Provider value={{ user, authReady, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

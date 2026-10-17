@@ -125,8 +125,9 @@ async function apiRequest(path, options = {}) {
 
 // Main component para sa Owner Dashboard, dito nag lalaman ng lahat ng functionality ng owner workspace.
 function OwnerDashboard() {
-  const { user, authReady, logout } = useAuth();
+  const { user, authReady, logout, updateUser } = useAuth();
   const [activePage, setActivePage] = useState("overview");
+  const [profileNameSaving, setProfileNameSaving] = useState(false);
   const [staff, setStaff] = useState([]);
   const [attendance, setAttendance] = useState([]);
   const [fish, setFish] = useState([]);
@@ -731,7 +732,7 @@ function OwnerDashboard() {
     // Species: letters only (plus spaces, apostrophes, periods, hyphens), no digits.
     const species = String(fishForm.species || "").trim().replace(/\s+/g, " ");
     if (
-      !/^[A-Za-z\u00C0-\u024F][A-Za-z\u00C0-\u024F\s'.\-]{0,99}$/.test(species)
+      !/^[A-Za-z\u00C0-\u024F][A-Za-z\u00C0-\u024F\s'.-]{0,99}$/.test(species)
     ) {
       setError(
         "Species can only contain letters, spaces, apostrophes, periods, and hyphens.",
@@ -1136,6 +1137,16 @@ function OwnerDashboard() {
           <OwnerSettings
             user={user}
             onLogout={logout}
+            onProfileSaveStart={() => setProfileNameSaving(true)}
+            onProfileSaveEnd={() => setProfileNameSaving(false)}
+            onProfileSaved={async (profile) => {
+              updateUser(profile);
+              await new Promise((resolve) => {
+                window.requestAnimationFrame(() => {
+                  window.requestAnimationFrame(resolve);
+                });
+              });
+            }}
             features={businessFeatures}
             onEditWorkspace={() => setWorkspaceSetupOpen(true)}
           />
@@ -1188,7 +1199,7 @@ function OwnerDashboard() {
           { title: "Sales and reports", description: "Sales and business performance", items: [businessFeatures.sales && { page: "sales", label: "Sales" }, businessFeatures.operations && { page: "operations", label: "Operations & Reports" }].filter(Boolean) },
           { title: "Workspace", description: "Account and business preferences", items: [{ page: "settings", label: "Settings" }] },
         ]}
-        identity={{ avatar: user?.ownerName || user?.email || "O", title: user?.businessName || "Business account", subtitle: user?.ownerName || user?.email || "Business owner" }}
+        identity={{ avatar: user?.ownerName || user?.email || "O", title: user?.businessName || "Business account", subtitle: user?.ownerName || user?.email || "Business owner", loading: profileNameSaving }}
         onIdentityClick={() => { setActivePage("settings"); setSidebarOpen(false); }}
         onLogout={async () => {
           const result = await showOceanicLogoutConfirm(async () => {
@@ -1214,7 +1225,7 @@ function OwnerDashboard() {
               viewerId={user?.id}
             />
       </DashboardHeader>
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6 sm:px-5 lg:px-5 lg:py-8">
+        <div key={activePage} className="dashboard-page-transition min-h-0 flex-1 overflow-y-auto px-2 py-2 sm:px-5 lg:px-5 lg:py-8">
         <PlatformNoticeBanner notices={platformNotices} />
         {renderActivePage()}
         </div>

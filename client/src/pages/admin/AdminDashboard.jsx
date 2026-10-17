@@ -5,7 +5,7 @@ import { useAuth } from "../shared/useAuth.js";
 import { useSearchParams } from "react-router-dom";
 import { API_URL } from "../../config.js";
 import "../../css/owner-dashboard-layout.css";
-import { confirmOceanicAction, oceanicFire, showOceanicLogoutConfirm } from "../../utils/oceanicSwal.js";
+import { confirmOceanicAction, oceanicFire, oceanicNotice, showOceanicLogoutConfirm } from "../../utils/oceanicSwal.js";
 
 import AdminOverview from "./AdminOverview.jsx";
 import PendingVerifications from "./PendingVerifications.jsx";
@@ -50,7 +50,7 @@ async function apiRequest(path, options = {}) {
 // the wrappers use `display: contents` to keep buttons as direct row items.
 
 function AdminDashboard() {
-  const { user, authReady, logout } = useAuth();
+  const { user, authReady, logout, updateUser } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const adminPages = [
     "overview",
@@ -103,8 +103,6 @@ function AdminDashboard() {
     totalPages: 0,
   });
 
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
   const [toastNotice, setToastNotice] = useState(null);
 
   const [currentTime, setCurrentTime] = useState(() => new Date());
@@ -131,6 +129,7 @@ function AdminDashboard() {
   const [businessesError, setBusinessesError] = useState("");
   const [mfaEnabled, setMfaEnabled] = useState(null);
   const [adminProfile, setAdminProfile] = useState(null);
+  const [profileNameSaving, setProfileNameSaving] = useState(false);
 
   /* =========================================================
      NOTIFICATIONS
@@ -192,7 +191,7 @@ function AdminDashboard() {
       console.error("Failed to load overview data:", error);
 
       if (!background) {
-        setError(error.message);
+        notify("error", error.message);
       }
     } finally {
       if (background) {
@@ -336,7 +335,7 @@ function AdminDashboard() {
       const result = await apiRequest("/admin/platform-notices");
       setPlatformNotices(result?.notices || []);
     } catch (requestError) {
-      setError(requestError.message);
+      notify("error", requestError.message);
     } finally {
       setPlatformNoticesLoading(false);
     }
@@ -349,10 +348,10 @@ function AdminDashboard() {
         body: JSON.stringify(notice),
       });
       setPlatformNotices((current) => [result.notice, ...current]);
-      setMessage(result.message);
+      notify("success", result.message);
       return true;
     } catch (requestError) {
-      setError(requestError.message);
+      notify("error", requestError.message);
       return false;
     }
   };
@@ -370,9 +369,9 @@ function AdminDashboard() {
         method: "DELETE",
       });
       setPlatformNotices((current) => current.filter((item) => item._id !== notice._id));
-      setMessage(result.message);
+      notify("success", result.message);
     } catch (requestError) {
-      setError(requestError.message);
+      notify("error", requestError.message);
     }
   };
 
@@ -469,42 +468,6 @@ function AdminDashboard() {
     return () => clearInterval(timer);
   }, []);
 
-  /* =========================================================
-     SUCCESS MESSAGE
-  ========================================================= */
-
-  useEffect(() => {
-    if (!message) {
-      return undefined;
-    }
-
-    notify("success", message);
-
-    const timer = setTimeout(() => {
-      setMessage("");
-    }, 4500);
-
-    return () => clearTimeout(timer);
-  }, [message]);
-
-  /* =========================================================
-     ERROR MESSAGE
-  ========================================================= */
-
-  useEffect(() => {
-    if (!error) {
-      return undefined;
-    }
-
-    notify("error", error);
-
-    const timer = setTimeout(() => {
-      setError("");
-    }, 4500);
-
-    return () => clearTimeout(timer);
-  }, [error]);
-
   useEffect(() => {
     if (
       !authReady ||
@@ -576,13 +539,23 @@ function AdminDashboard() {
 
   // Throws on failure so the dialog can show the message under the fields.
   const handleSaveProfile = async ({ displayName, phoneNumber }) => {
-    const data = await apiRequest("/admin/profile", {
-      method: "PATCH",
-      body: JSON.stringify({ displayName, phoneNumber }),
-    });
-
-    setAdminProfile(data.profile);
-    setMessage(data.message);
+    setProfileNameSaving(true);
+    try {
+      const data = await apiRequest("/admin/profile", {
+        method: "PATCH",
+        body: JSON.stringify({ displayName, phoneNumber }),
+      });
+      setAdminProfile(data.profile);
+      updateUser(data.profile);
+      await new Promise((resolve) => {
+        window.requestAnimationFrame(() => window.requestAnimationFrame(resolve));
+      });
+      setProfileNameSaving(false);
+      await oceanicNotice("Profile updated", "Your profile changes have been saved.", "success", { tone: "success" });
+    } catch (saveError) {
+      setProfileNameSaving(false);
+      throw saveError;
+    }
   };
 
   const handleRequestPasswordCode = (currentPassword) =>
@@ -597,7 +570,7 @@ function AdminDashboard() {
       body: JSON.stringify({ currentPassword, newPassword, code }),
     });
 
-    setMessage(data.message);
+    notify("success", data.message || "Password updated.");
   };
 
   /* =========================================================
@@ -621,7 +594,7 @@ function AdminDashboard() {
         method: "POST",
       });
 
-      setMessage(`${label}'s account ${status === "Disabled" ? "disabled" : "enabled"}.`);
+      notify("success", data.message || `${businessName} was approved.`);
 
       await Promise.all([
         loadOverviewData({
@@ -630,7 +603,7 @@ function AdminDashboard() {
         loadPending(),
       ]);
     } catch (requestError) {
-      setError(requestError.message);
+      notify("error", requestError.message);
     }
   };
 
@@ -662,7 +635,7 @@ function AdminDashboard() {
         }),
       });
 
-      setMessage(data.message);
+      notify("success", data.message || `${businessName} was rejected.`);
 
       await Promise.all([
         loadOverviewData({
@@ -671,7 +644,7 @@ function AdminDashboard() {
         loadPending(),
       ]);
     } catch (requestError) {
-      setError(requestError.message);
+      notify("error", requestError.message);
     }
   };
 
@@ -702,7 +675,7 @@ function AdminDashboard() {
         }),
       });
 
-      setMessage(data.message);
+      notify("success", data.message);
 
       await Promise.all([
         loadOverviewData({
@@ -712,7 +685,7 @@ function AdminDashboard() {
         loadAccounts(accountPagination.page, accountSearch, accountRoleFilter),
       ]);
     } catch (requestError) {
-      setError(requestError.message);
+      notify("error", requestError.message);
     }
   };
 
@@ -762,7 +735,7 @@ function AdminDashboard() {
           { title: "Account directory", description: "Manage registered users", items: [{ page: "accounts", label: "All Accounts" }] },
           { title: "System tools", description: "Logs and console settings", items: [{ page: "platform-notices", label: "Platform Notices" }, { page: "logs", label: "System Logs" }, { page: "settings", label: "Settings" }] },
         ]}
-        identity={{ avatar: user?.email || "A", title: "Super Admin", subtitle: user?.email }}
+        identity={{ avatar: adminProfile?.displayName || user?.email || "A", title: adminProfile?.displayName || "Super Admin", subtitle: user?.email, loading: profileNameSaving }}
         onLogout={async () => {
           const result = await showOceanicLogoutConfirm(async () => {
             await logout();
@@ -792,7 +765,7 @@ function AdminDashboard() {
           </div>
         )}
         <DashboardHeader title="PLATFORM ADMINISTRATION" currentTime={currentTime} syncing={refreshing} />
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6 sm:px-5 lg:px-5 lg:py-8">
+        <div key={activePage} className="dashboard-page-transition min-h-0 flex-1 overflow-y-auto px-0 py-6 sm:px-5 lg:px-5 lg:py-8">
         {/* Header */}
         
 

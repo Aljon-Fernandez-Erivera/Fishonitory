@@ -27,7 +27,7 @@ const orderSchema = new mongoose.Schema(
     ],
     customerName: { type: String, required: true, trim: true, maxlength: 120 },
     customerEmail: { type: String, trim: true, lowercase: true, default: "" },
-    customerPhone: { type: String, trim: true, default: "" },
+    customerPhone: { type: String, trim: true, default: "", maxlength: 16 },
     deliveryMethod: {
       type: String,
       enum: ["pickup", "rider", "courier"],

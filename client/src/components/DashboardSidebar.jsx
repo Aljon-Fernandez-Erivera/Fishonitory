@@ -149,8 +149,8 @@ function DashboardSidebar({
               <p className="truncate font-['Poppins'] text-[0.78rem] font-medium text-[#cde4e6]">
                 {identity.title}
               </p>
-              <p className="truncate font-['Poppins'] text-[0.7rem] text-[#8fb3ba]">
-                {identity.subtitle}
+              <p className="truncate font-['Poppins'] text-[0.7rem] text-[#8fb3ba]" aria-live={identity.loading ? "polite" : undefined}>
+                {identity.loading ? <><span>Updating name</span><span className="profile-sync-dots"> . . .</span></> : identity.subtitle}
               </p>
             </div>
           </div>

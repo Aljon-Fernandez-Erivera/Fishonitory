@@ -368,7 +368,7 @@ function Attendance({
 
                   ${
                     isSelected
-                      ? "border-[#73c4ca] bg-[#73c4ca]/15 shadow-[0_0_0_1px_rgba(115,196,202,.15)]"
+                      ? "border-[#73c4ca] bg-white shadow-[0_0_0_1px_rgba(115,196,202,.15)]"
                       : "border-sky-100/10 bg-white/[.025] hover:border-[#73c4ca]/55 hover:bg-[#73c4ca]/[.09]"
                   }
                 `}
@@ -379,10 +379,13 @@ function Attendance({
                   setDayFormOpen(true);
                 }}
               >
-                <span className="text-xs font-medium text-[#c9e1e5] sm:text-sm">
+                <span
+                  className={`text-xs font-medium sm:text-sm ${
+                    isSelected ? "text-[#002329] font-bold" : "text-[#c9e1e5]"
+                  }`}
+                >
                   {calendarDay.day}
                 </span>
-
                 {/* Desktop record count */}
                 {dayRecords.length > 0 && (
                   <small className="hidden text-[10px] text-[#84aeb7] sm:block">

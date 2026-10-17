@@ -1,4 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from "react";
+import { formatPhoneInput } from "../shared/phoneUtils.js";
 
 // Same map picker the registration page uses.
 const BusinessLocationPicker = lazy(
@@ -99,7 +100,7 @@ function OwnerEditProfileDialog({ user, onClose, onSave }) {
   const setField = (name) => (event) => {
     let value = cleanText(event.target.value);
     if (name === "phoneNumber") {
-      value = value.replace(/[^\d+\s.()-]/g, "").slice(0, 24);
+      value = formatPhoneInput(value);
     } else {
       value = value.slice(0, 100);
     }
@@ -114,7 +115,9 @@ function OwnerEditProfileDialog({ user, onClose, onSave }) {
 
     const result = validate(values);
     const nextErrors = { ...result.errors };
-    if (!location || !address) {
+    // A name/phone-only profile edit should not require re-pinning an existing
+    // business location. Validate the map fields only when this form changed them.
+    if (locationChanged && (!location || !address)) {
       nextErrors.location = "Pin your business location on the map.";
     }
     setErrors(nextErrors);

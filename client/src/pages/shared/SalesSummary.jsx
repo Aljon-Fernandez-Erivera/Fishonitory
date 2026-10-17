@@ -58,11 +58,11 @@ function SalesSummary({ sales = [], startDate, endDate, onDateChange }) {
           <h3 className="m-0 mt-2 font-['Fraunces'] text-2xl font-medium text-[#d9ecef]">Sales performance</h3>
         </div>
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+        <div className="grid grid-cols-2 gap-3 sm:flex sm:items-end">
           <label className="grid gap-1.5 font-['Poppins'] text-xs font-medium text-[#a9c8cf]">
             From
             <input
-              className="box-border min-h-10 rounded-xl border border-sky-100/10 bg-white/[.06] px-3 font-['Poppins'] text-sm text-[#d9ecef] outline-none [color-scheme:dark] focus:border-[#73c4ca]"
+              className="box-border min-h-10 w-full min-w-0 rounded-xl border border-sky-100/10 bg-white/[.06] px-2 font-['Poppins'] text-sm text-[#d9ecef] outline-none [color-scheme:dark] focus:border-[#73c4ca] sm:px-3"
               type="date"
               value={startDate}
               max={endDate}
@@ -73,7 +73,7 @@ function SalesSummary({ sales = [], startDate, endDate, onDateChange }) {
           <label className="grid gap-1.5 font-['Poppins'] text-xs font-medium text-[#a9c8cf]">
             To
             <input
-              className="box-border min-h-10 rounded-xl border border-sky-100/10 bg-white/[.06] px-3 font-['Poppins'] text-sm text-[#d9ecef] outline-none [color-scheme:dark] focus:border-[#73c4ca]"
+              className="box-border min-h-10 w-full min-w-0 rounded-xl border border-sky-100/10 bg-white/[.06] px-2 font-['Poppins'] text-sm text-[#d9ecef] outline-none [color-scheme:dark] focus:border-[#73c4ca] sm:px-3"
               type="date"
               value={endDate}
               min={startDate}
@@ -101,6 +101,7 @@ function SalesSummary({ sales = [], startDate, endDate, onDateChange }) {
           <div>
             <h4 className="m-0 font-['Fraunces'] text-xl font-medium text-[#d9ecef]">Daily Sales</h4>
             <p className="mt-1 font-['Poppins'] text-xs text-[#719ba8]">Sales Summary</p>
+          <p className="mt-1 font-['Poppins'] text-xs text-[#719ba8] sm:hidden">Swipe chart horizontally to see all dates.</p>
           </div>
         </div>
 

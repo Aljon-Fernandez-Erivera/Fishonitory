@@ -349,6 +349,10 @@ const validateOrderCreate = (req, res, next) => {
 
   const customerPhone =
     typeof body.customerPhone === "string" ? body.customerPhone.trim() : "";
+  const compactCustomerPhone = customerPhone.replace(/\s/g, "");
+  if (compactCustomerPhone && !/^\+?\d{7,15}$/.test(compactCustomerPhone)) {
+    return res.status(400).json({ message: "Customer phone must contain digits and an optional leading + sign." });
+  }
 
   if (!ORDER_DELIVERY_METHODS.includes(body.deliveryMethod)) {
     return res
@@ -385,7 +389,7 @@ const validateOrderCreate = (req, res, next) => {
     items: body.items,
     customerName,
     customerEmail,
-    customerPhone,
+    customerPhone: compactCustomerPhone,
     deliveryMethod: body.deliveryMethod,
     courierName,
     requestedDate,

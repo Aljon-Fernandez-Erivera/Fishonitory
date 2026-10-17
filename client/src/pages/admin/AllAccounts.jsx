@@ -110,7 +110,7 @@ function AllAccounts({
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-sky-100/10 bg-[#062d48]/80">
-        <div className="overflow-x-auto">
+        <div className="hidden overflow-x-auto lg:block">
           <table className="w-full min-w-[760px] border-collapse font-['Poppins'] text-sm">
             <thead className="bg-white/[.025] text-left text-xs uppercase tracking-[.1em] text-[#89afb9]">
               <tr>
@@ -356,6 +356,56 @@ function AllAccounts({
               })}
             </tbody>
           </table>
+        </div>
+
+        <div className="divide-y divide-sky-100/[.08] lg:hidden">
+          {accounts.map((account) => {
+            const isOwner = account.role === "Owner";
+            const open = Boolean(expanded[account._id]);
+            const staff = staffByOwner[account._id] || [];
+            const staffCount = account.staffCount ?? 0;
+            const label = account.businessName || account.staffName || account.email;
+            return (
+              <article key={account._id} className="space-y-3 p-4 font-['Poppins'] text-xs text-[#b7d2d7]">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    {isOwner ? (
+                      <button type="button" onClick={() => toggleOwner(account._id)} aria-expanded={open} className="block max-w-full break-words border-0 bg-transparent p-0 text-left text-sm font-medium text-[#d9ecef]">
+                        {open ? "▾ " : "▸ "}{account.businessName || "—"} <span className="text-xs font-normal text-[#89afb9]">({staffCount} staff)</span>
+                      </button>
+                    ) : <p className="m-0 break-words text-sm font-medium text-[#d9ecef]">{account.staffName || "—"}</p>}
+                    <p className="m-0 mt-1 break-all">{account.email}</p>
+                  </div>
+                  <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] ${statusStyles[account.accountStatus] || "bg-white/10 text-[#aee0e1]"}`}>{account.accountStatus}</span>
+                </div>
+                <div className="flex items-center justify-between gap-3 border-t border-sky-100/[.07] pt-2">
+                  <span>{account.role === "masterStaff" ? "Master Staff" : account.role} · {account.createdAt ? new Date(account.createdAt).toLocaleDateString("en-PH") : "—"}</span>
+                  {!["Pending Verification", "Rejected"].includes(account.accountStatus) && (
+                    <button type="button" onClick={() => onSetStatus(account._id, account.accountStatus === "Disabled" ? "Active" : "Disabled", label)} className={`min-h-10 rounded-lg border px-3 py-2 text-xs ${account.accountStatus === "Disabled" ? "border-emerald-200/25 text-emerald-200" : "border-red-200/25 text-red-200"}`}>
+                      {account.accountStatus === "Disabled" ? "Enable" : "Disable"}
+                    </button>
+                  )}
+                </div>
+                {isOwner && open && (
+                  <div className="space-y-2 border-t border-sky-100/[.07] pt-3">
+                    {loadingId === account._id && staff.length === 0 ? <p className="m-0 text-[#9bbec7]">Loading staff…</p> : failedId === account._id ? <p className="m-0 text-red-200">Could not load staff{failedReason ? `: ${failedReason}` : "."}</p> : staff.length ? staff.map((member) => (
+                      <div key={member._id} className="rounded-xl bg-white/[.035] p-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="m-0 break-words font-medium text-[#d9ecef]">{member.staffName || "—"}</p>
+                            <p className="m-0 mt-1 break-all">{member.email}</p>
+                            <p className="m-0 mt-1 text-[#89afb9]">{member.role === "masterStaff" ? "Master Staff" : "Staff"} · {member.createdAt ? new Date(member.createdAt).toLocaleDateString("en-PH") : "—"}</p>
+                          </div>
+                          <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] ${statusStyles[member.accountStatus] || "bg-white/10 text-[#aee0e1]"}`}>{member.accountStatus}</span>
+                        </div>
+                        {member.accountStatus === "Active" || member.accountStatus === "Disabled" ? <button type="button" onClick={() => changeStaffStatus(account._id, member, member.accountStatus === "Disabled" ? "Active" : "Disabled")} className="mt-2 min-h-10 rounded-lg border border-sky-100/15 px-3 py-2 text-xs text-[#bce9e9]">{member.accountStatus === "Disabled" ? "Enable" : "Disable"}</button> : null}
+                      </div>
+                    )) : <p className="m-0 text-[#9bbec7]">This business has no staff accounts yet.</p>}
+                  </div>
+                )}
+              </article>
+            );
+          })}
         </div>
 
         {!accounts.length && (

@@ -87,7 +87,7 @@ function WorkspaceSetup({ features, setFeatures, onSave, saving, error }) {
           type="button"
           onClick={useSoloPreset}
           disabled={saving}
-          className="mt-4 rounded-full border border-[#73c4ca]/40 px-4 py-2 font-['Poppins'] text-xs font-medium text-[#bce9e9] transition hover:bg-[#73c4ca]/10 disabled:opacity-60"
+          className="mt-4 rounded-full border border-[#73c4ca]/40 bg-transparent px-4 py-2 font-['Poppins'] text-xs font-medium text-[#bce9e9] transition hover:border-[#73c4ca]/60 hover:bg-[#73c4ca]/25 hover:text-[#e4f6f6] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#73c4ca]/50 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-transparent"
         >
           I run the business alone
         </button>

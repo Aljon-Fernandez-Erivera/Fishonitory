@@ -218,19 +218,19 @@ function Sales({ sales = [], startDate, endDate, onDateChange, businessName = "F
   );
 
   return (
-    <section className="mx-auto grid w-full max-w-7xl gap-6">
+    <section className="mx-auto grid w-full max-w-7xl gap-6 pt-3">
       {/* Header & Date Controls */}
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
         <div>
           <p className="font-['Poppins'] text-xs font-semibold uppercase tracking-[.16em] text-[#73c4ca]">
             Revenue Tracker
           </p>
-          <p className="mt-3 font-['Poppins'] text-sm text-[#9bbec7]">
+          <h1 className="mt-1 font-['Fraunces'] text-2xl font-semibold text-[#d9ecef] sm:text-3xl">
             Sales Record
-          </p>
+          </h1>
         </div>
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+        <div className="grid grid-cols-2 gap-3 sm:flex sm:items-end">
           <label className="grid gap-1.5 font-['Poppins'] text-xs text-[#a9c8cf]">
             From
             <input
@@ -257,7 +257,7 @@ function Sales({ sales = [], startDate, endDate, onDateChange, businessName = "F
             onClick={() =>
               printSummaryReport(filteredSales, totalRevenue, startDate, endDate, businessName)
             }
-            className="h-10 rounded-xl bg-[#73c4ca] px-4 font-['Poppins'] text-xs font-semibold text-[#062d48] transition hover:bg-[#bce9e9]"
+            className="col-span-2 h-10 rounded-xl bg-[#73c4ca] px-4 font-['Poppins'] text-xs font-semibold text-[#062d48] transition hover:bg-[#bce9e9] sm:col-span-1"
           >
             Print Sales Summary
           </button>
@@ -265,20 +265,20 @@ function Sales({ sales = [], startDate, endDate, onDateChange, businessName = "F
       </div>
 
       {/* Summary KPI Cards */}
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="rounded-2xl border border-sky-100/10 bg-white/[.035] p-5">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4">
+        <div className="rounded-2xl border border-sky-100/10 bg-white/[.035] p-3 sm:p-5">
           <p className="font-['Poppins'] text-xs font-semibold uppercase tracking-[.14em] text-[#73c4ca]">
             Transactions Count
           </p>
-          <p className="mt-2 font-['Fraunces'] text-3xl text-[#d9ecef]">
+          <p className="mt-2 break-words font-['Fraunces'] text-2xl text-[#d9ecef] sm:text-3xl">
             {filteredSales.length}
           </p>
         </div>
-        <div className="rounded-2xl border border-sky-100/10 bg-white/[.035] p-5">
+        <div className="rounded-2xl border border-sky-100/10 bg-white/[.035] p-3 sm:p-5">
           <p className="font-['Poppins'] text-xs font-semibold uppercase tracking-[.14em] text-[#73c4ca]">
             Period Total Revenue
           </p>
-          <p className="mt-2 font-['Fraunces'] text-3xl text-[#73c4ca]">
+          <p className="mt-2 break-words font-['Fraunces'] text-2xl text-[#73c4ca] sm:text-3xl">
             {formatPeso(totalRevenue)}
           </p>
         </div>
@@ -286,7 +286,7 @@ function Sales({ sales = [], startDate, endDate, onDateChange, businessName = "F
 
       {/* Sales Table */}
       <div className="overflow-hidden rounded-2xl border border-sky-100/10 bg-[#062d48]/80 shadow-2xl">
-        <div className="overflow-x-auto">
+        <div className="hidden overflow-x-auto lg:block">
           <table className="w-full min-w-[900px] border-collapse font-['Poppins'] text-sm">
             <thead className="bg-white/[.025] text-left text-xs uppercase tracking-[.1em] text-[#89afb9]">
               <tr>
@@ -346,6 +346,28 @@ function Sales({ sales = [], startDate, endDate, onDateChange, businessName = "F
               ))}
             </tbody>
           </table>
+        </div>
+
+        <div className="divide-y divide-sky-100/[.08] lg:hidden">
+          {filteredSales.map((sale) => (
+            <article key={sale._id} className="space-y-3 p-4 font-['Poppins'] text-sm text-[#b7d2d7]">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="m-0 text-xs text-[#89afb9]">{new Date(sale.createdAt || sale.date).toLocaleString()}</p>
+                  <p className="mt-1 truncate font-medium text-[#d9ecef]">{sale.soldBy?.staffName || sale.soldBy?.ownerName || sale.cashier || "System"}</p>
+                </div>
+                <strong className="shrink-0 text-[#d9ecef]">{formatPeso(sale.total)}</strong>
+              </div>
+              <p className="m-0 text-xs leading-5">{sale.items?.map((i) => `${i.name} (x${i.quantity})`).join(", ") || "No items listed"}</p>
+              <div className="flex items-center justify-between gap-3 border-t border-sky-100/[.07] pt-3">
+                <span className="text-xs text-[#89afb9]">Subtotal {formatPeso(sale.subtotal)} · Discount {formatPeso(sale.discount)}</span>
+                <div className="flex shrink-0 gap-2">
+                  <button type="button" onClick={() => setSelectedSale(sale)} className="rounded-full border border-sky-100/15 bg-white/[.04] px-3 py-1 text-xs font-medium text-[#bce9e9]">Details</button>
+                  <button type="button" onClick={() => printIndividualReceipt(sale, businessName)} className="rounded-full border border-[#73c4ca]/30 bg-[#73c4ca]/10 px-3 py-1 text-xs font-medium text-[#73c4ca]">Print</button>
+                </div>
+              </div>
+            </article>
+          ))}
         </div>
 
         {!filteredSales.length && (

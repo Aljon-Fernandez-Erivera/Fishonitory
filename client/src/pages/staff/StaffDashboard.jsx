@@ -1,6 +1,7 @@
 ﻿import DashboardSidebar from "../../components/DashboardSidebar.jsx";
 import DashboardHeader from "../../components/DashboardHeader.jsx";
 import { useEffect, useState } from "react";
+import { formatPhoneInput } from "../shared/phoneUtils.js";
 import { useAuth } from "../shared/useAuth.js";
 import Sales from "../shared/Sales.jsx";
 import Orders from "../shared/Orders.jsx";
@@ -12,7 +13,7 @@ import { API_URL } from "../../config.js";
 import "../../css/owner-dashboard-layout.css";
 import NotificationBell from "../shared/NotificationBell.jsx";
 import DashboardToast from "../../components/DashboardToast.jsx";
-import { showOceanicLogoutConfirm } from "../../utils/oceanicSwal.js";
+import { oceanicNotice, showOceanicLogoutConfirm } from "../../utils/oceanicSwal.js";
 import Notes from "../owner/Notes.jsx";
 
 // Choices para sa mga fish tank statuses na pwedeng i-update ng staff sa dashboard.
@@ -95,7 +96,7 @@ async function apiRequest(path, options = {}) {
 
 // Staff dashboard component
 function StaffDashboard() {
-  const { user, authReady, logout } = useAuth();
+  const { user, authReady, logout, updateUser } = useAuth();
 
   const [activePage, setActivePage] = useState("overview");
   const [settingsTab, setSettingsTab] = useState("profile");
@@ -128,42 +129,24 @@ function StaffDashboard() {
     customerPhone: "",
   });
 
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
   const [toastNotice, setToastNotice] = useState(null);
   const [timeClock, setTimeClock] = useState({ email: "", password: "" });
   const [timeClockBusy, setTimeClockBusy] = useState(false);
-  const [profileDraft, setProfileDraft] = useState({ staffName: "", phoneNumber: "" });
+  const [profileDraftEdits, setProfileDraftEdits] = useState({});
+  const profileDraft = {
+    staffName: profileDraftEdits.staffName ?? user?.staffName ?? "",
+    phoneNumber: profileDraftEdits.phoneNumber ?? user?.phoneNumber ?? "",
+  };
   const [profileSaving, setProfileSaving] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const [currentTime, setCurrentTime] = useState(() => new Date());
+  const notify = (type, title) => setToastNotice(title ? { type, title } : null);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
     return () => clearInterval(timer);
   }, []);
-
-  useEffect(() => {
-    setProfileDraft({
-      staffName: user?.staffName || "",
-      phoneNumber: user?.phoneNumber || "",
-    });
-  }, [user?.staffName, user?.phoneNumber]);
-
-  useEffect(() => {
-    if (!message) return undefined;
-    setToastNotice({ type: "success", title: message });
-    const timer = window.setTimeout(() => setMessage(""), 5000);
-    return () => window.clearTimeout(timer);
-  }, [message]);
-
-  useEffect(() => {
-    if (!error) return undefined;
-    setToastNotice({ type: "error", title: error });
-    const timer = window.setTimeout(() => setError(""), 5000);
-    return () => window.clearTimeout(timer);
-  }, [error]);
 
   useEffect(() => {
     if (!toastNotice) return undefined;
@@ -205,7 +188,7 @@ function StaffDashboard() {
         return getDefaultSalesRange(salesData.sales);
       });
     } catch (requestError) {
-      setError(requestError.message);
+      notify("error", requestError.message);
     }
   };
 
@@ -215,22 +198,22 @@ function StaffDashboard() {
         method: "POST",
         body: payload,
       });
-      setMessage(result.message);
+      notify("success", result.message);
       await loadData();
       return true;
     } catch (requestError) {
-      setError(requestError.message);
+      notify("error", requestError.message);
       return false;
     }
   };
 
   const submitTimeClock = async (action) => {
     if (!timeClock.email || !timeClock.password)
-      return setError(
+      return notify("error",
         "Enter the staff email and password to record attendance.",
       );
     setTimeClockBusy(true);
-    setError("");
+    notify(null, "");
     try {
       const response = await fetch(`${API_URL}/attendance/staff-time-clock`, {
         method: "POST",
@@ -240,10 +223,10 @@ function StaffDashboard() {
       const data = await response.json().catch(() => ({}));
       if (!response.ok)
         throw new Error(data.message || "Could not record attendance.");
-      setMessage(data.message);
+      notify("success", data.message);
       setTimeClock({ email: "", password: "" });
     } catch (requestError) {
-      setError(requestError.message);
+      notify("error", requestError.message);
     } finally {
       setTimeClockBusy(false);
     }
@@ -330,10 +313,10 @@ function StaffDashboard() {
         }),
       });
 
-      setMessage("Your announcement has been posted.");
+      notify("success", "Your announcement has been posted.");
       await loadData();
     } catch (requestError) {
-      setError(requestError.message);
+      notify("error", requestError.message);
     }
   };
 
@@ -344,9 +327,9 @@ function StaffDashboard() {
         body: JSON.stringify(changes),
       });
       setNotes((current) => current.map((item) => item._id === id ? data.note : item));
-      setMessage("Announcement updated.");
+      notify("success", "Announcement updated.");
     } catch (requestError) {
-      setError(requestError.message);
+      notify("error", requestError.message);
     }
   };
 
@@ -354,9 +337,9 @@ function StaffDashboard() {
     try {
       await apiRequest(`/notes/${id}`, { method: "DELETE" });
       setNotes((current) => current.filter((item) => item._id !== id));
-      setMessage("Announcement deleted.");
+      notify("success", "Announcement deleted.");
     } catch (requestError) {
-      setError(requestError.message);
+      notify("error", requestError.message);
     }
   };
 
@@ -368,10 +351,16 @@ function StaffDashboard() {
         method: "PATCH",
         body: JSON.stringify(profileDraft),
       });
-      setProfileDraft((current) => ({ ...current, ...(data.profile || {}) }));
-      setMessage(data.message || "Profile updated.");
+      const savedProfile = data.profile || profileDraft;
+      setProfileDraftEdits((current) => ({ ...current, ...profileDraft, ...savedProfile }));
+      updateUser(savedProfile);
+      await new Promise((resolve) => {
+        window.requestAnimationFrame(() => window.requestAnimationFrame(resolve));
+      });
+      setProfileSaving(false);
+      await oceanicNotice("Profile updated", "Your profile changes have been saved.", "success", { tone: "success" });
     } catch (requestError) {
-      setError(requestError.message);
+      notify("error", requestError.message);
     } finally {
       setProfileSaving(false);
     }
@@ -384,10 +373,10 @@ function StaffDashboard() {
         body: JSON.stringify({ status }),
       });
 
-      setMessage("Tank status updated.");
+      notify("success", "Tank status updated.");
       await loadData();
     } catch (requestError) {
-      setError(requestError.message);
+      notify("error", requestError.message);
     }
   };
 
@@ -396,15 +385,15 @@ function StaffDashboard() {
       return;
     }
     if (checkoutMode === "order" && !customerDetails.customerName.trim()) {
-      setError("Enter the customer name to create a customer order.");
+      notify("error", "Enter the customer name to create a customer order.");
       return;
     }
     if (checkoutMode === "order" && orderDetails.deliveryMethod === "courier" && !orderDetails.courierName.trim()) {
-      setError("Enter the courier name for courier deliveries.");
+      notify("error", "Enter the courier name for courier deliveries.");
       return;
     }
     if (checkoutMode === "order" && !orderDetails.requestedDate) {
-      setError("Choose the customer pickup or delivery date.");
+      notify("error", "Choose the customer pickup or delivery date.");
       return;
     }
 
@@ -436,10 +425,10 @@ function StaffDashboard() {
       setCustomerDetails({ customerName: "", customerEmail: "", customerPhone: "" });
       setCheckoutMode("sale");
       setOrderDetails({ deliveryMethod: "pickup", courierName: "", requestedDate: todayLocal() });
-      setMessage(isOrder ? "Customer order created and stock reserved." : "Sale completed.");
+      notify("success", isOrder ? "Customer order created and stock reserved." : "Sale completed.");
       await loadData();
     } catch (requestError) {
-      setError(requestError.message);
+      notify("error", requestError.message);
     }
   };
 
@@ -449,10 +438,10 @@ function StaffDashboard() {
         method: "PATCH",
         body: JSON.stringify({ deliveryStatus }),
       });
-      setMessage(data.message || "Order status updated.");
+      notify("success", data.message || "Order status updated.");
       await loadData();
     } catch (requestError) {
-      setError(requestError.message);
+      notify("error", requestError.message);
     }
   };
 
@@ -543,7 +532,7 @@ function StaffDashboard() {
           { title: "Team board", description: "Post notes and read announcements", items: [{ page: "leave-note", label: "Post to Board" }, { page: "announcements", label: "Announcements" }] },
           { title: "Preferences", items: [{ page: "settings", label: "Settings" }] },
         ]}
-        identity={{ avatar: profileDraft.staffName || user?.email || "S", title: profileDraft.staffName || user?.email || "Master Staff", subtitle: user?.staffPosition || "Operations Staff" }}
+        identity={{ avatar: profileDraft.staffName || user?.email || "S", title: profileDraft.staffName || user?.email || "Master Staff", subtitle: user?.staffPosition || "Operations Staff", loading: profileSaving }}
         onIdentityClick={() => { setActivePage("settings"); setSidebarOpen(false); }}
         onLogout={async () => {
           const result = await showOceanicLogoutConfirm(async () => {
@@ -571,7 +560,7 @@ function StaffDashboard() {
               viewerId={user?.id}
             />
       </DashboardHeader>
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6 sm:px-5 lg:px-5 lg:py-8">
+        <div key={activePage} className="dashboard-page-transition min-h-0 flex-1 overflow-y-auto px-0 py-6 sm:px-5 lg:px-5 lg:py-8">
         {/* DASHBOARD PAGE CONTENT */}
         <section className="mx-auto grid w-full max-w-7xl gap-6">
           {/* 1. OVERVIEW */}
@@ -656,7 +645,7 @@ function StaffDashboard() {
                 onSubmit={submitMortality}
               />
               <section className="overflow-hidden rounded-2xl border border-sky-100/10 bg-[#062d48]/80">
-                <div className="flex items-center justify-between gap-3 border-b border-sky-100/10 px-5 py-4">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-sky-100/10 px-4 py-4 sm:px-5">
                   <div>
                     <h3 className="m-0 font-['Fraunces'] text-xl font-medium text-[#d9ecef]">
                       Recent mortality reports
@@ -669,7 +658,7 @@ function StaffDashboard() {
                     {mortality.length} reports
                   </span>
                 </div>
-                <div className="overflow-x-auto">
+                <div className="hidden overflow-x-auto lg:block">
                   <table className="w-full min-w-[760px] border-collapse font-['Poppins'] text-sm">
                     <thead className="bg-white/[.025] text-left text-xs uppercase tracking-[.08em] text-[#89afb9]">
                       <tr>
@@ -723,6 +712,21 @@ function StaffDashboard() {
                       )}
                     </tbody>
                   </table>
+                </div>
+                <div className="divide-y divide-sky-100/[.08] lg:hidden">
+                  {mortality.length ? mortality.slice(0, 30).map((item) => (
+                    <article key={item._id} className="space-y-2.5 p-4 font-['Poppins'] text-xs text-[#b7d2d7]">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="m-0 text-[#89afb9]">{new Date(item.recordedAt).toLocaleString("en-PH")}</p>
+                          <p className="mt-1 truncate text-sm font-medium text-[#d9ecef]">{item.tankId?.name || "—"} · {item.species || item.fishName || "Unknown species"}{item.lifeStage ? ` / ${item.lifeStage}` : ""}</p>
+                        </div>
+                        <strong className="shrink-0 text-rose-200">{item.quantity} dead</strong>
+                      </div>
+                      <p className="m-0 leading-5">{item.suspectedCause || item.reason || "No cause recorded"}</p>
+                      <p className="m-0 border-t border-sky-100/[.07] pt-2 text-[#89afb9]">Recorded by {item.recordedBy?.staffName || item.recordedBy?.ownerName || "Unknown"} · Start {item.initialStockCount ?? "—"}</p>
+                    </article>
+                  )) : <p className="m-0 px-4 py-6 text-sm text-[#789faa]">No mortality reports have been recorded.</p>}
                 </div>
               </section>
             </div>
@@ -1066,7 +1070,7 @@ function StaffDashboard() {
                       onChange={(event) =>
                         setCustomerDetails((previous) => ({
                           ...previous,
-                          customerPhone: event.target.value,
+                          customerPhone: formatPhoneInput(event.target.value),
                         }))
                       }
                       placeholder="+639171234567"
@@ -1529,7 +1533,7 @@ function StaffDashboard() {
                         Full Name
                         <input
                           value={profileDraft.staffName}
-                          onChange={(event) => setProfileDraft((current) => ({ ...current, staffName: event.target.value }))}
+                          onChange={(event) => setProfileDraftEdits((current) => ({ ...current, staffName: event.target.value }))}
                           required
                           maxLength={100}
                           autoComplete="name"
@@ -1541,7 +1545,7 @@ function StaffDashboard() {
                         <input
                           type="tel"
                           value={profileDraft.phoneNumber}
-                          onChange={(event) => setProfileDraft((current) => ({ ...current, phoneNumber: event.target.value }))}
+                          onChange={(event) => setProfileDraftEdits((current) => ({ ...current, phoneNumber: formatPhoneInput(event.target.value) }))}
                           required
                           maxLength={24}
                           autoComplete="tel"

@@ -18,7 +18,7 @@ const formatDisplayDate = (value) => {
   const [year, month, day] = value.split("-").map(Number);
   const safeDate = new Date(year, month - 1, day);
   if (Number.isNaN(safeDate.getTime())) return "";
-  return safeDate.toLocaleDateString("en-GB", {
+  return safeDate.toLocaleDateString("en-PH", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -185,6 +185,7 @@ function buildPayrollSlipDocument(entry, owner, attendance, staff) {
 
   return `
     <!doctype html>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>${escapeHtml(businessName)} Payroll Slip</title>
     <style>
       body { font-family: Arial; color: #12313b; padding: 32px; max-width: 980px; margin: auto; }
@@ -198,6 +199,11 @@ function buildPayrollSlipDocument(entry, owner, attendance, staff) {
       .total { font-size: 18px; color: #135867; }
       .meta { margin-top: 6px; font-size: 12px; color: #5a7a82; }
       .summary { margin-top: 18px; }
+      @media (max-width: 600px) {
+        body { padding: 16px; }
+        h1 { font-size: 22px; }
+        table { display: block; overflow-x: auto; }
+      }
     </style>
 
     <header>
@@ -284,6 +290,7 @@ function Payroll({ staff, attendance, payroll, onSave, onDelete, toast, owner = 
   const [editingIndex, setEditingIndex] = useState(null);
   const [editDraft, setEditDraft] = useState({ name: "", amount: "", type: "addition" });
   const [previewHeight, setPreviewHeight] = useState(560);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   const selectedRecords = useMemo(
     () => getSelectedStaffRecords(attendance, form.staffId, range.start, range.end),
@@ -346,7 +353,7 @@ function Payroll({ staff, attendance, payroll, onSave, onDelete, toast, owner = 
 
   const previewEntry = {
     staffId: form.staffId,
-    staffName: selectedWorker?.staffName || "Select staff",
+    staffName: selectedWorker?.staffName || "No staff selected",
     period: `${range.start} to ${range.end}`,
     periodType: form.periodType,
     periodStart: range.start,
@@ -482,7 +489,7 @@ function Payroll({ staff, attendance, payroll, onSave, onDelete, toast, owner = 
     }
   };
 
-const handleSubmit = (event) => {
+  const handleSubmit = (event) => {
     event.preventDefault();
     if (summary.netPay < 0) {
       SwalAlert.fire({
@@ -575,7 +582,7 @@ const handleSubmit = (event) => {
               </select>
             </Field>
             <Field>
-              Period starts
+              {form.periodType === "monthly" ? "Date within payroll month" : "Period starts"}
               <input
                 className={input}
                 name="periodStart"
@@ -592,18 +599,18 @@ const handleSubmit = (event) => {
             </Field>
             <Field>
               Payroll period
-              <output className={`${input} py-2.5`}>
+              <output className={`${input} border-transparent bg-white/[.025] py-2.5 text-[#9bbec7]`}>
                 {formatDisplayDate(range.start)} to {formatDisplayDate(range.end)}
               </output>
             </Field>
             <Field>
-              Daily rate
+              {form.periodType === "monthly" ? "Daily rate (monthly payroll)" : "Daily rate"}
               <span className="relative">
                 <span className="absolute left-3 top-2.5 text-sm text-[#73c4ca]">
                   ₱
                 </span>
                 <input
-                  className={`${input} w-full pl-7`}
+                  className={`${input} w-full pl-7 placeholder:text-[#7ea2aa]`}
                   name="dailyRate"
                   type="number"
                   min="0"
@@ -634,34 +641,39 @@ const handleSubmit = (event) => {
             </p>
 
             {/* Adjustment Type Switcher */}
-            <div className="mt-3 flex gap-3 font-['Poppins'] text-xs">
+            <div className="mt-3 grid grid-cols-2 gap-2 font-['Poppins'] text-xs">
               <button
                 type="button"
                 onClick={() =>
                   setDraft((prev) => ({ ...prev, type: "addition" }))
                 }
-                className={`rounded-xl px-3 py-1.5 transition ${
+                className={`min-h-11 rounded-xl px-3 py-2 font-['Poppins'] font-medium transition ${
                   draft.type === "addition"
-                    ? "bg-emerald-500/20 text-emerald-300 border border-emerald-400/30"
-                    : "bg-white/[.04] text-[#789faa] hover:bg-white/[.08]"
+                    ? "border border-emerald-400/30 bg-emerald-500/20 text-emerald-300"
+                    : "border border-transparent bg-white/[.04] text-[#9bbec7] hover:bg-white/[.08]"
                 }`}
               >
-                + Addition (Overtime / Bonus)
+                + Addition
               </button>
               <button
                 type="button"
                 onClick={() =>
                   setDraft((prev) => ({ ...prev, type: "deduction" }))
                 }
-                className={`rounded-xl px-3 py-1.5 transition ${
+                className={`min-h-11 rounded-xl px-3 py-2 font-['Poppins'] font-medium transition ${
                   draft.type === "deduction"
-                    ? "bg-red-500/20 text-red-300 border border-red-400/30"
-                    : "bg-white/[.04] text-[#789faa] hover:bg-white/[.08]"
+                    ? "border border-red-400/30 bg-red-500/20 text-red-300"
+                    : "border border-transparent bg-white/[.04] text-[#9bbec7] hover:bg-white/[.08]"
                 }`}
               >
-                - Deduction (SSS / Vale)
+                - Deduction
               </button>
             </div>
+            <p className="mt-2 font-['Poppins'] text-[11px] text-[#789faa]">
+              {draft.type === "addition"
+                ? "Overtime, bonus, allowance"
+                : "SSS, vale, late"}
+            </p>
 
             {/* Quick Labels */}
             <div className="mt-3 flex flex-wrap items-center gap-1.5">
@@ -675,7 +687,7 @@ const handleSubmit = (event) => {
                 <button
                   key={label}
                   type="button"
-                  className={`rounded-lg border px-2 py-0.5 font-['Poppins'] text-[11px] transition ${
+                  className={`rounded-lg border px-2.5 py-1.5 font-['Poppins'] text-[11px] transition sm:py-0.5 ${
                     draft.type === "addition"
                       ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20"
                       : "border-sky-100/10 bg-white/[.04] text-[#bce9e9] hover:bg-white/[.1]"
@@ -689,40 +701,47 @@ const handleSubmit = (event) => {
               ))}
             </div>
 
-            <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_140px_auto]">
-              <input
-                className={input}
-                value={draft.name}
-                onChange={(event) =>
-                  setDraft({ ...draft, name: event.target.value })
-                }
-                placeholder={
-                  draft.type === "addition"
-                    ? "e.g. Overtime pay"
-                    : "e.g. SSS contribution"
-                }
-                maxLength={80}
-              />
-              <input
-                className={input}
-                type="number"
-                min="0"
-                max="100000"
-                step="0.01"
-                value={draft.amount}
-                onChange={(event) =>
-                  setDraft({ ...draft, amount: event.target.value })
-                }
-                onBlur={() =>
-                  setDraft((current) => ({
-                    ...current,
-                    amount: current.amount === "" ? "" : money(current.amount),
-                  }))
-                }
-                placeholder="₱0.00"
-              />
+            <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_140px_auto] sm:items-end">
+              <Field>
+                Description
+                <input
+                  className={input}
+                  value={draft.name}
+                  onChange={(event) =>
+                    setDraft({ ...draft, name: event.target.value })
+                  }
+                  placeholder={
+                    draft.type === "addition"
+                      ? "e.g. Overtime pay"
+                      : "e.g. SSS contribution"
+                  }
+                  maxLength={80}
+                />
+              </Field>
+              <Field>
+                Amount
+                <input
+                  className={input}
+                  type="number"
+                  min="0"
+                  max="100000"
+                  step="0.01"
+                  value={draft.amount}
+                  onChange={(event) =>
+                    setDraft({ ...draft, amount: event.target.value })
+                  }
+                  onBlur={() =>
+                    setDraft((current) => ({
+                      ...current,
+                      amount:
+                        current.amount === "" ? "" : money(current.amount),
+                    }))
+                  }
+                  placeholder="₱0.00"
+                />
+              </Field>
               <button
-                className="rounded-full border border-sky-100/15 bg-white/[.05] px-4 py-2.5 font-['Poppins'] text-sm font-medium text-[#d9ecef] transition hover:bg-white/[.1] focus:outline-none focus:ring-2 focus:ring-[#73c4ca] disabled:cursor-not-allowed disabled:opacity-40"
+                className="min-h-10 w-full rounded-full border border-[#73c4ca]/40 bg-[#75bec4]/20 px-4 py-2.5 font-['Poppins'] text-sm font-medium text-[#d9ecef] transition hover:bg-[#75bec4]/30 focus:outline-none focus:ring-2 focus:ring-[#73c4ca] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
                 type="button"
                 onClick={addItem}
                 disabled={!canAddItem}
@@ -862,14 +881,25 @@ const handleSubmit = (event) => {
             />
           </Field>
           <button
-            className="mt-5 rounded-full bg-[#75bec4] px-5 py-2.5 font-['Poppins'] text-sm font-medium text-[#052d45] transition hover:bg-[#91d2d5]"
+            className="mt-5 w-full rounded-full bg-[#75bec4] px-5 py-2.5 font-['Poppins'] text-sm font-medium text-[#052d45] transition hover:bg-[#91d2d5] sm:w-auto"
             type="submit"
           >
             Save Payroll
           </button>
         </form>
 
-        <aside className="min-w-0 overflow-hidden rounded-2xl border border-[#cbd9dc] bg-white shadow-[0_14px_35px_rgba(0,12,31,.14)]">
+        <button
+          type="button"
+          onClick={() => setPreviewOpen((open) => !open)}
+          aria-expanded={previewOpen}
+          className="min-h-11 w-full rounded-xl border border-sky-100/15 bg-white/[.05] px-4 font-['Poppins'] text-sm font-medium text-[#d9ecef] xl:hidden"
+        >
+          {previewOpen ? "Hide print preview" : "Show print preview"}
+        </button>
+
+        <aside
+          className={`${previewOpen ? "block" : "hidden"} min-w-0 overflow-hidden rounded-2xl border border-[#cbd9dc] bg-white shadow-[0_14px_35px_rgba(0,12,31,.14)] xl:block`}
+        >
           <div className="border-b border-[#d9e5e6] px-4 py-3">
             <p className="m-0 font-['Poppins'] text-xs font-semibold uppercase tracking-[.14em] text-[#135867]">
               Print preview
@@ -904,7 +934,7 @@ const handleSubmit = (event) => {
             Saved payroll
           </p>
         </div>
-        <div className="overflow-x-auto">
+        <div className="hidden overflow-x-auto xl:block">
           <table className="w-full min-w-[750px] border-collapse font-['Poppins'] text-sm">
             <thead className="bg-white/[.025] text-left text-xs uppercase tracking-[.1em] text-[#89afb9]">
               <tr>
@@ -955,6 +985,30 @@ const handleSubmit = (event) => {
               ))}
             </tbody>
           </table>
+        </div>
+        <div className="divide-y divide-sky-100/[.08] xl:hidden">
+          {payroll.length ? payroll.map((entry) => (
+            <article key={entry._id} className="space-y-3 p-4 font-['Poppins'] text-sm text-[#b7d2d7]">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="m-0 truncate font-medium text-[#d9ecef]">{entry.staffId?.staffName || entry.staffName}</p>
+                  <p className="m-0 mt-1 text-xs text-[#89afb9]">{entry.period}</p>
+                </div>
+                <strong className="shrink-0 text-[#73c4ca]">{peso.format(entry.netPay)}</strong>
+              </div>
+              <div className="grid grid-cols-3 gap-2 border-t border-sky-100/[.07] pt-3 text-xs">
+                <p className="m-0"><span className="block text-[#789faa]">Days</span>{entry.payableDays}</p>
+                <p className="m-0"><span className="block text-[#789faa]">Gross</span>{peso.format(entry.grossPay)}</p>
+                <p className="m-0"><span className="block text-[#789faa]">Deductions</span>{peso.format(entry.deductions)}</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button className="min-h-10 rounded-lg border border-sky-100/15 px-3 py-2 text-xs text-[#bce9e9] transition hover:bg-white/[.08]" type="button" onClick={() => printSlip(entry, owner, attendance, staff)}>Print slip</button>
+                <button className="min-h-10 rounded-lg border border-red-200/25 px-3 py-2 text-xs text-red-200 transition hover:bg-red-400/10" type="button" onClick={() => confirmDelete(entry._id)}>Delete</button>
+              </div>
+            </article>
+          )) : (
+            <p className="m-0 px-5 py-10 text-center font-['Poppins'] text-sm text-[#789faa]">No payroll records yet.</p>
+          )}
         </div>
       </div>
     </section>

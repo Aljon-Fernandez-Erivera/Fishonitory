@@ -20,7 +20,10 @@ import LandingHelpPage from "./pages/shared/LandingHelpPage.jsx";
 import AccountPage from "./pages/shared/AccountPage.jsx";
 import { AuthProvider } from "./pages/shared/AuthContext.jsx";
 import { LoadingOverlay } from "./pages/shared/AuthLayout.jsx";
-import { ACTION_END_EVENT, ACTION_START_EVENT } from "./utils/trackActionRequests.js";
+import {
+  ACTION_END_EVENT,
+  ACTION_START_EVENT,
+} from "./utils/trackActionRequests.js";
 import "./utils/oceanicSwal.js";
 
 // Public pages should block logged-in users to prevent them from returning to
@@ -47,11 +50,12 @@ function HomeRoute() {
 
   if (!authReady) return <LoadingOverlay label="Restoring your session" />;
   if (user) {
-    const destination = user.role === "masterStaff"
-      ? "/staff-dashboard"
-      : user.role === "superAdmin"
-        ? "/admin-dashboard"
-        : "/owner-dashboard";
+    const destination =
+      user.role === "masterStaff"
+        ? "/staff-dashboard"
+        : user.role === "superAdmin"
+          ? "/admin-dashboard"
+          : "/owner-dashboard";
     return <Navigate to={destination} replace />;
   }
   return <LandingPage />;
@@ -64,7 +68,8 @@ function ProtectedRoute({ children, allowedRoles = [] }) {
   const location = useLocation();
 
   useEffect(() => {
-    if (!authReady || (user && allowedRoles.includes(user.role))) return undefined;
+    if (!authReady || (user && allowedRoles.includes(user.role)))
+      return undefined;
     {
       sessionStorage.setItem("fishonitory_session_expired", "1");
       sessionStorage.removeItem("role");
@@ -113,7 +118,10 @@ function GlobalActionLoader() {
 
   useEffect(() => {
     if (!visible) return undefined;
-    const timer = window.setInterval(() => setDots((value) => (value % 3) + 1), 450);
+    const timer = window.setInterval(
+      () => setDots((value) => (value % 3) + 1),
+      450,
+    );
     return () => window.clearInterval(timer);
   }, [visible]);
 
@@ -174,7 +182,10 @@ function AppRoutes() {
     setIdlePromptUser(idleDeadlineRef.current !== null ? currentUserId : null);
     setIdleDeadline(idleDeadlineRef.current);
     if (!Number.isFinite(savedTimer?.lastActivityAt)) {
-      sessionStorage.setItem(idleStorageKey, JSON.stringify({ lastActivityAt: now }));
+      sessionStorage.setItem(
+        idleStorageKey,
+        JSON.stringify({ lastActivityAt: now }),
+      );
     }
 
     const checkElapsedTime = () => {
@@ -191,10 +202,13 @@ function AppRoutes() {
       const promptAt = lastActivityRef.current + idleLimitMs;
       if (now >= promptAt) {
         idleDeadlineRef.current = promptAt + promptDurationMs;
-        sessionStorage.setItem(idleStorageKey, JSON.stringify({
-          lastActivityAt: lastActivityRef.current,
-          promptDeadlineAt: idleDeadlineRef.current,
-        }));
+        sessionStorage.setItem(
+          idleStorageKey,
+          JSON.stringify({
+            lastActivityAt: lastActivityRef.current,
+            promptDeadlineAt: idleDeadlineRef.current,
+          }),
+        );
         setIdleDeadline(idleDeadlineRef.current);
         setIdlePromptUser(currentUserId);
         setClockNow(now);
@@ -203,11 +217,22 @@ function AppRoutes() {
     const resetIdle = () => {
       if (idleDeadlineRef.current !== null) return;
       lastActivityRef.current = Date.now();
-      sessionStorage.setItem(idleStorageKey, JSON.stringify({ lastActivityAt: lastActivityRef.current }));
+      sessionStorage.setItem(
+        idleStorageKey,
+        JSON.stringify({ lastActivityAt: lastActivityRef.current }),
+      );
       checkElapsedTime();
     };
-    const events = ["mousemove", "mousedown", "keydown", "touchstart", "scroll"];
-    events.forEach((event) => window.addEventListener(event, resetIdle, { passive: true }));
+    const events = [
+      "mousemove",
+      "mousedown",
+      "keydown",
+      "touchstart",
+      "scroll",
+    ];
+    events.forEach((event) =>
+      window.addEventListener(event, resetIdle, { passive: true }),
+    );
     const interval = window.setInterval(checkElapsedTime, 1000);
     document.addEventListener("visibilitychange", checkElapsedTime);
     window.addEventListener("focus", checkElapsedTime);
@@ -224,49 +249,134 @@ function AppRoutes() {
     lastActivityRef.current = Date.now();
     idleDeadlineRef.current = null;
     if (idleStorageKey) {
-      sessionStorage.setItem(idleStorageKey, JSON.stringify({ lastActivityAt: lastActivityRef.current }));
+      sessionStorage.setItem(
+        idleStorageKey,
+        JSON.stringify({ lastActivityAt: lastActivityRef.current }),
+      );
     }
     setIdlePromptUser(null);
     setIdleDeadline(null);
     setClockNow(Date.now());
   };
-  const secondsLeft = idleDeadline === null
-    ? 120
-    : Math.max(0, Math.ceil((idleDeadline - clockNow) / 1000));
+  const secondsLeft =
+    idleDeadline === null
+      ? 120
+      : Math.max(0, Math.ceil((idleDeadline - clockNow) / 1000));
 
   return (
     <>
-    <Routes>
-      <Route path="/" element={<HomeRoute />} />
-      <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
-      <Route path="/register" element={<PublicRoute><RegisterBusinessPage /></PublicRoute>} />
-      <Route path="/forgot-password" element={<PublicRoute><ForgotPasswordPage /></PublicRoute>} />
-      <Route
-        path="/owner-dashboard"
-        element={<ProtectedRoute allowedRoles={["Owner"]}><OwnerDashboard /></ProtectedRoute>}
-      />
-      <Route
-        path="/staff-dashboard"
-        element={<ProtectedRoute allowedRoles={["masterStaff"]}><StaffDashboard /></ProtectedRoute>}
-      />
-      <Route
-        path="/admin-dashboard"
-        element={<ProtectedRoute allowedRoles={["superAdmin"]}><AdminDashboard /></ProtectedRoute>}
-      />
-      <Route path="/about" element={<AboutPage />} />
-      <Route path="/landing-help" element={<LandingHelpPage />} />
-      <Route
-        path="/help"
-        element={<ProtectedRoute allowedRoles={["Owner", "masterStaff"]}><HelpPage /></ProtectedRoute>}
-      />
-      <Route
-        path="/account"
-        element={<ProtectedRoute allowedRoles={["Owner"]}><AccountPage /></ProtectedRoute>}
-      />
-      <Route path="*" element={<LandingPage />} />
-    </Routes>
-    {idlePrompt && user && <div className="fixed inset-0 z-[100] grid place-items-center bg-slate-950/70 p-4 backdrop-blur-sm" role="presentation"><section role="dialog" aria-modal="true" aria-labelledby="idle-title" className="w-full max-w-md rounded-2xl border border-sky-100/20 bg-[#062d48] p-7 text-center text-[#d9ecef] shadow-2xl"><h2 id="idle-title" className="font-['Fraunces'] text-2xl">Are you still there?</h2><p className="mt-3 font-['Poppins'] text-sm text-[#a9c8cf]">You have been inactive for a while. You will be automatically logged out in</p><p className="my-4 font-['Poppins'] text-3xl font-semibold tabular-nums">{Math.floor(secondsLeft / 60)}:{String(secondsLeft % 60).padStart(2, "0")}</p><div className="grid grid-cols-2 gap-3"><button type="button" className="rounded-full bg-[#75bec4] px-4 py-2.5 font-['Poppins'] text-sm font-semibold text-[#052d45]" onClick={continueSession}>Keep login</button><button type="button" className="rounded-full border border-white/20 px-4 py-2.5 font-['Poppins'] text-sm" onClick={logout}>Logout</button></div></section></div>}
-    <GlobalActionLoader />
+      <Routes>
+        <Route path="/" element={<HomeRoute />} />
+        <Route
+          path="/login"
+          element={
+            <PublicRoute>
+              <LoginPage />
+            </PublicRoute>
+          }
+        />
+        <Route
+          path="/register"
+          element={
+            <PublicRoute>
+              <RegisterBusinessPage />
+            </PublicRoute>
+          }
+        />
+        <Route
+          path="/forgot-password"
+          element={
+            <PublicRoute>
+              <ForgotPasswordPage />
+            </PublicRoute>
+          }
+        />
+        <Route
+          path="/owner-dashboard"
+          element={
+            <ProtectedRoute allowedRoles={["Owner"]}>
+              <OwnerDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/staff-dashboard"
+          element={
+            <ProtectedRoute allowedRoles={["masterStaff"]}>
+              <StaffDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin-dashboard"
+          element={
+            <ProtectedRoute allowedRoles={["superAdmin"]}>
+              <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="/about" element={<AboutPage />} />
+        <Route path="/landing-help" element={<LandingHelpPage />} />
+        <Route
+          path="/help"
+          element={
+            <ProtectedRoute allowedRoles={["Owner", "masterStaff"]}>
+              <HelpPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/account"
+          element={
+            <ProtectedRoute allowedRoles={["Owner"]}>
+              <AccountPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="*" element={<LandingPage />} />
+      </Routes>
+      {idlePrompt && user && (
+        <div
+          className="fixed inset-0 z-[100] grid place-items-center bg-slate-950/70 p-4 backdrop-blur-sm"
+          role="presentation"
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="idle-title"
+            className="w-full max-w-md rounded-2xl border border-sky-100/20 bg-[#062d48] p-7 text-center text-[#d9ecef] shadow-2xl"
+          >
+            <h2 id="idle-title" className="font-['Fraunces'] text-2xl">
+              Are you still there?
+            </h2>
+            <p className="mt-3 font-['Poppins'] text-sm text-[#a9c8cf]">
+              You have been inactive for a while. You will be automatically
+              logged out in
+            </p>
+            <p className="my-4 font-['Poppins'] text-3xl font-semibold tabular-nums">
+              {Math.floor(secondsLeft / 60)}:
+              {String(secondsLeft % 60).padStart(2, "0")}
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                className="rounded-full bg-[#75bec4] px-4 py-2.5 font-['Poppins'] text-sm font-semibold text-[#052d45]"
+                onClick={continueSession}
+              >
+                Keep login
+              </button>
+              <button
+                type="button"
+                className="rounded-full border bg-transparent border-white/20 px-4 py-2.5 font-['Poppins'] text-sm"
+                onClick={logout}
+              >
+                Logout
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+      <GlobalActionLoader />
     </>
   );
 }

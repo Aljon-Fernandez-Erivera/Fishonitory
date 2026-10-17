@@ -22,7 +22,7 @@ function SystemLogs({ logs, pagination, onPageChange }) {
 
       <div className="overflow-hidden rounded-2xl border border-sky-100/10 bg-[#062d48]/80">
         <div className="max-h-[70vh] overflow-auto">
-          <table className="w-full min-w-[820px] border-collapse font-['Poppins'] text-sm">
+          <table className="hidden w-full min-w-[820px] border-collapse font-['Poppins'] text-sm lg:table">
             <thead className="sticky top-0 z-10 bg-[#062d48] text-left text-xs uppercase tracking-[.1em] text-[#89afb9]">
               <tr>
                 <th className="border-b border-sky-100/10 px-5 py-3 font-medium">
@@ -79,6 +79,19 @@ function SystemLogs({ logs, pagination, onPageChange }) {
               ))}
             </tbody>
           </table>
+          <div className="divide-y divide-sky-100/[.08] lg:hidden">
+            {logs.map((log) => (
+              <article key={log._id} className="space-y-2 p-4 font-['Poppins'] text-xs text-[#b7d2d7]">
+                <div className="flex items-start justify-between gap-3">
+                  <strong className="min-w-0 break-words text-sm text-[#d9ecef]">{log.action}</strong>
+                  <span className="shrink-0 text-right text-[#89afb9]">{new Date(log.createdAt).toLocaleString("en-PH")}</span>
+                </div>
+                <p className="m-0 break-words">{log.scope === "platform" ? "Platform-wide" : log.ownerId?.businessName || "—"}</p>
+                <p className="m-0 break-words text-[#89afb9]">{actorLabel(log.actorId)} · {log.entityType}</p>
+                {log.details && <p className="m-0 break-words leading-5 text-[#9bbec7]">{log.details}</p>}
+              </article>
+            ))}
+          </div>
         </div>
 
         {!logs.length && (

@@ -306,6 +306,7 @@ function Inventory({
               <span className="absolute right-2 top-2 max-w-[75%] truncate rounded-lg bg-black/55 px-2.5 py-1.5 font-['Poppins'] text-xs font-medium text-[#bce9e9] backdrop-blur-sm">
                 {item.species || item.description || "Fish"}
               </span>
+
             </div>
 
             <div className="flex flex-1 flex-col p-4">
@@ -652,6 +653,7 @@ function Inventory({
                 }
               }}
             >
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {/* NAME */}
               <label className="flex flex-col gap-1.5 font-['Poppins'] text-xs font-medium text-[#a9c8cf]">
                 Fish Name
@@ -721,6 +723,76 @@ function Inventory({
                   </button>
                 )}
               </label>
+
+              {/* SPECIES */}
+              <label className="flex flex-col gap-1.5 font-['Poppins'] text-xs font-medium text-[#a9c8cf]">
+                Species
+
+                {speciesMode === "new" ? (
+                  <>
+                    <input
+                      className="min-h-[44px] rounded-xl border border-sky-100/10 bg-white/[.06] px-3 text-sm text-[#d9ecef] outline-none focus:border-[#73c4ca]"
+                      name="species"
+                      list="fish-species-suggestions"
+                      maxLength={100}
+                      pattern="[A-Za-z\u00C0-\u024F][A-Za-z\u00C0-\u024F\s'.\-]*"
+                      title="Species can only contain letters, spaces, apostrophes, periods, and hyphens."
+                      placeholder="Search or enter a species, e.g. Koi"
+                      value={fishForm.species}
+                      onChange={(event) =>
+                        setFishForm((previous) => ({
+                          ...previous,
+                          species: event.target.value.replace(
+                            /[^A-Za-z\u00C0-\u024F\s'.\-]/g,
+                            "",
+                          ),
+                        }))
+                      }
+                      required
+                    />
+                    <datalist id="fish-species-suggestions">
+                      {suggestedSpecies.map((species) => (
+                        <option key={species} value={species} />
+                      ))}
+                    </datalist>
+                  </>
+                ) : (
+                  <select
+                    className="min-h-[44px] rounded-xl border border-sky-100/10 bg-[#062d48] px-3 text-sm text-[#d9ecef] outline-none focus:border-[#73c4ca]"
+                    name="species"
+                    value={existingSpecies.includes(fishForm.species) ? fishForm.species : ""}
+                    onChange={(event) => {
+                      if (event.target.value === NEW_OPTION) {
+                        setSpeciesMode("new");
+                        setFishForm((previous) => ({ ...previous, species: "" }));
+                        return;
+                      }
+                      updateField(event);
+                    }}
+                    required
+                  >
+                    <option value="">Choose a species</option>
+                    {existingSpecies.map((species) => (
+                      <option key={species} value={species}>{species}</option>
+                    ))}
+                    <option value={NEW_OPTION}>+ Add new species</option>
+                  </select>
+                )}
+
+                {speciesMode === "new" && existingSpecies.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSpeciesMode("select");
+                      setFishForm((previous) => ({ ...previous, species: "" }));
+                    }}
+                    className="mt-1 w-fit bg-transparent p-0 text-left font-['Poppins'] text-xs text-[#73c4ca] underline"
+                  >
+                    Choose existing species
+                  </button>
+                )}
+              </label>
+              </div>
 
               {/* CATEGORY */}
               <label className="flex flex-col gap-1.5 font-['Poppins'] text-xs font-medium text-[#a9c8cf]">
@@ -849,93 +921,6 @@ function Inventory({
                   />
                 </label>
               </div>
-
-              {/* SPECIES */}
-              <label className="flex flex-col gap-1.5 font-['Poppins'] text-xs font-medium text-[#a9c8cf]">
-                Species
-
-                {speciesMode === "new" ? (
-                  <>
-                    <input
-                      className="min-h-[44px] rounded-xl border border-sky-100/10 bg-white/[.06] px-3 text-sm text-[#d9ecef] outline-none focus:border-[#73c4ca]"
-                      name="species"
-                      list="fish-species-suggestions"
-                      maxLength={100}
-                      pattern="[A-Za-z\u00C0-\u024F][A-Za-z\u00C0-\u024F\s'.\-]*"
-                      title="Species can only contain letters, spaces, apostrophes, periods, and hyphens."
-                      placeholder="Search or enter a species, e.g. Koi"
-                      value={fishForm.species}
-                      onChange={(event) =>
-                        setFishForm((previous) => ({
-                          ...previous,
-                          species: event.target.value.replace(
-                            /[^A-Za-z\u00C0-\u024F\s'.\-]/g,
-                            "",
-                          ),
-                        }))
-                      }
-                      required
-                    />
-                    <datalist id="fish-species-suggestions">
-                      {suggestedSpecies.map((species) => (
-                        <option key={species} value={species} />
-                      ))}
-                    </datalist>
-                  </>
-                ) : (
-                  <select
-                    className="min-h-[44px] rounded-xl border border-sky-100/10 bg-[#062d48] px-3 text-sm text-[#d9ecef] outline-none focus:border-[#73c4ca]"
-                    name="species"
-                    value={
-                      existingSpecies.includes(fishForm.species)
-                        ? fishForm.species
-                        : ""
-                    }
-                    onChange={(event) => {
-                      if (event.target.value === NEW_OPTION) {
-                        setSpeciesMode("new");
-
-                        setFishForm((previous) => ({
-                          ...previous,
-                          species: "",
-                        }));
-
-                        return;
-                      }
-
-                      updateField(event);
-                    }}
-                    required
-                  >
-                    <option value="">Choose a species</option>
-
-                    {existingSpecies.map((species) => (
-                      <option key={species} value={species}>
-                        {species}
-                      </option>
-                    ))}
-
-                    <option value={NEW_OPTION}>+ Add new species</option>
-                  </select>
-                )}
-
-                {speciesMode === "new" && existingSpecies.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSpeciesMode("select");
-
-                      setFishForm((previous) => ({
-                        ...previous,
-                        species: "",
-                      }));
-                    }}
-                    className="mt-1 w-fit bg-transparent p-0 text-left font-['Poppins'] text-xs text-[#73c4ca] underline"
-                  >
-                    Choose existing species
-                  </button>
-                )}
-              </label>
 
               {/* QUANTITY */}
               <label className="flex flex-col gap-1.5 font-['Poppins'] text-xs font-medium text-[#a9c8cf]">
