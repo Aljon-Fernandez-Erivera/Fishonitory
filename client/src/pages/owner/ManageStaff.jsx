@@ -382,10 +382,7 @@ function ManageStaff({
                   </p>
 
                   <p className="mt-3 font-['Poppins'] text-xs text-[#9bbec7]">
-                    OTP expires in{" "}
-                    <strong className="text-[#d9ecef]">
-                      {timerText}
-                    </strong>
+                    {staffOtpSeconds > 0 ? <>OTP expires in <strong className="text-[#d9ecef]">{timerText}</strong></> : <>Didn't get the code?{" "}<button type="button" disabled={staffOtpLoading} onClick={onSendOtp} className="font-semibold text-[#73c4ca] underline disabled:opacity-50">Resend OTP</button></>}
                   </p>
                 </div>
 
@@ -571,6 +568,12 @@ function ManageStaff({
                   Cancel
                 </button>
               </div>
+              {deletionOtpSeconds === 0 && (
+                <p className="text-center font-['Poppins'] text-xs text-[#9bbec7]">
+                  Didn't get the code?{" "}
+                  <button type="button" onClick={() => onDelete(deletionTarget)} className="font-semibold text-[#73c4ca] underline">Resend OTP</button>
+                </p>
+              )}
             </form>
           </div>
         </div>

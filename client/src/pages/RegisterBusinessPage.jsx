@@ -267,8 +267,8 @@ function RegisterBusinessPage() {
   };
 
   // Step 1: Send OTP to email
-  const handleSendOTP = async (e) => {
-    e.preventDefault();
+  const handleSendOTP = async (e, resend = false) => {
+    e?.preventDefault();
     setServerMessage("");
 
     if (!validateDetails()) return;
@@ -292,10 +292,21 @@ function RegisterBusinessPage() {
       }
 
       setOtpSeconds(0);
-      setDialogMode("otp");
-      setDialogMessage(data.message);
+      setFormData((previous) => ({ ...previous, otp: "" }));
+      if (resend) {
+        setOtpSeconds(5 * 60);
+        setErrors((previous) => ({ ...previous, otp: "" }));
+        setServerMessage("A new OTP was sent to your email.");
+      } else {
+        setDialogMode("otp");
+        setDialogMessage(data.message);
+      }
     } catch (err) {
-      setServerMessage(err.message);
+      if (resend) setServerMessage(err.message);
+      else if (/expired|no pending otp/i.test(err.message)) {
+        setErrors({ otp: "This OTP has expired." });
+        setOtpSeconds(0);
+      } else setServerMessage(err.message);
     } finally {
       setLoading(false);
     }
@@ -314,7 +325,7 @@ function RegisterBusinessPage() {
     setServerMessage("");
 
     if (otpSeconds === 0) {
-      setErrors({ otp: "The OTP has expired. Please request a new OTP." });
+      setErrors({ otp: "This OTP has expired." });
       return;
     }
 
@@ -367,7 +378,10 @@ function RegisterBusinessPage() {
           "Your business permit has been submitted for review. You'll be able to log in once it's approved.",
       );
     } catch (err) {
-      setServerMessage(err.message);
+      if (/expired|no pending otp/i.test(err.message)) {
+        setErrors({ otp: "This OTP has expired." });
+        setOtpSeconds(0);
+      } else setServerMessage(err.message);
     } finally {
       setLoading(false);
     }
@@ -967,9 +981,11 @@ function RegisterBusinessPage() {
                 ENTER 6-DIGIT OTP SENT TO {maskEmail(formData.email)}
               </label>
               <p className="mt-2 text-center font-['Poppins'] text-xs text-[#a7d2d4]">
-                OTP expires in{" "}
-                {String(Math.floor(otpSeconds / 60)).padStart(2, "0")}:
-                {String(otpSeconds % 60).padStart(2, "0")}
+                {otpSeconds > 0 ? (
+                  <>OTP expires in {String(Math.floor(otpSeconds / 60)).padStart(2, "0")}:{String(otpSeconds % 60).padStart(2, "0")}</>
+                ) : (
+                  <>Didn't get the code?{" "}<button type="button" disabled={loading} onClick={(event) => handleSendOTP(event, true)} className="font-semibold text-[#4dccca] underline disabled:opacity-50">Resend OTP</button></>
+                )}
               </p>
               <input
                 className="mt-3 box-border w-full rounded-lg border border-[#4dccca]/40 bg-white/[.12] px-4 py-4 text-center font-['Poppins'] text-2xl tracking-[0.35em] text-[#d8f1f1] outline-none transition placeholder:text-[#7faab0] focus:border-[#4dccca]"

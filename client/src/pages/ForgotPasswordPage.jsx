@@ -73,7 +73,7 @@ function ForgotPasswordPage() {
     setForm((old) => ({ ...old, [name]: cleaned }));
     setErrors((old) => ({ ...old, [name]: "" }));
   };
-  const requestCode = async (event) => {
+  const requestCode = async (event, resend = false) => {
     event.preventDefault();
     if (!emailPattern.test(form.email))
       return setErrors({ email: "Enter a valid email address." });
@@ -87,11 +87,17 @@ function ForgotPasswordPage() {
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.message);
       setStep(2);
-      setDialog({
-        title: "Check your email",
-        message: data.message,
-        buttonLabel: "Continue",
-      });
+      if (resend) {
+        setForm((old) => ({ ...old, otp: "" }));
+        setErrors((old) => ({ ...old, otp: "" }));
+        setDialog({ title: "Code resent", message: data.message, buttonLabel: "Continue" });
+      } else {
+        setDialog({
+          title: "Check your email",
+          message: data.message,
+          buttonLabel: "Continue",
+        });
+      }
     } catch (error) {
       setDialog({
         title: "Unable to send code",
@@ -136,6 +142,9 @@ function ForgotPasswordPage() {
         destination: "/login",
       });
     } catch (error) {
+      if (/expired/i.test(error.message || "")) {
+        setErrors((old) => ({ ...old, otp: "This reset code has expired." }));
+      }
       setDialog({
         title: "Unable to reset password",
         message:
@@ -215,6 +224,14 @@ function ForgotPasswordPage() {
             {errors.otp && (
               <p className="font-['Poppins'] text-xs text-[#ffd1d1]">
                 {errors.otp}
+              </p>
+            )}
+            {errors.otp?.includes("expired") && (
+              <p className="text-center font-['Poppins'] text-xs text-[#9abcc5]">
+                Didn't get the code?{" "}
+                <button type="button" disabled={loading} onClick={(event) => requestCode(event, true)} className="font-semibold text-[#8cc7cc] underline disabled:opacity-50">
+                  Resend OTP
+                </button>
               </p>
             )}
             <label className="block font-['Poppins'] text-[10px] font-medium tracking-[0.12em] text-[#9ebfc8]">

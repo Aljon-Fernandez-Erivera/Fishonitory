@@ -449,7 +449,7 @@ function OwnerDashboard() {
 
   // Function para i-send ang OTP sa staff, at i-set ang staffStep sa 2 kapag successful ang request.
   const handleSendStaffOtp = async (event) => {
-    event.preventDefault();
+    event?.preventDefault();
     setMessage("");
     setError("");
     setStaffError("");

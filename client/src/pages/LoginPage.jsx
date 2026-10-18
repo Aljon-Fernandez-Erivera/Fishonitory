@@ -77,6 +77,25 @@ function LoginPage() {
   const helpRef = useRef(null);
 
   useEffect(() => {
+    const clearRestoredLoginChallenge = (event) => {
+      if (!event.persisted) return;
+      setTotpChallenge("");
+      setTotpCode("");
+      setUseRecoveryCode(false);
+      setMfaEnrollment(null);
+      setResetMode(false);
+      setResetNotice("");
+      setFormData({ email: "", password: "" });
+      setErrors({});
+      setDialog(null);
+      setLoading(false);
+    };
+
+    window.addEventListener("pageshow", clearRestoredLoginChallenge);
+    return () => window.removeEventListener("pageshow", clearRestoredLoginChallenge);
+  }, []);
+
+  useEffect(() => {
     if (!helpOpen) return undefined;
 
     const handlePointerDown = (event) => {
