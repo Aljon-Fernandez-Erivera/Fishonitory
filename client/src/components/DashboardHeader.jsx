@@ -1,6 +1,6 @@
 function DashboardHeader({ title, currentTime, syncing = false, children }) {
   return (
-    <header className="relative z-30 flex w-full shrink-0 flex-wrap items-start justify-between gap-3 border-b border-sky-100/10 bg-[#021d2e] px-4 py-4 sm:px-5 lg:px-5 lg:py-5">
+    <header className="flex w-full shrink-0 flex-wrap items-start justify-between gap-3 border-b border-sky-100/10 bg-[#021d2e] px-4 py-4 sm:px-5 lg:px-5 lg:py-5">
       <div className="pl-14 md:pl-0">
         <p className="font-['Poppins'] text-[0.65rem] font-medium tracking-[0.16em] text-[#73c4ca]">
           {title}

@@ -1,7 +1,17 @@
 import { useEffect, useState } from "react";
 
+const formatDateTime = (value) => {
+  if (!value) return "Platform update";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Platform update";
+  return date.toLocaleString(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+};
+
 function PlatformNoticeBanner({ notices = [] }) {
-  const [, setClock] = useState(Date.now());
+  const [clock, setClock] = useState(Date.now());
 
   useEffect(() => {
     const timer = window.setInterval(() => setClock(Date.now()), 30000);
@@ -9,33 +19,64 @@ function PlatformNoticeBanner({ notices = [] }) {
   }, []);
 
   const activeNotices = notices.filter(
-    (notice) => !notice.expiresAt || new Date(notice.expiresAt).getTime() > Date.now(),
+    (notice) => !notice.expiresAt || new Date(notice.expiresAt).getTime() > clock,
   );
   if (!activeNotices.length) return null;
 
   return (
-    <section aria-label="Platform notices" className="mb-5 grid gap-3">
-      {activeNotices.map((notice) => (
-        <article key={notice._id} className="rounded-2xl border border-cyan-200/20 bg-[linear-gradient(120deg,rgba(8,74,91,.94),rgba(6,45,72,.96))] p-4 shadow-[0_12px_28px_rgba(0,12,31,.16)] sm:px-5">
-          <div className="flex items-start gap-3">
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-cyan-100/15 bg-cyan-100/[.07] text-[#a9e0e2]" aria-hidden="true">
-              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.7">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 14v-4a2 2 0 0 1 2-2h2l9-4v16l-9-4H6a2 2 0 0 1-2-2Zm4 2 1.5 4H13l-2-5" />
-                <path strokeLinecap="round" d="M20 9.5a4 4 0 0 1 0 5" />
-              </svg>
-            </span>
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-full border border-cyan-200/20 bg-cyan-200/[.08] px-2 py-0.5 font-['Poppins'] text-[10px] font-semibold uppercase tracking-[.1em] text-[#b8eaeb]">Platform notice</span>
-                <span className="rounded-full border border-cyan-100/10 bg-white/[.04] px-2 py-0.5 font-['Poppins'] text-[10px] font-medium uppercase tracking-wide text-[#c5dce1]">{notice.category || "general"}</span>
-                {notice.expiresAt && <span className="font-['Poppins'] text-[10px] text-[#b0cbd1]">Until {new Date(notice.expiresAt).toLocaleDateString()}</span>}
+    <section aria-label="Platform announcements" className="mx-auto mb-5 grid w-full max-w-7xl gap-3">
+      <h2 className="m-0 font-['Poppins'] text-xs font-semibold uppercase tracking-[.16em] text-[#73c4ca]">
+        Platform announcements
+      </h2>
+      <ul className="m-0 grid list-none gap-3 p-0">
+        {activeNotices.map((notice) => (
+          <li
+            key={notice._id}
+            className="relative rounded-2xl bg-[#062d48]/80 p-4 transition-colors hover:bg-[#07365a]/90 sm:p-5"
+          >
+            <span
+              aria-hidden="true"
+              className="absolute inset-y-4 left-0 w-1 rounded-r-full bg-[#73c4ca]/80"
+            />
+            <div className="flex items-start gap-3 sm:gap-4">
+              <span
+                aria-hidden="true"
+                className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#73c4ca]/15 font-['Poppins'] text-sm font-semibold text-[#bce9e9]"
+              >
+                F
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 font-['Poppins']">
+                  <span className="text-sm font-semibold text-[#e3f2f4]">Fishonitory</span>
+                  <span className="rounded-full bg-white/[.07] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#9fc5cc]">
+                    Platform
+                  </span>
+                  <span aria-hidden="true" className="text-xs text-[#6f929c]">·</span>
+                  <time className="text-xs text-[#8fb3ba]" dateTime={notice.createdAt || undefined}>
+                    {formatDateTime(notice.createdAt)}
+                  </time>
+                </div>
+                <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                  <span className="rounded-full bg-[#73c4ca]/15 px-2 py-0.5 font-['Poppins'] text-[10px] font-semibold uppercase tracking-[.12em] text-[#bce9e9]">
+                    {notice.category || "General"}
+                  </span>
+                  {notice.expiresAt && (
+                    <span className="rounded-full bg-white/[.06] px-2 py-0.5 font-['Poppins'] text-[10px] font-medium text-[#9fc5cc]">
+                      Until {new Date(notice.expiresAt).toLocaleDateString()}
+                    </span>
+                  )}
+                </div>
+                <h3 className="mb-0 mt-3 font-['Poppins'] text-sm font-semibold text-[#e3f2f4]">
+                  {notice.title}
+                </h3>
+                <p className="mb-0 mt-1 whitespace-pre-wrap break-words font-['Poppins'] text-sm leading-6 text-[#d9ecef]">
+                  {notice.message}
+                </p>
               </div>
-              <h2 className="mb-0 mt-2 font-['Poppins'] text-sm font-semibold text-[#e0f2f3]">{notice.title}</h2>
-              <p className="mb-0 mt-1 whitespace-pre-wrap break-words font-['Poppins'] text-sm leading-relaxed text-[#c5dce1]">{notice.message}</p>
             </div>
-          </div>
-        </article>
-      ))}
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }
