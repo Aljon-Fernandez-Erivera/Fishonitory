@@ -132,6 +132,7 @@ function StaffDashboard() {
   const [toastNotice, setToastNotice] = useState(null);
   const [timeClock, setTimeClock] = useState({ email: "", password: "" });
   const [timeClockBusy, setTimeClockBusy] = useState(false);
+  const [timeClockAction, setTimeClockAction] = useState("");
   const [profileDraftEdits, setProfileDraftEdits] = useState({});
   const profileDraft = {
     staffName: profileDraftEdits.staffName ?? user?.staffName ?? "",
@@ -213,11 +214,13 @@ function StaffDashboard() {
         "Enter the staff email and password to record attendance.",
       );
     setTimeClockBusy(true);
+    setTimeClockAction(action);
     notify(null, "");
     try {
       const response = await fetch(`${API_URL}/attendance/staff-time-clock`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ ...timeClock, action }),
       });
       const data = await response.json().catch(() => ({}));
@@ -229,6 +232,7 @@ function StaffDashboard() {
       notify("error", requestError.message);
     } finally {
       setTimeClockBusy(false);
+      setTimeClockAction("");
     }
   };
 
@@ -1772,7 +1776,9 @@ function StaffDashboard() {
                         onClick={() => submitTimeClock("clock-in")}
                         className="flex-1 rounded-xl bg-[#75bec4] py-3.5 text-center font-['Poppins'] text-sm font-semibold text-[#052d45] transition hover:bg-[#86d0d6] disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
                       >
-                        {timeClockBusy ? "Clocking inâ€¦" : "Clock In"}
+                        {timeClockBusy && timeClockAction === "clock-in"
+                          ? "Clocking in..."
+                          : "Clock In"}
                       </button>
                       <button
                         type="button"
@@ -1780,7 +1786,9 @@ function StaffDashboard() {
                         onClick={() => submitTimeClock("clock-out")}
                         className="flex-1 rounded-xl border border-sky-100/15 bg-white/[.04] py-3.5 text-center font-['Poppins'] text-sm font-semibold text-[#d9ecef] transition hover:border-[#73c4ca]/40 hover:bg-white/[.08] disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
                       >
-                        {timeClockBusy ? "Clocking outâ€¦" : "Clock Out"}
+                        {timeClockBusy && timeClockAction === "clock-out"
+                          ? "Clocking out..."
+                          : "Clock Out"}
                       </button>
                     </div>
                   </div>

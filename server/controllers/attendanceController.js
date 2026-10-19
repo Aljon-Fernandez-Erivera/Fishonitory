@@ -315,22 +315,30 @@ exports.staffTimeClock = async (req, res) => {
   try {
     const { email, password, action } = req.body || {};
     const normalizedEmail = String(email || "").trim().toLowerCase();
+    const requester = await User.findById(req.user.userId).select("role ownerId");
+    if (!requester || !["Owner", "masterStaff"].includes(requester.role)) {
+      return res.status(403).json({ message: "Only the business owner or Master Staff can operate this time clock." });
+    }
+    const businessOwnerId = requester.role === "Owner" ? requester._id : requester.ownerId;
     const lock = timeClockFailures.get(normalizedEmail);
     if (lock?.lockedUntil > Date.now()) {
       return res.status(429).json({ message: "Too many failed attempts. Try again in a few minutes." });
     }
     if (!/^(clock-in|clock-out)$/.test(String(action)))
       return res.status(400).json({ message: "Choose clock in or clock out." });
-    const staff = await User.findOne({
-      email: normalizedEmail,
-      role: "Staff",
-      accountStatus: "Active",
-    });
+    const staff = businessOwnerId
+      ? await User.findOne({
+          email: normalizedEmail,
+          role: "Staff",
+          ownerId: businessOwnerId,
+          accountStatus: "Active",
+        })
+      : null;
     if (!staff || !(await bcrypt.compare(String(password || ""), staff.password))) {
       recordTimeClockFailure(normalizedEmail);
       return res
-        .status(401)
-        .json({ message: "Invalid staff email or password." });
+        .status(404)
+        .json({ message: "Staff has no record for this business." });
     }
     const linkedOwner = staff.ownerId
       ? await User.findOne({
@@ -352,7 +360,7 @@ exports.staffTimeClock = async (req, res) => {
       if (record?.checkIn)
         return res
           .status(200)
-          .json({ message: "You are already clocked in today.", record });
+          .json({ message: "You are already logged in for today.", record });
 
       const owner = await User.findById(
         staff.ownerId,

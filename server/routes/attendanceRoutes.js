@@ -18,13 +18,10 @@ const staffTimeClockLimiter = rateLimit({
   message: { message: "Too many time-clock attempts. Try again later." },
 });
 
-// The staff time clock is a credential-authenticated kiosk endpoint. Keep it
-// before the session middleware so staff can verify their own credentials
-// without an already-authenticated browser session.
-router.post("/staff-time-clock", staffTimeClockLimiter, attendanceController.staffTimeClock);
-
 router.use(authMiddleware);
 router.use(requireRole(["Owner", "masterStaff", "Staff"]));
+
+router.post("/staff-time-clock", staffTimeClockLimiter, attendanceController.staffTimeClock);
 
 router.post(
   "/check-in",
