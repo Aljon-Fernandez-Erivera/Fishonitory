@@ -23,6 +23,9 @@ async function apiRequest(path, options = {}) {
     headers: {
       "Content-Type": "application/json",
       "X-Session-Role": "superAdmin",
+      ...(sessionStorage.getItem("fishonitory_auth_token")
+        ? { Authorization: `Bearer ${sessionStorage.getItem("fishonitory_auth_token")}` }
+        : {}),
       ...(options.headers || {}),
     },
     credentials: "include",

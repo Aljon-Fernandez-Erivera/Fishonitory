@@ -88,6 +88,9 @@ async function apiRequest(path, options = {}) {
     response = await fetch(`${API_URL}${path}`, {
       ...options,
       headers: {
+        ...(sessionStorage.getItem("fishonitory_auth_token")
+          ? { Authorization: `Bearer ${sessionStorage.getItem("fishonitory_auth_token")}` }
+          : {}),
         ...(options.body instanceof FormData
           ? {}
           : { "Content-Type": "application/json" }),

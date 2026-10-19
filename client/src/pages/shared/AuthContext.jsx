@@ -122,7 +122,12 @@ export function AuthProvider({ children }) {
       await fetch(`${API_URL}/auth/logout`, {
         method: "POST",
         credentials: "include",
-        headers: user?.role ? { "X-Session-Role": user.role } : {},
+        headers: {
+          ...(sessionStorage.getItem("fishonitory_auth_token")
+            ? { Authorization: `Bearer ${sessionStorage.getItem("fishonitory_auth_token")}` }
+            : {}),
+          ...(user?.role ? { "X-Session-Role": user.role } : {}),
+        },
       });
     } finally {
       sessionStorage.setItem("fishonitory_session_expired", "1");
