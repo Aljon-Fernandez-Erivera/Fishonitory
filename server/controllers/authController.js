@@ -134,6 +134,18 @@ function totpLockResponse(lockedUntil) {
 }
 
 async function completeLogin(req, res, user, loginRole) {
+  if (["Staff", "masterStaff"].includes(loginRole)) {
+    const owner = user.ownerId
+      ? await User.findOne({ _id: user.ownerId, role: "Owner", accountStatus: "Active" }).select("_id")
+      : null;
+    if (!owner) {
+      return res.status(403).json({
+        code: "STAFF_OWNER_NOT_LINKED",
+        message: "Login failed. This staff account is not linked to an active business owner. Contact the person who created the account.",
+      });
+    }
+  }
+
   accountLoginAttempts.delete(String(user._id));
   ipLoginAttempts.delete(String(getClientIp(req)));
   await User.updateOne({ _id: user._id }, { $set: { totpFailedAttempts: 0, totpLockedUntil: null } });
@@ -664,6 +676,18 @@ exports.login = async (req, res) => {
       }
 
       return res.status(401).json({ message: "Invalid email or password." });
+    }
+
+    if (["Staff", "masterStaff"].includes(loginRole)) {
+      const owner = user.ownerId
+        ? await User.findOne({ _id: user.ownerId, role: "Owner", accountStatus: "Active" }).select("_id")
+        : null;
+      if (!owner) {
+        return res.status(403).json({
+          code: "STAFF_OWNER_NOT_LINKED",
+          message: "Login failed. This staff account is not linked to an active business owner. Contact the person who created the account.",
+        });
+      }
     }
 
     // MFA is a required part of every session, regardless of the account role.

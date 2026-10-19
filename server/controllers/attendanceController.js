@@ -332,6 +332,19 @@ exports.staffTimeClock = async (req, res) => {
         .status(401)
         .json({ message: "Invalid staff email or password." });
     }
+    const linkedOwner = staff.ownerId
+      ? await User.findOne({
+          _id: staff.ownerId,
+          role: "Owner",
+          accountStatus: "Active",
+        }).select("_id")
+      : null;
+    if (!linkedOwner) {
+      return res.status(403).json({
+        code: "STAFF_OWNER_NOT_LINKED",
+        message: "Clock-in failed. This staff account is not linked to an active business owner. Contact the person who created the account.",
+      });
+    }
     timeClockFailures.delete(normalizedEmail);
     const dateKey = getManilaDateKey();
     let record = await Attendance.findOne({ userId: staff._id, dateKey });
