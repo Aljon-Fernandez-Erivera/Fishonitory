@@ -144,10 +144,15 @@ exports.listAttendance = async (req, res) => {
 
   const noShows = staffDocs.filter((staff) => {
     if (recordedSet.has(String(staff._id))) return false;
+    const shiftTemplateId =
+      assignmentMap.get(String(staff._id)) || staff.shiftTemplateId;
+    // The general attendance policy is not a staff shift assignment. Only
+    // mark a no-show when this staff member has an actual shift template.
+    if (!shiftTemplateId) return false;
     const schedule = resolveScheduleSync(
       staff,
       owner,
-      assignmentMap.get(String(staff._id)),
+      shiftTemplateId,
     );
     return isPastCutoffForDate(dateKey, schedule);
   });
