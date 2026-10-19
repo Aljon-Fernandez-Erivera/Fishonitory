@@ -60,8 +60,18 @@ function secondsUntil(date) {
 function setAuthCookie(res, token, role) {
   const sameSite = config.nodeEnv === "production" ? "None" : "Lax";
   const secure = config.nodeEnv === "production" ? "; Secure" : "";
+  const activeCookie = cookieNameForRole(role);
+  const roleCookies = [
+    "owner_access_token",
+    "staff_access_token",
+    "master_staff_access_token",
+    "super_admin_access_token",
+  ];
   res.setHeader("Set-Cookie", [
-    `${cookieNameForRole(role)}=${encodeURIComponent(token)}; HttpOnly; Path=/; Max-Age=86400; SameSite=${sameSite}${secure}`,
+    `${activeCookie}=${encodeURIComponent(token)}; HttpOnly; Path=/; Max-Age=86400; SameSite=${sameSite}${secure}`,
+    ...roleCookies
+      .filter((cookieName) => cookieName !== activeCookie)
+      .map((cookieName) => `${cookieName}=; HttpOnly; Path=/; Max-Age=0; SameSite=${sameSite}${secure}`),
     `access_token=; HttpOnly; Path=/; Max-Age=0; SameSite=${sameSite}${secure}`,
   ]);
 }

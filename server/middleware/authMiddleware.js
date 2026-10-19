@@ -13,14 +13,15 @@ const authMiddleware = async (req, res, next) => {
   const authorization = req.headers.authorization;
   const requestedRole = req.headers["x-session-role"];
   const preferredCookieName = cookieNameForRole(requestedRole);
-  const fallbackCookieNames = [
-    preferredCookieName,
-    "owner_access_token",
-    "staff_access_token",
-    "master_staff_access_token",
-    "super_admin_access_token",
-    "access_token",
-  ].filter(Boolean);
+  const fallbackCookieNames = requestedRole
+    ? [preferredCookieName].filter(Boolean)
+    : [
+        "owner_access_token",
+        "staff_access_token",
+        "master_staff_access_token",
+        "super_admin_access_token",
+        "access_token",
+      ];
 
   let token = null;
 
