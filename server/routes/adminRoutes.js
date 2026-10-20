@@ -34,6 +34,18 @@ router.post(
   adminController.rejectOwner,
 );
 
+router.patch(
+  "/owners/:id/archive",
+  adminActionLimiter,
+  adminController.archiveRegistration,
+);
+
+router.patch(
+  "/owners/:id/unarchive",
+  adminActionLimiter,
+  adminController.unarchiveRegistration,
+);
+
 // Active (approved) businesses and their registered staff.
 router.get("/businesses", adminController.listActiveBusinesses);
 router.get("/businesses/:id/staff", adminController.listBusinessStaff);

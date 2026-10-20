@@ -4,14 +4,25 @@ const isPdfUrl = (url = "") => url.toLowerCase().endsWith(".pdf");
 function PendingVerifications({
   pending,
   pagination,
+  filter,
+  onFilterChange,
   onPageChange,
   onApprove,
   onReject,
+  onArchive,
+  onUnarchive,
 }) {
   const currentPage = pagination?.page || 1;
   const totalPages = pagination?.totalPages || 1;
   const total = pagination?.total || 0;
   const [processingId, setProcessingId] = useState(null);
+  const filters = [
+    ["all", "All"],
+    ["pending", "Pending"],
+    ["approved", "Approved"],
+    ["rejected", "Rejected"],
+    ["archived", "Archived"],
+  ];
 
   const handleApprove = async (id, businessName) => {
     if (processingId) return;
@@ -36,22 +47,48 @@ function PendingVerifications({
       setProcessingId(null);
     }
   };
+
+  const handleArchiveAction = async (owner, archive) => {
+    if (processingId) return;
+    setProcessingId(owner._id);
+    try {
+      await (archive ? onArchive : onUnarchive)(owner);
+    } finally {
+      setProcessingId(null);
+    }
+  };
   return (
     <section className="mx-auto grid w-full max-w-7xl gap-6">
       <div>
         <p className="font-['Poppins'] text-xs font-semibold uppercase tracking-[0.16em] text-[#73c4ca]">
-          Pending Verifications
+          Registrations
         </p>
 
         <p className="mt-3 font-['Poppins'] text-sm text-[#9bbec7]">
-          Review each business's uploaded permit before approving their account.
+          Review business applications and keep completed decisions organized.
         </p>
+      </div>
+
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Filter registrations by status">
+        {filters.map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            aria-pressed={filter === value}
+            onClick={() => onFilterChange(value)}
+            className={`rounded-full border px-4 py-2 font-['Poppins'] text-xs font-semibold transition ${filter === value ? "border-[#75bec4] bg-[#75bec4] text-[#052d45]" : "border-sky-100/15 bg-white/[.04] text-[#a9c8cf] hover:bg-white/[.09]"}`}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
       {!pending.length ? (
         <div className="rounded-2xl border border-dashed border-sky-100/15 bg-[#062d48]/50 px-6 py-12 text-center">
           <p className="font-['Poppins'] text-sm text-[#7dabb5]">
-            No businesses are waiting for review right now.
+            {filter === "pending"
+              ? "No businesses are waiting for review right now."
+              : `No ${filter === "all" ? "registrations" : filter + " registrations"} found.`}
           </p>
         </div>
       ) : (
@@ -73,8 +110,8 @@ function PendingVerifications({
                     </p>
                   </div>
 
-                  <span className="shrink-0 rounded-full border border-amber-300/30 bg-amber-400/10 px-2.5 py-1 font-['Poppins'] text-[10px] font-semibold uppercase tracking-[0.1em] text-amber-200">
-                    Pending
+                  <span className={`shrink-0 rounded-full border px-2.5 py-1 font-['Poppins'] text-[10px] font-semibold uppercase tracking-[0.1em] ${owner.registrationArchivedAt ? "border-slate-300/25 bg-slate-300/10 text-slate-200" : owner.accountStatus === "Rejected" ? "border-red-300/30 bg-red-400/10 text-red-200" : owner.accountStatus === "Pending Verification" ? "border-amber-300/30 bg-amber-400/10 text-amber-200" : "border-emerald-300/30 bg-emerald-400/10 text-emerald-200"}`}>
+                    {owner.registrationArchivedAt ? "Archived" : owner.accountStatus === "Pending Verification" ? "Pending" : owner.accountStatus === "Rejected" ? "Rejected" : "Approved"}
                   </span>
                 </div>
 
@@ -105,9 +142,34 @@ function PendingVerifications({
                     <span className="text-[#6f9ca5]">Submitted: </span>
                     {new Date(owner.createdAt).toLocaleString()}
                   </div>
+                  {owner.verifiedAt && (
+                    <div>
+                      <span className="text-[#6f9ca5]">Approved: </span>
+                      {new Date(owner.verifiedAt).toLocaleString()}
+                    </div>
+                  )}
+                  {owner.rejectedAt && (
+                    <div>
+                      <span className="text-[#6f9ca5]">Rejected: </span>
+                      {new Date(owner.rejectedAt).toLocaleString()}
+                    </div>
+                  )}
+                  {owner.rejectionReason && (
+                    <div>
+                      <span className="text-[#6f9ca5]">Reason: </span>
+                      {owner.rejectionReason}
+                    </div>
+                  )}
+                  {owner.registrationArchivedAt && (
+                    <div>
+                      <span className="text-[#6f9ca5]">Archived: </span>
+                      {new Date(owner.registrationArchivedAt).toLocaleString()}
+                    </div>
+                  )}
                 </div>
 
-                <div className="rounded-xl border border-sky-100/[.08] bg-white/[.03] p-3">
+                {owner.businessPermitUrl && (
+                  <div className="rounded-xl border border-sky-100/[.08] bg-white/[.03] p-3">
                   {isPdfUrl(owner.businessPermitUrl) ? (
                     <a
                       href={owner.businessPermitUrl}
@@ -130,26 +192,49 @@ function PendingVerifications({
                       />
                     </a>
                   )}
-                </div>
+                  </div>
+                )}
 
                 <div className="flex flex-wrap gap-3">
-                  <button
-                    type="button"
-                    onClick={() => handleApprove(owner._id, owner.businessName)}
-                    disabled={processingId === owner._id}
-                    className="flex-1 cursor-pointer rounded-full bg-[#75bec4] px-4 py-2.5 font-['Poppins'] text-xs font-semibold text-[#052d45] transition hover:bg-[#91d2d5]"
-                  >
-                    Approve
-                  </button>
+                  {owner.accountStatus === "Pending Verification" && !owner.registrationArchivedAt ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => handleApprove(owner._id, owner.businessName)}
+                        disabled={processingId === owner._id}
+                        className="flex-1 cursor-pointer rounded-full bg-[#75bec4] px-4 py-2.5 font-['Poppins'] text-xs font-semibold text-[#052d45] transition hover:bg-[#91d2d5] disabled:opacity-50"
+                      >
+                        Approve
+                      </button>
 
-                  <button
-                    type="button"
-                    onClick={() => handleReject(owner._id, owner.businessName)}
-                    disabled={processingId === owner._id}
-                    className="flex-1 cursor-pointer rounded-full border border-red-300/30 bg-red-400/10 px-4 py-2.5 font-['Poppins'] text-xs font-semibold text-red-200 transition hover:bg-red-400/20"
-                  >
-                    Reject
-                  </button>
+                      <button
+                        type="button"
+                        onClick={() => handleReject(owner._id, owner.businessName)}
+                        disabled={processingId === owner._id}
+                        className="flex-1 cursor-pointer rounded-full border border-red-300/30 bg-red-400/10 px-4 py-2.5 font-['Poppins'] text-xs font-semibold text-red-200 transition hover:bg-red-400/20 disabled:opacity-50"
+                      >
+                        Reject
+                      </button>
+                    </>
+                  ) : owner.registrationArchivedAt ? (
+                    <button
+                      type="button"
+                      onClick={() => handleArchiveAction(owner, false)}
+                      disabled={processingId === owner._id}
+                      className="flex-1 cursor-pointer rounded-full border border-sky-100/15 bg-white/[.05] px-4 py-2.5 font-['Poppins'] text-xs font-semibold text-[#c9e1e5] transition hover:bg-white/[.1] disabled:opacity-50"
+                    >
+                      Restore registration
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleArchiveAction(owner, true)}
+                      disabled={processingId === owner._id}
+                      className="flex-1 cursor-pointer rounded-full border border-sky-100/15 bg-white/[.05] px-4 py-2.5 font-['Poppins'] text-xs font-semibold text-[#c9e1e5] transition hover:bg-white/[.1] disabled:opacity-50"
+                    >
+                      Archive registration
+                    </button>
+                  )}
                 </div>
               </article>
             ))}

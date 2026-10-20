@@ -8,30 +8,44 @@ const {
   sendRejectionEmail,
 } = require("../utils/mailer");
 
-// Every business owner currently waiting on a permit review, oldest first so
-// the queue is worked in the order it came in.
+// List business registrations by review status. Pending applications stay
+// oldest-first; other views show the most recently updated registrations first.
 exports.listPendingOwners = async (req, res) => {
   try {
     const page = Math.max(Number(req.query.page) || 1, 1);
+    const registrationFilter = String(req.query.status || "pending");
+    const supportedFilters = ["all", "pending", "approved", "rejected", "archived"];
+    if (!supportedFilters.includes(registrationFilter)) {
+      return res.status(400).json({ message: "Choose a valid registration filter." });
+    }
 
     const limit = Math.min(
       Math.max(Number(req.query.limit) || 20, 1),
       100,
     );
 
-    const filter = {
-      role: "Owner",
-      accountStatus: "Pending Verification",
-    };
+    const filter = { role: "Owner" };
+    if (registrationFilter === "archived") {
+      filter.registrationArchivedAt = { $ne: null };
+    } else if (registrationFilter !== "all") {
+      filter.registrationArchivedAt = null;
+    }
+    if (registrationFilter === "pending") {
+      filter.accountStatus = "Pending Verification";
+    } else if (registrationFilter === "approved") {
+      filter.accountStatus = { $in: ["Active", "Disabled"] };
+    } else if (registrationFilter === "rejected") {
+      filter.accountStatus = "Rejected";
+    }
 
     const skip = (page - 1) * limit;
 
     const [pending, total] = await Promise.all([
       User.find(filter)
         .select(
-          "businessName ownerName email businessAddress businessLatitude businessLongitude phoneNumber businessPermitUrl createdAt",
+          "businessName ownerName email businessAddress businessLatitude businessLongitude phoneNumber businessPermitUrl accountStatus createdAt verifiedAt rejectedAt rejectionReason registrationArchivedAt",
         )
-        .sort({ createdAt: 1 })
+        .sort(registrationFilter === "pending" ? { createdAt: 1 } : { createdAt: -1 })
         .skip(skip)
         .limit(limit)
         .lean(),
@@ -54,10 +68,60 @@ exports.listPendingOwners = async (req, res) => {
     console.error("Pending owners error:", error);
 
     return res.status(500).json({
-      message: "Failed to load pending verifications.",
+      message: "Failed to load registrations.",
     });
   }
 };
+
+const updateRegistrationArchive = async (req, res, archive) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ message: "Invalid registration id." });
+    }
+
+    const filter = { _id: req.params.id, role: "Owner" };
+    if (archive) {
+      filter.accountStatus = { $in: ["Active", "Disabled", "Rejected"] };
+      filter.registrationArchivedAt = null;
+    } else {
+      filter.registrationArchivedAt = { $ne: null };
+    }
+
+    const owner = await User.findOneAndUpdate(
+      filter,
+      { $set: { registrationArchivedAt: archive ? new Date() : null } },
+      { new: true, runValidators: true },
+    );
+    if (!owner) {
+      return res.status(404).json({ message: "Reviewed registration not found." });
+    }
+
+    try {
+      await AuditLog.create({
+        ownerId: null,
+        scope: "platform",
+        actorId: req.user.userId,
+        action: archive ? "ARCHIVE" : "RESTORE",
+        entityType: "User",
+        entityId: owner._id,
+        details: `${archive ? "Archived" : "Restored"} registration for ${owner.businessName}`,
+      });
+    } catch (auditError) {
+      console.error("Registration archive audit failed:", auditError.message);
+    }
+
+    return res.json({
+      message: `${owner.businessName}'s registration was ${archive ? "archived" : "restored"}.`,
+      registrationArchivedAt: owner.registrationArchivedAt,
+    });
+  } catch (error) {
+    console.error("Registration archive error:", error);
+    return res.status(500).json({ message: "Could not update the registration archive." });
+  }
+};
+
+exports.archiveRegistration = (req, res) => updateRegistrationArchive(req, res, true);
+exports.unarchiveRegistration = (req, res) => updateRegistrationArchive(req, res, false);
 
 exports.listAllAccounts = async (req, res) => {
   try {

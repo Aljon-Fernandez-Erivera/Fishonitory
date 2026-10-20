@@ -139,6 +139,10 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    registrationArchivedAt: {
+      type: Date,
+      default: null,
+    },
     displayName: {
       type: String,
       trim: true,

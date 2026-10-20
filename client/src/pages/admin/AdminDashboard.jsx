@@ -83,6 +83,7 @@ function AdminDashboard() {
 
   const [stats, setStats] = useState(null);
   const [pending, setPending] = useState([]);
+  const [registrationFilter, setRegistrationFilter] = useState("pending");
   const [pendingPagination, setPendingPagination] = useState({
     page: 1,
     limit: 20,
@@ -206,13 +207,13 @@ function AdminDashboard() {
   }, []);
 
   /* =========================================================
-     PENDING VERIFICATIONS
+     REGISTRATIONS
   ========================================================= */
 
-  const loadPending = useCallback(async (page = 1) => {
+  const loadPending = useCallback(async (page = 1, status = "pending") => {
     try {
       const res = await apiRequest(
-        `/admin/owners/pending?page=${page}&limit=20`,
+        `/admin/owners/pending?page=${page}&limit=20&status=${status}`,
       );
 
       setPending(res?.pending || []);
@@ -226,7 +227,7 @@ function AdminDashboard() {
         },
       );
     } catch (error) {
-      console.error("Failed to load pending verifications:", error);
+      console.error("Failed to load registrations:", error);
     }
   }, []);
 
@@ -414,13 +415,13 @@ function AdminDashboard() {
     }
 
     const timer = window.setInterval(() => {
-      loadPending();
+      loadPending(1, registrationFilter);
     }, 30000);
 
     return () => {
       window.clearInterval(timer);
     };
-  }, [authReady, user?.role, activePage, loadPending]);
+  }, [authReady, user?.role, activePage, loadPending, registrationFilter]);
 
   /* =========================================================
      INITIAL DATA LOAD
@@ -454,10 +455,10 @@ function AdminDashboard() {
       if (cancelled) return;
       if (activePage === "logs") void loadLogs();
       if (activePage === "platform-notices") void loadPlatformNotices();
-      if (activePage === "pending") void loadPending();
+      if (activePage === "pending") void loadPending(1, registrationFilter);
     });
     return () => { cancelled = true; };
-  }, [authReady, user?.role, activePage, loadLogs, loadPending, loadPlatformNotices]);
+  }, [authReady, user?.role, activePage, loadLogs, loadPending, loadPlatformNotices, registrationFilter]);
 
   /* =========================================================
      CLOCK
@@ -603,7 +604,7 @@ function AdminDashboard() {
         loadOverviewData({
           background: true,
         }),
-        loadPending(),
+        loadPending(1, registrationFilter),
       ]);
     } catch (requestError) {
       notify("error", requestError.message);
@@ -644,8 +645,31 @@ function AdminDashboard() {
         loadOverviewData({
           background: true,
         }),
-        loadPending(),
+        loadPending(1, registrationFilter),
       ]);
+    } catch (requestError) {
+      notify("error", requestError.message);
+    }
+  };
+
+  const handleRegistrationArchive = async (owner, archive) => {
+    const action = archive ? "archive" : "unarchive";
+    const confirmation = await confirmOceanicAction({
+      title: `${archive ? "Archive" : "Restore"} ${owner.businessName}'s registration?`,
+      text: archive
+        ? "This reviewed registration will move to the Archived tab. The business account will keep its current status."
+        : "This registration will return to the regular registrations list.",
+      confirmText: archive ? "Archive registration" : "Restore registration",
+      tone: archive ? "danger" : "default",
+    });
+    if (!confirmation) return;
+
+    try {
+      const result = await apiRequest(`/admin/owners/${owner._id}/${action}`, {
+        method: "PATCH",
+      });
+      notify("success", result.message);
+      await loadPending(1, registrationFilter);
     } catch (requestError) {
       notify("error", requestError.message);
     }
@@ -733,7 +757,7 @@ function AdminDashboard() {
         thinScrollbar={false}
         groups={[
           { items: [{ page: "overview", label: "Overview" }] },
-          { title: "Review queue", description: "Check new applications", items: [{ page: "pending", label: "Pending Verifications", badge: pendingPagination.total > 0 && <span className="ml-2 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-400 px-1 text-[10px] font-bold text-[#3a2900]">{pendingPagination.total}</span> }] },
+          { title: "Review queue", description: "Review business registrations", items: [{ page: "pending", label: "Registrations", badge: (stats?.pendingOwners || 0) > 0 && <span className="ml-2 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-400 px-1 text-[10px] font-bold text-[#3a2900]">{stats.pendingOwners}</span> }] },
           { title: "Business directory", description: "View approved businesses", items: [{ page: "businesses", label: "Active Businesses" }] },
           { title: "Account directory", description: "Manage registered users", items: [{ page: "accounts", label: "All Accounts" }] },
           { title: "System tools", description: "Logs and console settings", items: [{ page: "platform-notices", label: "Platform Notices" }, { page: "logs", label: "System Logs" }, { page: "settings", label: "Settings" }] },
@@ -797,9 +821,15 @@ function AdminDashboard() {
           <PendingVerifications
             pending={pending}
             pagination={pendingPagination}
-            onPageChange={loadPending}
+            filter={registrationFilter}
+            onFilterChange={(filter) => {
+              setRegistrationFilter(filter);
+            }}
+            onPageChange={(page) => loadPending(page, registrationFilter)}
             onApprove={handleApprove}
             onReject={handleReject}
+            onArchive={(owner) => handleRegistrationArchive(owner, true)}
+            onUnarchive={(owner) => handleRegistrationArchive(owner, false)}
           />
         )}
 
