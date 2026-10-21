@@ -80,6 +80,7 @@ function AdminDashboard() {
 
   const [initialLoading, setInitialLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [tableRefreshing, setTableRefreshing] = useState("");
 
   const [stats, setStats] = useState(null);
   const [pending, setPending] = useState([]);
@@ -743,6 +744,22 @@ function AdminDashboard() {
     body: JSON.stringify(content),
   });
 
+  const refreshAdminSection = async () => {
+    if (activePage === "overview") return loadOverviewData({ background: true });
+    const section = activePage === "pending" ? "pending" : activePage === "accounts" ? "accounts" : activePage;
+    setTableRefreshing(section);
+    try {
+      if (activePage === "pending") await loadPending(pendingPagination.page, registrationFilter);
+      else if (activePage === "accounts") await loadAccounts(accountPagination.page, accountSearch, accountRoleFilter, accountStatusFilter);
+      else if (activePage === "businesses") await loadBusinesses(businessPagination.page, businessSearch);
+      else if (activePage === "logs") await loadLogs(logPagination.page);
+      else if (activePage === "platform-notices") await loadPlatformNotices();
+      else await loadOverviewData({ background: true });
+    } finally {
+      setTableRefreshing("");
+    }
+  };
+
   /* =========================================================
      INITIAL LOADING SCREEN
   ========================================================= */
@@ -764,6 +781,8 @@ function AdminDashboard() {
         navigationLabel="Admin dashboard navigation"
         brandSubtitle="Super Admin console"
         refreshLabel="Refresh admin console"
+        onRefresh={refreshAdminSection}
+        refreshing={refreshing || Boolean(tableRefreshing)}
         thinScrollbar={false}
         groups={[
           { items: [{ page: "overview", label: "Overview" }] },
@@ -836,7 +855,8 @@ function AdminDashboard() {
               setRegistrationFilter(filter);
             }}
             onPageChange={(page) => loadPending(page, registrationFilter)}
-            onRefresh={() => loadPending(pendingPagination.page, registrationFilter)}
+            onRefresh={refreshAdminSection}
+            refreshing={tableRefreshing === "pending"}
             onApprove={handleApprove}
             onReject={handleReject}
             onArchive={(owner) => handleRegistrationArchive(owner, true)}
@@ -880,7 +900,8 @@ function AdminDashboard() {
             statusFilter={accountStatusFilter}
             onStatusChange={setAccountStatusFilter}
             onLoadStaff={loadBusinessStaff}
-            onRefresh={() => loadAccounts(accountPagination.page, accountSearch, accountRoleFilter, accountStatusFilter)}
+            onRefresh={refreshAdminSection}
+            refreshing={tableRefreshing === "accounts"}
           />
         )}
 

@@ -1002,7 +1002,8 @@ function OwnerDashboard() {
             setSalesRange((previous) => ({ ...previous, [field]: value }))
           }
           onAddNote={handleAddNote}
-          onRefresh={loadDashboardData}
+          onRefresh={() => loadDashboardData({ background: true })}
+          refreshing={refreshing}
         />
       );
     }
@@ -1169,7 +1170,8 @@ function OwnerDashboard() {
               setSalesRange((previous) => ({ ...previous, [field]: value }))
             }
             onAddNote={handleAddNote}
-            onRefresh={loadDashboardData}
+            onRefresh={() => loadDashboardData({ background: true })}
+            refreshing={refreshing}
           />
         );
     }
@@ -1195,6 +1197,8 @@ function OwnerDashboard() {
         navigationLabel="Owner dashboard navigation"
         brandSubtitle="Owners workspace"
         refreshLabel="Refresh Fishonitory workspace"
+        onRefresh={() => loadDashboardData({ background: true })}
+        refreshing={refreshing}
         groups={[
           { items: [{ page: "overview", label: "Overview" }] },
           { title: "Team and payroll", items: [businessFeatures.attendance && { page: "attendance", label: "Attendance" }, businessFeatures.staff && { page: "staff", label: "Staff Management" }, businessFeatures.payroll && { page: "payroll", label: "Payroll" }].filter(Boolean) },

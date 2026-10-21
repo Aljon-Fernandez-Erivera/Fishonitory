@@ -163,6 +163,7 @@ function StaffDashboard() {
   };
   const [profileSaving, setProfileSaving] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const [currentTime, setCurrentTime] = useState(() => new Date());
   const notify = (type, title) => setToastNotice(title ? { type, title } : null);
@@ -216,6 +217,13 @@ function StaffDashboard() {
     } catch (requestError) {
       notify("error", requestError.message);
     }
+  };
+
+  const refreshWorkspace = async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    try { await loadData(); }
+    finally { setRefreshing(false); }
   };
 
   const submitMortality = async (payload) => {
@@ -568,6 +576,8 @@ function StaffDashboard() {
         navigationLabel="Staff dashboard navigation"
         brandSubtitle="Staff workspace"
         refreshLabel="Refresh Fishonitory workspace"
+        onRefresh={refreshWorkspace}
+        refreshing={refreshing}
         groups={[
           { items: [{ page: "overview", label: "Overview" }] },
           { title: "Shift and farm care", description: "Clock in, check stock, and update tanks", items: [{ page: "time-clock", label: "Staff Time Clock" }, { page: "inventory", label: "Fish & Feed Inventory" }, { page: "tanks", label: "Tank Updates" }, { page: "mortality", label: "Mortality Reports" }] },
@@ -705,15 +715,19 @@ function StaffDashboard() {
                   </span>
                 </div>
                 <div className="hidden overflow-x-auto lg:block">
-                  <table className="w-full min-w-[760px] border-collapse font-['Poppins'] text-sm">
+                  <table className="w-full min-w-[1180px] border-collapse font-['Poppins'] text-xs">
                     <thead className="bg-white/[.025] text-left text-xs uppercase tracking-[.08em] text-[#89afb9]">
                       <tr>
-                        <th className="px-4 py-3">Date / time</th>
-                        <th className="px-4 py-3">Recorded by</th>
-                        <th className="px-4 py-3">Facility</th>
-                        <th className="px-4 py-3">Species / stage</th>
-                        <th className="px-4 py-3">Dead / start</th>
-                        <th className="px-4 py-3">Cause</th>
+                        <th className="whitespace-nowrap px-3 py-2.5">Date &amp; time checked</th>
+                        <th className="whitespace-nowrap px-3 py-2.5">Recorded by</th>
+                        <th className="whitespace-nowrap px-3 py-2.5">Facility</th>
+                        <th className="whitespace-nowrap px-3 py-2.5">Species</th>
+                        <th className="whitespace-nowrap px-3 py-2.5">Life stage</th>
+                        <th className="whitespace-nowrap px-3 py-2.5">Batch / lot</th>
+                        <th className="whitespace-nowrap px-3 py-2.5">Dead / start</th>
+                        <th className="whitespace-nowrap px-3 py-2.5">Cause</th>
+                        <th className="whitespace-nowrap px-3 py-2.5">Treatment</th>
+                        <th className="whitespace-nowrap px-3 py-2.5">Disposal</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -723,34 +737,45 @@ function StaffDashboard() {
                             className="border-t border-sky-100/[.07] text-[#b7d2d7]"
                             key={item._id}
                           >
-                            <td className="px-4 py-3">
+                            <td className="whitespace-nowrap px-3 py-2.5">
                               {new Date(item.recordedAt).toLocaleString()}
                             </td>
-                            <td className="px-4 py-3">
+                            <td className="max-w-36 truncate px-3 py-2.5" title={item.recordedBy?.staffName || item.recordedBy?.ownerName || "Unknown"}>
                               {item.recordedBy?.staffName ||
                                 item.recordedBy?.ownerName ||
                                 "Unknown"}
                             </td>
-                            <td className="px-4 py-3">
-                              {item.tankId?.name || "â€”"}
+                            <td className="max-w-36 truncate px-3 py-2.5" title={item.tankId?.name || "Unknown facility"}>
+                              {item.tankId?.name || "—"}
                             </td>
-                            <td className="px-4 py-3">
-                              {item.species || item.fishName} Â·{" "}
-                              {item.lifeStage || "â€”"}
+                            <td className="max-w-40 truncate px-3 py-2.5" title={item.species || item.fishName || "Unknown species"}>
+                              {item.species || item.fishName || "—"}
                             </td>
-                            <td className="px-4 py-3">
-                              {item.quantity} / {item.initialStockCount ?? "â€”"}
+                            <td className="whitespace-nowrap px-3 py-2.5">
+                              {item.lifeStage || "—"}
                             </td>
-                            <td className="px-4 py-3">
-                              {item.suspectedCause || item.reason}
+                            <td className="max-w-32 truncate px-3 py-2.5" title={item.batchNumber || "No batch number"}>
+                              {item.batchNumber || "—"}
+                            </td>
+                            <td className="whitespace-nowrap px-3 py-2.5 font-semibold text-rose-200">
+                              {item.quantity} / {item.initialStockCount ?? "—"}
+                            </td>
+                            <td className="whitespace-nowrap px-3 py-2.5">
+                              {item.suspectedCause || item.reason || "—"}
+                            </td>
+                            <td className="max-w-40 truncate px-3 py-2.5" title={item.treatmentGiven || "None"}>
+                              {item.treatmentGiven || "None"}
+                            </td>
+                            <td className="whitespace-nowrap px-3 py-2.5">
+                              {item.disposalMethod || "—"}
                             </td>
                           </tr>
                         ))
                       ) : (
                         <tr>
                           <td
-                            colSpan="6"
-                            className="px-4 py-6 text-sm text-[#789faa]"
+                            colSpan="10"
+                            className="px-3 py-6 text-sm text-[#789faa]"
                           >
                             No mortality reports have been recorded.
                           </td>
@@ -761,16 +786,26 @@ function StaffDashboard() {
                 </div>
                 <div className="divide-y divide-sky-100/[.08] lg:hidden">
                   {mortality.length ? mortality.slice(0, 30).map((item) => (
-                    <article key={item._id} className="space-y-2.5 p-4 font-['Poppins'] text-xs text-[#b7d2d7]">
+                    <article key={item._id} className="space-y-3 p-4 font-['Poppins'] text-xs text-[#b7d2d7]">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="m-0 text-[#89afb9]">{new Date(item.recordedAt).toLocaleString("en-PH")}</p>
-                          <p className="mt-1 truncate text-sm font-medium text-[#d9ecef]">{item.tankId?.name || "—"} · {item.species || item.fishName || "Unknown species"}{item.lifeStage ? ` / ${item.lifeStage}` : ""}</p>
+                          <p className="m-0 text-[#89afb9]">Date &amp; time checked · {new Date(item.recordedAt).toLocaleString("en-PH")}</p>
+                          <p className="mt-1 truncate text-sm font-medium text-[#d9ecef]">{item.species || item.fishName || "Unknown species"}</p>
                         </div>
                         <strong className="shrink-0 text-rose-200">{item.quantity} dead</strong>
                       </div>
-                      <p className="m-0 leading-5">{item.suspectedCause || item.reason || "No cause recorded"}</p>
-                      <p className="m-0 border-t border-sky-100/[.07] pt-2 text-[#89afb9]">Recorded by {item.recordedBy?.staffName || item.recordedBy?.ownerName || "Unknown"} · Start {item.initialStockCount ?? "—"}</p>
+                      <dl className="m-0 grid grid-cols-2 gap-x-4 gap-y-2 border-t border-sky-100/[.07] pt-3 sm:grid-cols-3">
+                        <div><dt className="inline text-[#789faa]">Recorded by: </dt><dd className="inline">{item.recordedBy?.staffName || item.recordedBy?.ownerName || "Unknown"}</dd></div>
+                        <div><dt className="inline text-[#789faa]">Facility: </dt><dd className="inline">{item.tankId?.name || "—"}</dd></div>
+                        <div><dt className="inline text-[#789faa]">Life stage: </dt><dd className="inline">{item.lifeStage || "—"}</dd></div>
+                        <div><dt className="inline text-[#789faa]">Batch / lot: </dt><dd className="inline">{item.batchNumber || "—"}</dd></div>
+                        <div><dt className="inline text-[#789faa]">Starting stock: </dt><dd className="inline">{item.initialStockCount ?? "—"}</dd></div>
+                        <div><dt className="inline text-[#789faa]">Cause: </dt><dd className="inline">{item.suspectedCause || item.reason || "—"}</dd></div>
+                        <div><dt className="inline text-[#789faa]">Treatment: </dt><dd className="inline">{item.treatmentGiven || "None"}</dd></div>
+                        <div><dt className="inline text-[#789faa]">Disposal: </dt><dd className="inline">{item.disposalMethod || "—"}</dd></div>
+                        <div className="col-span-full"><dt className="inline text-[#789faa]">Signs: </dt><dd className="inline">{item.signsObserved?.length ? item.signsObserved.join(", ") : "—"}</dd></div>
+                        {item.remarks && <div className="col-span-full"><dt className="inline text-[#789faa]">Remarks: </dt><dd className="inline">{item.remarks}</dd></div>}
+                      </dl>
                     </article>
                   )) : <p className="m-0 px-4 py-6 text-sm text-[#789faa]">No mortality reports have been recorded.</p>}
                 </div>

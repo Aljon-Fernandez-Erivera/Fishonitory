@@ -95,6 +95,16 @@ export function LoadingOverlay({ label = "Loading" }) {
   );
 }
 
+export function RefreshingIndicator({ visible = false }) {
+  if (!visible) return null;
+  return (
+    <div className="pointer-events-none fixed right-4 top-4 z-[90] flex items-center gap-2.5 rounded-full border border-cyan-100/20 bg-[#062d48]/95 px-3 py-2 shadow-xl backdrop-blur" role="status" aria-live="polite">
+      <img src="/LOGO.svg" alt="" className="h-7 w-7 animate-[pulse_1.3s_ease-in-out_infinite] object-contain" />
+      <span className="font-['Poppins'] text-xs font-medium text-[#d2e8ea]">Refreshing…</span>
+    </div>
+  );
+}
+
 export function SystemUnavailable({ onRetry, retrying = false }) {
   return (
     <main

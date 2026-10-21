@@ -23,6 +23,7 @@ function AllAccounts({
   onStatusChange,
   onLoadStaff,
   onRefresh,
+  refreshing = false,
 }) {
   // Tree state: which owners are open, and the staff loaded for each.
   const [expanded, setExpanded] = useState({});
@@ -81,7 +82,7 @@ function AllAccounts({
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <button type="button" onClick={onRefresh} aria-label="Refresh accounts" title="Refresh accounts" className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-sky-100/10 bg-white/[.04] text-[#bce9e9] transition hover:bg-white/10"><span aria-hidden="true">↻</span></button>
+        <button type="button" onClick={onRefresh} disabled={refreshing} aria-label="Refresh accounts" title="Refresh accounts" className="flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-sky-100/10 bg-white/[.04] px-3 text-[#bce9e9] transition hover:bg-white/10 disabled:opacity-70">{refreshing ? <><img src="/LOGO.svg" alt="" className="h-6 w-6 animate-[pulse_1.3s_ease-in-out_infinite]"/><span className="text-xs">Refreshing…</span></> : <span aria-hidden="true">↻</span>}</button>
         <input
           type="search"
           value={search}

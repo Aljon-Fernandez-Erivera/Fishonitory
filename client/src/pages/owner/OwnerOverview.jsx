@@ -10,6 +10,7 @@ function OwnerOverview({
   salesRange,
   onSalesDateChange,
   onRefresh,
+  refreshing = false,
 }) {
   const todayKey = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Manila",
@@ -124,6 +125,7 @@ function OwnerOverview({
           <button
             type="button"
             onClick={onRefresh}
+            disabled={refreshing}
             aria-label="Refresh data"
             className="
               flex h-10 w-10 shrink-0 items-center justify-center
@@ -143,6 +145,7 @@ function OwnerOverview({
               sm:py-2.5
             "
           >
+            {refreshing ? <><img src="/LOGO.svg" alt="" className="h-6 w-6 animate-[pulse_1.3s_ease-in-out_infinite]" /><span className="hidden font-['Poppins'] text-sm font-medium sm:block">Refreshing…</span></> : <>
             {/* Refresh icon */}
             <svg
               className="h-4 w-4 sm:hidden"
@@ -166,6 +169,7 @@ function OwnerOverview({
             <span className="hidden font-['Poppins'] text-sm font-medium sm:block">
               Refresh Data
             </span>
+            </>}
           </button>
         </div>
       </header>

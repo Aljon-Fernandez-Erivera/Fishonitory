@@ -41,6 +41,8 @@ function DashboardSidebar({
   navigationLabel,
   brandSubtitle,
   refreshLabel,
+  onRefresh,
+  refreshing = false,
   identity,
   onIdentityClick,
   onLogout,
@@ -93,18 +95,19 @@ function DashboardSidebar({
       >
         <button
           type="button"
-          onClick={() => window.location.reload()}
+          onClick={() => onRefresh ? onRefresh() : window.location.reload()}
+          disabled={refreshing}
           aria-label={refreshLabel}
           title="Refresh dashboard"
           className="cursor-pointer flex shrink-0 items-center gap-2.5 rounded-lg border-0 bg-transparent px-1 py-1 text-left transition hover:bg-white/[.04] focus:outline-none focus:ring-2 focus:ring-[#73c4ca]"
         >
-          <img src="/LOGO.svg" alt="Fishonitory" className="h-10 w-10 object-contain" />
+          <img src="/LOGO.svg" alt="Fishonitory" className={`h-10 w-10 object-contain ${refreshing ? "animate-[pulse_1.3s_ease-in-out_infinite]" : ""}`} />
           <div>
             <strong className="block font-['Poppins'] text-[0.9rem] font-medium text-[#cde4e6]">
               Fishonitory
             </strong>
             <small className="block font-['Poppins'] text-[0.7rem] text-[#8fb3ba]">
-              {brandSubtitle}
+              {refreshing ? "Refreshing…" : brandSubtitle}
             </small>
           </div>
         </button>
