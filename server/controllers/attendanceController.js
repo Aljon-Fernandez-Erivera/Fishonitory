@@ -176,6 +176,64 @@ exports.listAttendance = async (req, res) => {
   return res.json({ records });
 };
 
+// Open staff shifts for the master staff workspace. Used for clock-out reminders
+// and to warn before a master staff user leaves the shared dashboard.
+exports.listOpenStaffShifts = async (req, res) => {
+  if (req.user.role !== "masterStaff") {
+    return res.status(403).json({ message: "Only master staff can view open staff shifts." });
+  }
+
+  const requester = await User.findById(req.user.userId, "ownerId");
+  if (!requester?.ownerId) return res.json({ openShifts: [] });
+
+  const dateKey = getManilaDateKey();
+  const owner = await User.findOne({ _id: requester.ownerId, role: "Owner", accountStatus: "Active" })
+    .select("attendancePolicy shiftTemplates");
+  if (!owner) return res.json({ openShifts: [] });
+
+  const records = await Attendance.find({
+    dateKey,
+    checkIn: { $ne: null },
+    checkOut: null,
+  }).populate({
+    path: "userId",
+    match: { ownerId: requester.ownerId, role: "Staff", accountStatus: "Active" },
+    select: "staffName staffPosition email shiftTemplateId",
+  });
+  const staffIds = records.filter((record) => record.userId).map((record) => record.userId._id);
+  const assignments = await ShiftAssignment.find({
+    ownerId: requester.ownerId,
+    staffId: { $in: staffIds },
+    dateKey,
+  }).select("staffId shiftTemplateId");
+  const assignmentMap = new Map(assignments.map((assignment) => [String(assignment.staffId), assignment.shiftTemplateId]));
+  const now = Date.now();
+
+  const openShifts = records
+    .filter((record) => record.userId)
+    .map((record) => {
+      const staff = record.userId;
+      const schedule = resolveScheduleSync(
+        staff,
+        owner,
+        assignmentMap.get(String(staff._id)),
+      );
+      const cutoffAt = scheduleWindow(dateKey, schedule).end;
+      const minutesUntilCutoff = Math.ceil((cutoffAt.getTime() - now) / 60000);
+      return {
+        staffId: String(staff._id),
+        staffName: staff.staffName || staff.email,
+        staffPosition: staff.staffPosition || "Staff",
+        checkIn: record.checkIn,
+        cutoffAt,
+        minutesUntilCutoff,
+        reminderEligible: minutesUntilCutoff <= 10,
+      };
+    });
+
+  return res.json({ openShifts });
+};
+
 exports.updateAttendanceStatus = async (req, res) => {
   if (req.user.role !== "Owner")
     return res

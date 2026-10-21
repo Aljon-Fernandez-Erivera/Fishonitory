@@ -18,6 +18,7 @@ function NotificationBell({
   fish = [],
   tanks = [],
   attendance = [],
+  staffClockoutReminders = [],
   onNavigate,
   announcementPage = "notes",
   viewerRole = "",
@@ -59,6 +60,20 @@ function NotificationBell({
 
   const notifications = useMemo(() => {
     const items = [];
+    staffClockoutReminders
+      .filter((shift) => shift.reminderEligible)
+      .forEach((shift) => {
+        const cutoff = new Date(shift.cutoffAt);
+        const overdue = shift.minutesUntilCutoff < 0;
+        items.push({
+          id: `staff-clockout-${todayKey()}-${shift.staffId}`,
+          title: overdue ? "Staff clock-out overdue" : "Clock-out reminder",
+          body: overdue
+            ? `${shift.staffName} has not clocked out. Scheduled shift end was ${cutoff.toLocaleTimeString("en-PH", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Manila" })}.`
+            : `${shift.staffName} has not clocked out. Their shift ends in about 10 minutes.`,
+          page: "time-clock",
+        });
+      });
     platformNotices.forEach((notice) =>
       items.push({
         id: `platform-notice-${notice._id}`,
@@ -136,7 +151,7 @@ function NotificationBell({
       });
     }
     return items.slice(0, 8);
-  }, [notes, fish, tanks, attendance, announcementPage, viewerId, viewerRole, maintenanceCutoff, platformNotices]);
+  }, [notes, fish, tanks, attendance, staffClockoutReminders, announcementPage, viewerId, viewerRole, maintenanceCutoff, platformNotices]);
   const unreadCount = notifications.filter((item) => !readIds.includes(item.id)).length;
 
   const openNotification = (item) => {

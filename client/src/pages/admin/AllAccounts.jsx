@@ -64,13 +64,20 @@ function AllAccounts({
     }
     setOtpBusy(true);
     setDisableError("");
-    const sent = await onRequestDisableOtp(disableTarget.account._id, reason);
-    if (sent) {
-      setOtpSent(true);
-      setDisableOtp("");
-      setOtpExpires(300);
+    try {
+      const sent = await onRequestDisableOtp(disableTarget.account._id, reason);
+      if (sent) {
+        setOtpSent(true);
+        setDisableOtp("");
+        setOtpExpires(300);
+      } else {
+        setDisableError("Could not send the verification code. Check the notification for details and try again.");
+      }
+    } catch (error) {
+      setDisableError(error?.message || "Could not send the verification code. Please try again.");
+    } finally {
+      setOtpBusy(false);
     }
-    setOtpBusy(false);
   };
 
   const confirmDisable = async (event) => {
@@ -555,7 +562,7 @@ function AllAccounts({
             )}
             {disableError && <p role="alert" className="m-0 text-sm text-red-200">{disableError}</p>}
             <div className="flex flex-wrap justify-end gap-3 border-t border-sky-100/10 pt-4">
-              <button type="button" onClick={() => setDisableTarget(null)} disabled={disableBusy || otpBusy} className="min-h-10 rounded-xl border border-sky-100/15 px-4 text-sm text-[#b7d2d7]">Cancel</button>
+              <button type="button" onClick={() => setDisableTarget(null)} disabled={disableBusy || otpBusy} className="min-h-10 rounded-xl border border-sky-100/15 bg-transparent px-4 text-sm text-[#b7d2d7]">Cancel</button>
               <button type="submit" disabled={!otpSent || otpExpires <= 0 || disableOtp.length !== 6 || disableBusy} className="min-h-10 rounded-xl border border-red-200/25 bg-red-500/15 px-4 text-sm font-semibold text-red-100 disabled:opacity-40">{disableBusy ? "Disabling…" : "Verify and disable"}</button>
             </div>
           </form>

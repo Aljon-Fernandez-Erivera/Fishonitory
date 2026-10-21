@@ -301,7 +301,7 @@ function LoginPage() {
       ? "A reset code was sent to your email. If you don't see it, check your spam folder — it may take a minute to arrive."
       : totpChallenge
         ? "Open your authenticator app to see your current 6-digit code. Lost access to your app? Use a recovery code or reset your authenticator instead."
-        : "Enter the email and password of your Fishonitory account. Staff should use the account their owner created for them. If you forgot your password, click Forgot password.";
+        : "Enter the email and password for an owner, administrator, or master staff account. Regular staff should use Staff Time Clock to record attendance. If you forgot your password, click Forgot password.";
 
   return (
     <AuthLayout

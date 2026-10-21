@@ -6,7 +6,7 @@ Fishonitory is a web application for managing a fish farm or aquarium business. 
 
 - **Owner workspace:** business overview, staff, attendance, shifts, payroll, announcements, inventory, tanks, sales, purchases, mortality records, reports, and settings.
 - **Master Staff workspace:** point of sale, customer order fulfillment, and selected inventory, tank, announcement, and shift operations for the linked business.
-- **Staff access:** attendance and time-clock workflows.
+- **Regular Staff access:** attendance is recorded through the Staff Time Clock in the linked Master Staff workspace. Regular Staff do not create a dashboard login session.
 - **Super Admin workspace:** business verification, account and business directories, analytics, platform notices, system logs, and platform settings.
 - **Public pages:** business registration, login, password recovery, help, and about/contact.
 
@@ -47,8 +47,9 @@ For production, configure secrets through the hosting provider's environment set
 ## Important workflows and access
 
 - Business registration uses email verification and may require Super Admin approval before the owner can use the system.
-- MFA is required for accounts. Users enroll an authenticator during sign-in and should store recovery codes privately.
-- Owner and Master Staff access is scoped to the business linked to their account. Staff accounts have narrower access.
+- MFA is required for dashboard sign-in by Owners, Super Admins, and Master Staff. Users enroll an authenticator during sign-in and should store recovery codes privately. Regular Staff do not use the dashboard login.
+- Owner and Master Staff access is scoped to the business linked to their account. Master Staff can enter a regular Staff member's credentials in Staff Time Clock to record clock-in or clock-out; those credentials do not grant the Staff member a dashboard session.
+- Master Staff receive an in-app reminder when a checked-in staff member is within 10 minutes of their scheduled shift end or is overdue. Logging out warns when staff still have open attendance records.
 - Sales, purchases, customer orders, and mortality records affect inventory. Use test stock when demonstrating these workflows.
 - Customer orders are created from the staff workspace/POS flow; this project does not provide a public customer storefront.
 
@@ -61,7 +62,7 @@ npm run lint --prefix client
 npm run build --prefix client
 ```
 
-Read `../docs/TESTING.md` for manual workflow checks and `../AUDIT.md` for the latest reviewed findings. The audit records the last known lint errors and a payroll test fixture issue; rerun checks after making changes. The server package's `npm test` script is currently a placeholder, so do not treat it as a passing test suite.
+Read `../docs/TESTING.md` for manual workflow checks and `../AUDIT.md` for the latest reviewed findings. Audit check results are historical and must be rerun before release. The server package's `npm test` script is currently a placeholder, so do not treat it as a passing test suite.
 
 ## Protect private data and credentials
 

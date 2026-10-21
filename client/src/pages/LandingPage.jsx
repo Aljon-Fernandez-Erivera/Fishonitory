@@ -155,12 +155,22 @@ function FeatureVisual({ feature }) {
 
 function LandingPage() {
   const [activeWord, setActiveWord] = useState(0);
+  const [showBackToTop, setShowBackToTop] = useState(false);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
       setActiveWord((word) => (word + 1) % 3);
     }, 1500);
     return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const updateBackToTopVisibility = () => {
+      setShowBackToTop(window.scrollY > 400);
+    };
+    updateBackToTopVisibility();
+    window.addEventListener("scroll", updateBackToTopVisibility, { passive: true });
+    return () => window.removeEventListener("scroll", updateBackToTopVisibility);
   }, []);
 
   return (
@@ -359,6 +369,19 @@ function LandingPage() {
           </Link>
         </div>
       </footer>
+      {showBackToTop && (
+        <button
+          type="button"
+          aria-label="Back to top"
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          className="fixed bottom-5 right-5 z-50 inline-flex min-h-11 items-center gap-2 rounded-full border border-white/20 bg-[#033341] px-4 py-3 font-['Poppins'] text-xs font-semibold text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-[#075064] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#75bec4] sm:bottom-7 sm:right-7"
+        >
+          <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="m18 15-6-6-6 6" />
+          </svg>
+          Back to top
+        </button>
+      )}
     </main>
   );
 }

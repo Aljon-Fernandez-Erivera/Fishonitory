@@ -685,7 +685,15 @@ exports.login = async (req, res) => {
       return res.status(401).json({ message: "Invalid email or password." });
     }
 
-    if (["Staff", "masterStaff"].includes(loginRole)) {
+    if (loginRole === "Staff") {
+      return res.status(403).json({
+        code: "STAFF_LOGIN_NOT_ALLOWED",
+        message:
+          "Regular staff cannot sign in here. Use Staff Time Clock to record attendance. Only owners, administrators, and master staff can log in.",
+      });
+    }
+
+    if (loginRole === "masterStaff") {
       const owner = user.ownerId
         ? await User.findOne({ _id: user.ownerId, role: "Owner", accountStatus: "Active" }).select("_id")
         : null;

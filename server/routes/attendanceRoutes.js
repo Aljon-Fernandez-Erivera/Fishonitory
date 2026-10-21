@@ -38,6 +38,7 @@ router.get(
   authMiddleware,
   attendanceController.getTodayStatus,
 );
+router.get("/shift-reminders", attendanceController.listOpenStaffShifts);
 router.get("/", authMiddleware, attendanceController.listAttendance);
 router.patch(
   "/:id/status",
