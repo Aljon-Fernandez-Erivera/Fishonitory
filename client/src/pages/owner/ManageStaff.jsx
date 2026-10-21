@@ -244,7 +244,7 @@ function ManageStaff({
                     onClick={() =>
                       setStaffModalOpen(false)
                     }
-                    className="min-h-[46px] rounded-xl border border-sky-100/15 bg-white/[.04] px-4 py-2.5 font-['Poppins'] text-sm text-[#c9e1e5]"
+                    className="min-h-[46px] rounded-xl border border-sky-100/15 bg-transparent px-4 py-2.5 font-['Poppins'] text-sm text-[#c9e1e5]"
                   >
                     Cancel
                   </button>
@@ -360,7 +360,7 @@ function ManageStaff({
                     onClick={() =>
                       setStaffModalOpen(false)
                     }
-                    className="min-h-[46px] rounded-xl border border-sky-100/15 bg-white/[.04] px-4 py-2.5 font-['Poppins'] text-sm text-[#c9e1e5]"
+                    className="min-h-[46px] rounded-xl border border-sky-100/15 bg-transparent px-4 py-2.5 font-['Poppins'] text-sm text-[#c9e1e5]"
                   >
                     Cancel
                   </button>
@@ -563,7 +563,7 @@ function ManageStaff({
                 <button
                   type="button"
                   onClick={onCloseDeletion}
-                  className="min-h-[46px] rounded-xl border border-sky-100/15 bg-white/[.04] px-4 py-2.5 font-['Poppins'] text-sm text-[#c9e1e5]"
+                  className="min-h-[46px] rounded-xl border border-sky-100/15 bg-transparent px-4 py-2.5 font-['Poppins'] text-sm text-[#c9e1e5]"
                 >
                   Cancel
                 </button>

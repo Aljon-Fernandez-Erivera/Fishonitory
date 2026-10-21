@@ -983,15 +983,6 @@ function OwnerDashboard() {
     }
   };
 
-  const dismissPlatformNotice = async (notice) => {
-    try {
-      await apiRequest(`/platform-notices/${notice._id}/dismiss`, { method: "PATCH" });
-      setPlatformNotices((current) => current.filter((item) => item._id !== notice._id));
-    } catch (requestError) {
-      setError(requestError.message);
-    }
-  };
-
   const renderActivePage = () => {
     if (
       activePage !== "overview" &&
@@ -1241,7 +1232,7 @@ function OwnerDashboard() {
             />
       </DashboardHeader>
         <div key={activePage} className="dashboard-page-transition min-h-0 flex-1 overflow-y-auto px-2 py-2 sm:px-5 lg:px-5 lg:py-8">
-        {platformNoticeModalOpen && <PlatformNoticeBanner notices={platformNotices} onDismiss={dismissPlatformNotice} onClose={() => setPlatformNoticeModalOpen(false)} />}
+        {platformNoticeModalOpen && <PlatformNoticeBanner notices={platformNotices} onClose={() => setPlatformNoticeModalOpen(false)} />}
         {renderActivePage()}
         </div>
       </div>

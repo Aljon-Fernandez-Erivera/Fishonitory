@@ -590,7 +590,7 @@ function Inventory({
                   type="button"
                   onClick={closeAdjust}
                   disabled={adjustBusy}
-                  className="min-h-[44px] rounded-xl border border-sky-100/15 bg-white/[.04] px-4 py-2.5 font-['Poppins'] text-sm text-[#c9e1e5] transition hover:bg-white/[.08]"
+                  className="min-h-[44px] rounded-xl border border-sky-100/15 bg-transparent px-4 py-2.5 font-['Poppins'] text-sm text-[#c9e1e5] transition hover:bg-white/[.06]"
                 >
                   Cancel
                 </button>
@@ -1015,7 +1015,7 @@ function Inventory({
                 <button
                   type="button"
                   onClick={closeForm}
-                  className="min-h-[46px] rounded-xl border border-sky-100/15 bg-white/[.04] px-4 py-2.5 font-['Poppins'] text-sm text-[#c9e1e5] transition hover:bg-white/[.08]"
+                  className="min-h-[46px] rounded-xl border border-sky-100/15 bg-transparent px-4 py-2.5 font-['Poppins'] text-sm text-[#c9e1e5] transition hover:bg-white/[.06]"
                 >
                   Cancel
                 </button>

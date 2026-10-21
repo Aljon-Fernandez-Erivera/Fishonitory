@@ -53,7 +53,7 @@ const primaryButton =
   "cursor-pointer rounded-full border-0 bg-[#75bec4] px-6 py-2.5 font-['Poppins'] text-sm font-semibold text-[#052d45] transition hover:bg-[#91d2d5] disabled:cursor-not-allowed disabled:opacity-60";
 
 const ghostButton =
-  "cursor-pointer rounded-full border border-sky-100/15 bg-white/[.05] px-5 py-2.5 font-['Poppins'] text-sm text-[#cfe6ea] transition hover:bg-white/[.1] disabled:cursor-not-allowed disabled:opacity-60";
+  "cursor-pointer rounded-full border border-sky-100/15 bg-transparent px-5 py-2.5 font-['Poppins'] text-sm text-[#cfe6ea] transition hover:bg-white/[.06] disabled:cursor-not-allowed disabled:opacity-60";
 
 const cardClass =
   "rounded-2xl border border-sky-100/15 bg-[#062d48]/80 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,.04),0_14px_35px_rgba(0,12,31,.14)]";

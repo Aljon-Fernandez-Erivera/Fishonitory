@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect } from "react";
 
 const formatDateTime = (value) => {
   if (!value) return "Platform update";
@@ -10,37 +10,30 @@ const formatDateTime = (value) => {
   });
 };
 
-function PlatformNoticeBanner({ notices = [], onDismiss, onClose }) {
-  const [closing, setClosing] = useState(false);
-  const closeToBell = useCallback(() => {
-    if (closing) return;
-    setClosing(true);
-    window.setTimeout(() => onClose?.(), 420);
-  }, [closing, onClose]);
-
+function PlatformNoticeBanner({ notices = [], onClose }) {
   useEffect(() => {
     if (!notices.length) return undefined;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const handleKeyDown = (event) => {
-      if (event.key === "Escape") closeToBell();
+      if (event.key === "Escape") onClose?.();
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => {
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [notices, closeToBell]);
+  }, [notices, onClose]);
 
   if (!notices.length) return null;
 
   return (
-    <div className={`fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-[#020e1b]/80 p-4 backdrop-blur-sm sm:p-6 ${closing ? "animate-[notice-fade-out_420ms_ease-in_forwards]" : ""}`}>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-[#020e1b]/80 p-4 backdrop-blur-sm sm:p-6">
       <section
         role="dialog"
         aria-modal="true"
         aria-labelledby="platform-notice-heading"
-        className={`my-auto grid w-full max-w-2xl gap-4 rounded-3xl border border-[#73c4ca]/25 bg-[#062d48] p-4 shadow-[0_28px_90px_rgba(0,0,0,.65)] sm:gap-5 sm:p-6 ${closing ? "animate-[notice-to-bell_420ms_cubic-bezier(.2,.8,.2,1)_forwards]" : ""}`}
+        className="my-auto grid w-full max-w-2xl gap-4 rounded-3xl border border-[#73c4ca]/25 bg-[#062d48] p-4 shadow-[0_28px_90px_rgba(0,0,0,.65)] sm:gap-5 sm:p-6"
       >
         <header className="flex items-start justify-between gap-4">
           <div>
@@ -54,7 +47,7 @@ function PlatformNoticeBanner({ notices = [], onDismiss, onClose }) {
             {notices.length} notice{notices.length === 1 ? "" : "s"} need your attention
           </p>
           </div>
-          <button type="button" onClick={closeToBell} aria-label="Close notice and move it to notifications" title="Close and keep in notifications" className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-white/10 bg-white/[.04] text-2xl leading-none text-[#b7d2d7] transition hover:border-red-300/30 hover:bg-red-500/15 hover:text-red-200">{"\u00d7"}</button>
+          <button type="button" onClick={onClose} aria-label="Close platform notices" title="Close and keep in notifications" className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-white/10 bg-transparent text-2xl leading-none text-[#b7d2d7] transition hover:border-red-300/30 hover:text-red-200">{"\u00d7"}</button>
         </header>
 
         <ul className="m-0 grid max-h-[min(65vh,34rem)] list-none gap-3 overflow-y-auto p-0">
@@ -79,15 +72,6 @@ function PlatformNoticeBanner({ notices = [], onDismiss, onClose }) {
                   <h3 className="mb-0 mt-3 font-['Poppins'] text-sm font-semibold text-[#e3f2f4]">{notice.title}</h3>
                   <p className="mb-0 mt-1 whitespace-pre-wrap break-words font-['Poppins'] text-sm leading-6 text-[#d9ecef]">{notice.message}</p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => onDismiss?.(notice)}
-                  aria-label={`Close ${notice.title}`}
-                  title="Close this notification for your account"
-                  className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-white/10 bg-white/[.04] text-xl leading-none text-[#b7d2d7] transition hover:bg-red-400/15 hover:text-red-200"
-                >
-                  {"\u00d7"}
-                </button>
               </div>
             </li>
           ))}

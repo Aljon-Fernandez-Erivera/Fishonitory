@@ -218,15 +218,6 @@ function StaffDashboard() {
     }
   };
 
-  const dismissPlatformNotice = async (notice) => {
-    try {
-      await apiRequest(`/platform-notices/${notice._id}/dismiss`, { method: "PATCH" });
-      setPlatformNotices((current) => current.filter((item) => item._id !== notice._id));
-    } catch (requestError) {
-      notify("error", requestError.message);
-    }
-  };
-
   const submitMortality = async (payload) => {
     try {
       const result = await apiRequest("/operations/mortality", {
@@ -615,7 +606,7 @@ function StaffDashboard() {
             />
       </DashboardHeader>
         <div key={activePage} className="dashboard-page-transition min-h-0 flex-1 overflow-y-auto px-0 py-6 sm:px-5 lg:px-5 lg:py-8">
-        {platformNoticeModalOpen && <PlatformNoticeBanner notices={platformNotices} onDismiss={dismissPlatformNotice} onClose={() => setPlatformNoticeModalOpen(false)} />}
+        {platformNoticeModalOpen && <PlatformNoticeBanner notices={platformNotices} onClose={() => setPlatformNoticeModalOpen(false)} />}
         {/* DASHBOARD PAGE CONTENT */}
         <section className="mx-auto grid w-full max-w-7xl gap-6">
           {/* 1. OVERVIEW */}
@@ -1299,7 +1290,7 @@ function StaffDashboard() {
                       <button
                         type="button"
                         onClick={() => setCheckoutOpen(false)}
-                        className="rounded-full border border-sky-100/15 px-4 py-2 font-['Poppins'] text-xs text-[#89afb9] hover:text-[#d9ecef] cursor-pointer"
+                        className="rounded-full border border-sky-100/15 bg-transparent px-4 py-2 font-['Poppins'] text-xs text-[#89afb9] hover:text-[#d9ecef] cursor-pointer"
                       >
                         Cancel
                       </button>

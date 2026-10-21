@@ -70,7 +70,7 @@ const noteClass = "mt-1.5 font-['Poppins'] text-[11px] text-[#e7c77a]";
 const primaryButton =
   "cursor-pointer rounded-full border-0 bg-[#75bec4] px-6 py-2.5 font-['Poppins'] text-sm font-semibold text-[#052d45] transition hover:bg-[#91d2d5] disabled:cursor-not-allowed disabled:opacity-60";
 const ghostButton =
-  "cursor-pointer rounded-full border border-sky-100/15 bg-white/[.05] px-5 py-2.5 font-['Poppins'] text-sm text-[#cfe6ea] transition hover:bg-white/[.1] disabled:cursor-not-allowed disabled:opacity-60";
+  "cursor-pointer rounded-full border border-sky-100/15 bg-transparent px-5 py-2.5 font-['Poppins'] text-sm text-[#cfe6ea] transition hover:bg-white/[.06] disabled:cursor-not-allowed disabled:opacity-60";
 const sectionTitle =
   "font-['Poppins'] text-xs font-semibold uppercase tracking-[0.12em] text-[#73c4ca]";
 

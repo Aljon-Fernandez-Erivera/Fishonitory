@@ -205,7 +205,7 @@ function OwnerOperations({
     "inline-flex min-h-11 cursor-pointer items-center justify-center rounded-xl bg-[#75bec4] px-4 py-2.5 font-['Poppins'] text-sm font-semibold text-[#052d45] outline-none transition hover:bg-[#91d2d5] active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-50";
 
   const secondaryButtonClass =
-    "inline-flex min-h-11 cursor-pointer items-center justify-center rounded-xl border border-sky-100/15 bg-white/[.04] px-4 py-2.5 font-['Poppins'] text-sm font-medium text-[#c9e1e5] outline-none transition hover:border-[#73c4ca]/40 hover:bg-white/[.08] active:scale-[.98]";
+    "inline-flex min-h-11 cursor-pointer items-center justify-center rounded-xl border border-sky-100/15 bg-transparent px-4 py-2.5 font-['Poppins'] text-sm font-medium text-[#c9e1e5] outline-none transition hover:border-[#73c4ca]/40 hover:bg-white/[.06] active:scale-[.98]";
 
   const tableHeaderClass =
     "border-b border-sky-100/10 bg-[#062d48] px-3 py-3 text-left font-['Poppins'] text-[10px] font-semibold uppercase tracking-[0.1em] text-[#89afb9]";

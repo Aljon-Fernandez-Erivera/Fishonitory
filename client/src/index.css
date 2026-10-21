@@ -116,18 +116,18 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   to { background-position: 4% 2%, -3% -2%, 8px 12px, 8px 12px; }
 }
 
-@keyframes notice-to-bell {
-  0% { opacity: 1; transform: translate(0, 0) scale(1); }
-  100% { opacity: 0; transform: translate(40vw, -46vh) scale(0.08); }
-}
-
-@keyframes notice-fade-out {
-  to { opacity: 0; }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .auth-water-grid { animation: none; }
   .auth-water-grid + * { scroll-behavior: auto; }
+}
+
+/* Plain secondary actions should not carry the browser-like gray fill. */
+button[class^="bg-white/"], button[class*=" bg-white/"],
+button[class^="bg-gray-"], button[class*=" bg-gray-"],
+button[class^="bg-slate-"], button[class*=" bg-slate-"],
+button[class^="bg-zinc-"], button[class*=" bg-zinc-"],
+button[class^="bg-neutral-"], button[class*=" bg-neutral-"] {
+  background-color: transparent;
 }
 
 .location-map-dialog::backdrop {
