@@ -362,6 +362,32 @@ function AdminDashboard() {
     }
   };
 
+  const updatePlatformNotice = async (id, notice) => {
+    try {
+      const result = await apiRequest(`/admin/platform-notices/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(notice),
+      });
+      setPlatformNotices((current) => current.map((item) => item._id === id ? result.notice : item));
+      notify("success", result.message);
+      return true;
+    } catch (requestError) {
+      notify("error", requestError.message);
+      return false;
+    }
+  };
+
+  const deletePlatformNotice = async (notice) => {
+    if (!window.confirm(`Delete “${notice.title}” for all business accounts?`)) return;
+    try {
+      const result = await apiRequest(`/admin/platform-notices/${notice._id}`, { method: "DELETE" });
+      setPlatformNotices((current) => current.filter((item) => item._id !== notice._id));
+      notify("success", result.message);
+    } catch (requestError) {
+      notify("error", requestError.message);
+    }
+  };
+
   /* =========================================================
      OVERVIEW AUTO REFRESH
      Every 60 seconds
@@ -875,6 +901,8 @@ function AdminDashboard() {
             notices={platformNotices}
             loading={platformNoticesLoading}
             onCreate={createPlatformNotice}
+            onUpdate={updatePlatformNotice}
+            onDelete={deletePlatformNotice}
           />
         )}
 

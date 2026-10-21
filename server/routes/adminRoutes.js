@@ -56,6 +56,8 @@ router.patch("/accounts/:id/status", adminController.setAccountStatus);
 router.get("/logs", adminController.listSystemLogs);
 router.get("/platform-notices", platformNoticeController.listForAdmin);
 router.post("/platform-notices", adminActionLimiter, platformNoticeController.create);
+router.patch("/platform-notices/:id", adminActionLimiter, platformNoticeController.update);
+router.delete("/platform-notices/:id", adminActionLimiter, platformNoticeController.remove);
 
 router.get(
   "/analytics/registrations",

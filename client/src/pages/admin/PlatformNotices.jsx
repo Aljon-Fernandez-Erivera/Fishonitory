@@ -10,11 +10,13 @@ const formatDateTime = (value) => {
     : date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 };
 
-function PlatformNotices({ notices = [], loading = false, onCreate }) {
+function PlatformNotices({ notices = [], loading = false, onCreate, onUpdate, onDelete }) {
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
   const [category, setCategory] = useState("general");
   const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [editDraft, setEditDraft] = useState({ title: "", message: "", category: "general" });
 
   const submit = async (event) => {
     event.preventDefault();
@@ -32,6 +34,20 @@ function PlatformNotices({ notices = [], loading = false, onCreate }) {
       setMessage("");
       setCategory("general");
     }
+  };
+
+  const startEdit = (notice) => {
+    setEditingId(notice._id);
+    setEditDraft({ title: notice.title || "", message: notice.message || "", category: notice.category || "general" });
+  };
+
+  const submitEdit = async (event) => {
+    event.preventDefault();
+    if (saving || !editingId) return;
+    setSaving(true);
+    const updated = await onUpdate(editingId, editDraft);
+    setSaving(false);
+    if (updated) setEditingId(null);
   };
 
   return (
@@ -85,10 +101,18 @@ function PlatformNotices({ notices = [], loading = false, onCreate }) {
         ) : notices.length ? (
           <ul className="m-0 grid list-none gap-3 p-0">
             {notices.map((notice) => {
-              const expired = false;
               return (
                 <li key={notice._id} className="relative rounded-2xl bg-[#062d48]/80 p-4 transition-colors hover:bg-[#07365a]/90 sm:p-5">
-                  <span aria-hidden="true" className={`absolute inset-y-4 left-0 w-1 rounded-r-full ${expired ? "bg-red-300/70" : "bg-[#73c4ca]/80"}`} />
+                  {editingId === notice._id ? (
+                    <form onSubmit={submitEdit} className="grid gap-3">
+                      <label className="grid gap-1 font-['Poppins'] text-xs text-[#c5dce1]">Title<input className={fieldClass} maxLength={120} required value={editDraft.title} onChange={(event) => setEditDraft((draft) => ({ ...draft, title: event.target.value }))} /></label>
+                      <label className="grid gap-1 font-['Poppins'] text-xs text-[#c5dce1]">Notice type<select className={fieldClass} value={editDraft.category} onChange={(event) => setEditDraft((draft) => ({ ...draft, category: event.target.value }))}><option value="general">General update</option><option value="maintenance">Maintenance window</option><option value="feature">New feature</option><option value="policy">Policy or terms update</option><option value="reminder">Reminder</option></select></label>
+                      <label className="grid gap-1 font-['Poppins'] text-xs text-[#c5dce1]">Message<textarea className={`${fieldClass} min-h-24 resize-y`} maxLength={2000} required value={editDraft.message} onChange={(event) => setEditDraft((draft) => ({ ...draft, message: event.target.value }))} /></label>
+                      <div className="flex justify-end gap-2"><button type="button" onClick={() => setEditingId(null)} className="rounded-full border border-white/15 px-4 py-2 font-['Poppins'] text-xs text-[#b7d2d7]">Cancel</button><button type="submit" disabled={saving} className="rounded-full bg-[#76c7cd] px-4 py-2 font-['Poppins'] text-xs font-semibold text-[#052d45] disabled:opacity-50">{saving ? "Saving…" : "Save changes"}</button></div>
+                    </form>
+                  ) : (
+                  <>
+                  <span aria-hidden="true" className="absolute inset-y-4 left-0 w-1 rounded-r-full bg-[#73c4ca]/80" />
                   <div className="flex items-start gap-3 sm:gap-4">
                     <span aria-hidden="true" className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#73c4ca]/15 font-['Poppins'] text-sm font-semibold text-[#bce9e9]">A</span>
                     <div className="min-w-0 flex-1">
@@ -101,13 +125,17 @@ function PlatformNotices({ notices = [], loading = false, onCreate }) {
                       <div className="mt-2.5 flex flex-wrap items-center gap-2">
                         <span className="rounded-full bg-[#73c4ca]/15 px-2 py-0.5 font-['Poppins'] text-[10px] font-semibold uppercase tracking-[.12em] text-[#bce9e9]">{notice.category || "General"}</span>
                         <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 font-['Poppins'] text-[10px] font-semibold uppercase tracking-[.12em] text-emerald-200">{notice.audience === "approved" ? "Approved businesses" : "All businesses"}</span>
-                        {notice.expiresAt && <span className="rounded-full bg-white/[.06] px-2 py-0.5 font-['Poppins'] text-[10px] font-medium text-[#9fc5cc]">Expires {new Date(notice.expiresAt).toLocaleDateString()}</span>}
-                        {expired && <span className="rounded-full bg-red-400/15 px-2 py-0.5 font-['Poppins'] text-[10px] font-semibold uppercase tracking-wide text-red-200">Expired</span>}
                       </div>
                       <h4 className="mb-0 mt-3 font-['Poppins'] text-sm font-semibold text-[#e3f2f4]">{notice.title}</h4>
                       <p className="mb-0 mt-1 whitespace-pre-wrap break-words font-['Poppins'] text-sm leading-6 text-[#d9ecef]">{notice.message}</p>
                     </div>
                   </div>
+                  <div className="mt-4 flex justify-end gap-2 border-t border-white/[.07] pt-3">
+                    <button type="button" onClick={() => startEdit(notice)} className="rounded-full border border-sky-200/20 bg-white/[.04] px-4 py-2 font-['Poppins'] text-xs font-medium text-[#bce9e9] transition hover:bg-white/10">Update</button>
+                    <button type="button" onClick={() => onDelete(notice)} className="rounded-full border border-red-200/25 bg-red-500/10 px-4 py-2 font-['Poppins'] text-xs font-medium text-red-200 transition hover:bg-red-500/20">Delete</button>
+                  </div>
+                  </>
+                  )}
                 </li>
               );
             })}

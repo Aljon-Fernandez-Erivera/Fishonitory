@@ -89,6 +89,45 @@ exports.create = async (req, res) => {
   }
 };
 
+exports.update = async (req, res) => {
+  if (!mongoose.Types.ObjectId.isValid(req.params.id))
+    return res.status(400).json({ message: "Platform notice ID is invalid." });
+  const title = typeof req.body?.title === "string" ? req.body.title.trim() : "";
+  const message = typeof req.body?.message === "string" ? req.body.message.trim() : "";
+  const category = req.body?.category;
+  if (!title || title.length > 120)
+    return res.status(400).json({ message: "Title is required and must be 120 characters or fewer." });
+  if (!message || message.length > 2000)
+    return res.status(400).json({ message: "Message is required and must be 2,000 characters or fewer." });
+  if (!["general", "maintenance", "feature", "policy", "reminder"].includes(category))
+    return res.status(400).json({ message: "Choose a valid notice category." });
+  try {
+    const notice = await PlatformNotice.findById(req.params.id);
+    if (!notice) return res.status(404).json({ message: "Platform notice not found." });
+    notice.title = title;
+    notice.message = message;
+    notice.category = category;
+    notice.audience = "approved";
+    notice.expiresAt = null;
+    notice.dismissedBy = [];
+    await notice.save();
+    await AuditLog.create({
+      ownerId: null,
+      actorId: req.user.userId,
+      action: "UPDATE",
+      entityType: "Platform Notice",
+      entityId: notice._id,
+      scope: "platform",
+      details: `Updated platform notice “${title}”. Prior dismissals were cleared.`,
+    });
+    const populated = await PlatformNotice.findById(notice._id).populate("createdBy", "email").lean();
+    return res.json({ message: "Platform notice updated and shown again to approved accounts.", notice: populated });
+  } catch (error) {
+    console.error("Platform notice update failed:", error);
+    return res.status(500).json({ message: "Could not update the platform notice." });
+  }
+};
+
 exports.remove = async (req, res) => {
   if (!mongoose.Types.ObjectId.isValid(req.params.id))
     return res.status(400).json({ message: "Platform notice ID is invalid." });
