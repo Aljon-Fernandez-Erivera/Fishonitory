@@ -120,6 +120,7 @@ function AdminDashboard() {
 
   const [accountSearch, setAccountSearch] = useState("");
   const [accountRoleFilter, setAccountRoleFilter] = useState("all");
+  const [accountStatusFilter, setAccountStatusFilter] = useState("all");
 
   const [businesses, setBusinesses] = useState([]);
   const [businessPagination, setBusinessPagination] = useState({
@@ -237,7 +238,7 @@ function AdminDashboard() {
   ========================================================= */
 
   const loadAccounts = useCallback(
-    async (page = 1, searchValue = "", roleValue = "all") => {
+    async (page = 1, searchValue = "", roleValue = "all", statusValue = "all") => {
       try {
         const params = new URLSearchParams({
           page: String(page),
@@ -251,6 +252,7 @@ function AdminDashboard() {
         if (roleValue !== "all") {
           params.set("role", roleValue);
         }
+        if (statusValue !== "all") params.set("status", statusValue);
 
         const accountsRes = await apiRequest(
           `/admin/accounts?${params.toString()}`,
@@ -360,25 +362,6 @@ function AdminDashboard() {
     }
   };
 
-  const deletePlatformNotice = async (notice) => {
-    const confirmed = await confirmOceanicAction({
-      title: "Remove platform notice?",
-      text: `“${notice.title}” will disappear from owner dashboards.`,
-      confirmText: "Remove notice",
-      tone: "danger",
-    });
-    if (!confirmed) return;
-    try {
-      const result = await apiRequest(`/admin/platform-notices/${notice._id}`, {
-        method: "DELETE",
-      });
-      setPlatformNotices((current) => current.filter((item) => item._id !== notice._id));
-      notify("success", result.message);
-    } catch (requestError) {
-      notify("error", requestError.message);
-    }
-  };
-
   /* =========================================================
      OVERVIEW AUTO REFRESH
      Every 60 seconds
@@ -482,7 +465,7 @@ function AdminDashboard() {
     }
 
     const timer = window.setTimeout(() => {
-      loadAccounts(1, accountSearch, accountRoleFilter);
+      loadAccounts(1, accountSearch, accountRoleFilter, accountStatusFilter);
     }, 400);
 
     return () => window.clearTimeout(timer);
@@ -492,6 +475,7 @@ function AdminDashboard() {
     activePage,
     accountSearch,
     accountRoleFilter,
+    accountStatusFilter,
     loadAccounts,
   ]);
 
@@ -709,7 +693,7 @@ function AdminDashboard() {
           background: true,
         }),
         // Keep the current page, search and role filter after the change.
-        loadAccounts(accountPagination.page, accountSearch, accountRoleFilter),
+        loadAccounts(accountPagination.page, accountSearch, accountRoleFilter, accountStatusFilter),
       ]);
     } catch (requestError) {
       notify("error", requestError.message);
@@ -803,8 +787,8 @@ function AdminDashboard() {
         {activePage === "overview" && (
           <AdminOverview
             stats={stats}
-            pendingCount={pendingPagination.total}
-            pendingList={pending}
+            pendingCount={stats?.pendingOwners ?? 0}
+            pendingList={pending.filter((owner) => owner.accountStatus === "Pending Verification")}
             onNavigate={setActivePage}
             registrationAnalytics={registrationAnalytics}
             verificationAnalytics={verificationAnalytics}
@@ -826,6 +810,7 @@ function AdminDashboard() {
               setRegistrationFilter(filter);
             }}
             onPageChange={(page) => loadPending(page, registrationFilter)}
+            onRefresh={() => loadPending(pendingPagination.page, registrationFilter)}
             onApprove={handleApprove}
             onReject={handleReject}
             onArchive={(owner) => handleRegistrationArchive(owner, true)}
@@ -859,14 +844,17 @@ function AdminDashboard() {
             accounts={accounts}
             pagination={accountPagination}
             onPageChange={(page) =>
-              loadAccounts(page, accountSearch, accountRoleFilter)
+              loadAccounts(page, accountSearch, accountRoleFilter, accountStatusFilter)
             }
             onSetStatus={handleSetStatus}
             search={accountSearch}
             onSearchChange={setAccountSearch}
             roleFilter={accountRoleFilter}
             onRoleChange={setAccountRoleFilter}
+            statusFilter={accountStatusFilter}
+            onStatusChange={setAccountStatusFilter}
             onLoadStaff={loadBusinessStaff}
+            onRefresh={() => loadAccounts(accountPagination.page, accountSearch, accountRoleFilter, accountStatusFilter)}
           />
         )}
 
@@ -887,7 +875,6 @@ function AdminDashboard() {
             notices={platformNotices}
             loading={platformNoticesLoading}
             onCreate={createPlatformNotice}
-            onDelete={deletePlatformNotice}
           />
         )}
 

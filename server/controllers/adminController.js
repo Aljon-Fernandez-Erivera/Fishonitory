@@ -134,6 +134,7 @@ exports.listAllAccounts = async (req, res) => {
 
     const search = String(req.query.search || "").trim();
     const role = String(req.query.role || "").trim();
+    const status = String(req.query.status || "all").trim();
 
     const filter = {
       role: { $in: ["Owner", "Staff", "masterStaff"] },
@@ -145,6 +146,8 @@ exports.listAllAccounts = async (req, res) => {
     } else if (!search) {
       filter.role = "Owner";
     }
+    if (status === "approved") filter.accountStatus = "Active";
+    else if (status === "rejected") filter.accountStatus = "Rejected";
 
     // Search across relevant account fields
     if (search) {
@@ -658,10 +661,11 @@ exports.getVerificationAnalytics = async (req, res) => {
 
       {
         $project: {
+          registrationStartedAt: { $ifNull: ["$verificationStartedAt", "$createdAt"] },
           processingTimeMs: {
             $subtract: [
               "$verifiedAt",
-              "$createdAt",
+              { $ifNull: ["$verificationStartedAt", "$createdAt"] },
             ],
           },
         },
@@ -737,7 +741,7 @@ exports.getVerificationAnalytics = async (req, res) => {
       ),
 
       fastestApprovalTimeHours: Number(
-        fastestHours.toFixed(1),
+        fastestHours.toFixed(2),
       ),
 
       slowestApprovalTimeHours: Number(

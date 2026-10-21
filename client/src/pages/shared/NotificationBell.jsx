@@ -3,7 +3,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 const todayKey = () =>
   new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" });
 
-const READ_STORAGE_KEY = "fishonitory-read-notifications";
+const readStorageKey = (role, id) =>
+  `fishonitory-read-notifications:${role || "account"}:${id || "unknown"}`;
 
 const announcementAuthor = (note) => {
   const author = note.authorId || {};
@@ -22,20 +23,21 @@ function NotificationBell({
   viewerRole = "",
   viewerId = "",
 }) {
+  const storageKey = readStorageKey(viewerRole, viewerId);
   const [open, setOpen] = useState(false);
   const [maintenanceCutoff, setMaintenanceCutoff] = useState(() => Date.now() + 7 * 86400000);
   const wrapperRef = useRef(null);
   const [readIds, setReadIds] = useState(() => {
     try {
-      return JSON.parse(localStorage.getItem(READ_STORAGE_KEY) || "[]");
+      return JSON.parse(localStorage.getItem(storageKey) || "[]");
     } catch {
       return [];
     }
   });
 
   useEffect(() => {
-    localStorage.setItem(READ_STORAGE_KEY, JSON.stringify(readIds.slice(-100)));
-  }, [readIds]);
+    localStorage.setItem(storageKey, JSON.stringify(readIds.slice(-100)));
+  }, [readIds, storageKey]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setMaintenanceCutoff(Date.now() + 7 * 86400000), 60000);
@@ -156,7 +158,7 @@ function NotificationBell({
           />
         </svg>
         {unreadCount > 0 && (
-          <span className="absolute right-0.5 top-0.5 h-2 w-2 rounded-full bg-[#6caeb3]" />
+          <span aria-label={`${unreadCount} unread notification${unreadCount === 1 ? "" : "s"}`} className="absolute -right-0.5 -top-0.5 h-3.5 w-3.5 rounded-full border-2 border-[#062d48] bg-red-500 shadow-[0_0_12px_rgba(239,68,68,.9)] motion-safe:animate-pulse" />
         )}
       </button>
       {open && (
@@ -175,7 +177,7 @@ function NotificationBell({
                   onClick={() => openNotification(item)}
                   className={`relative block w-full border-b border-sky-100/[.06] px-4 py-3 text-left transition hover:bg-white/[.06] ${unread ? "bg-[#6caeb3]/[.08]" : "bg-transparent"}`}
                 >
-                  {unread && <span className="absolute right-4 top-4 h-2 w-2 rounded-full bg-[#6caeb3]" aria-label="Unread" />}
+                  {unread && <span className="absolute right-4 top-4 h-2.5 w-2.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,.85)]" aria-label="Unread" />}
                   <strong className="block font-['Poppins'] text-xs text-[#d9ecef]">
                     {item.title}
                   </strong>

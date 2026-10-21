@@ -5,23 +5,20 @@ const User = require("../models/User");
 
 const ownerAudienceFilter = (owner) => ({
   $and: [
-    { $or: [{ expiresAt: null }, { expiresAt: { $gt: new Date() } }] },
-    {
-      $or: [
-        { audience: "all" },
-        ...(owner.accountStatus === "Active" ? [{ audience: "approved" }] : []),
-      ],
-    },
+    { dismissedBy: { $nin: [owner._id] } },
+    { audience: "approved" },
   ],
 });
 
 exports.listForOwner = async (req, res) => {
   try {
-    const owner = await User.findOne({ _id: req.user.userId, role: "Owner" })
-      .select("accountStatus")
+    const viewer = await User.findOne({ _id: req.user.userId, role: { $in: ["Owner", "Staff", "masterStaff"] }, accountStatus: "Active" })
+      .select("role ownerId accountStatus")
       .lean();
-    if (!owner) return res.status(403).json({ message: "Only owners can view platform notices." });
-    const notices = await PlatformNotice.find(ownerAudienceFilter(owner))
+    if (!viewer) return res.status(403).json({ message: "Only approved business accounts can view platform notices." });
+    const owner = viewer.role === "Owner" ? viewer : await User.findOne({ _id: viewer.ownerId, role: "Owner", accountStatus: "Active" }).select("_id").lean();
+    if (!owner) return res.status(403).json({ message: "This account is not linked to an approved business." });
+    const notices = await PlatformNotice.find({ ...ownerAudienceFilter(viewer), audience: "approved" })
       .sort({ createdAt: -1 })
       .lean();
     return res.json({ notices });
@@ -56,7 +53,7 @@ exports.create = async (req, res) => {
   if (!message || message.length > 2000)
     return res.status(400).json({ message: "Message is required and must be 2,000 characters or fewer." });
   if (!(["all", "approved"].includes(audience)))
-    return res.status(400).json({ message: "Choose all businesses or approved businesses." });
+    return res.status(400).json({ message: "Choose approved businesses." });
   if (!["general", "maintenance", "feature", "policy", "reminder"].includes(category))
     return res.status(400).json({ message: "Choose a valid notice category." });
   if (req.body?.expiresAt && (Number.isNaN(expiresAt.getTime()) || expiresAt <= new Date()))
@@ -68,7 +65,7 @@ exports.create = async (req, res) => {
       title,
       message,
       category,
-      audience,
+      audience: "approved",
       expiresAt,
       createdBy: req.user.userId,
     });
@@ -112,5 +109,24 @@ exports.remove = async (req, res) => {
   } catch (error) {
     console.error("Platform notice delete failed:", error);
     return res.status(500).json({ message: "Could not remove the platform notice." });
+  }
+};
+
+exports.dismiss = async (req, res) => {
+  if (!mongoose.Types.ObjectId.isValid(req.params.id))
+    return res.status(400).json({ message: "Platform notice ID is invalid." });
+  try {
+    const viewer = await User.findOne({ _id: req.user.userId, role: { $in: ["Owner", "Staff", "masterStaff"] }, accountStatus: "Active" }).select("_id role ownerId").lean();
+    const owner = viewer?.role === "Owner" ? viewer : viewer?.ownerId ? await User.findOne({ _id: viewer.ownerId, role: "Owner", accountStatus: "Active" }).select("_id").lean() : null;
+    if (!viewer || !owner) return res.status(403).json({ message: "Only approved business accounts can dismiss platform notices." });
+    const result = await PlatformNotice.updateOne(
+      { _id: req.params.id, audience: "approved" },
+      { $addToSet: { dismissedBy: viewer._id } },
+    );
+    if (!result.matchedCount) return res.status(404).json({ message: "Platform notice not found." });
+    return res.json({ message: "Notice hidden for your account." });
+  } catch (error) {
+    console.error("Platform notice dismissal failed:", error);
+    return res.status(500).json({ message: "Could not hide the platform notice." });
   }
 };

@@ -280,7 +280,7 @@ exports.sendOtp = async (req, res) => {
     const email = rawEmail.trim().toLowerCase();
 
     const existingUser = await User.findOne({ email }).exec();
-    if (existingUser) {
+    if (existingUser && !(existingUser.role === "Owner" && existingUser.accountStatus === "Rejected")) {
       return res.status(400).json({ message: "Email is already registered." });
     }
 
@@ -438,19 +438,25 @@ exports.verifyAndRegister = async (req, res) => {
       });
     }
 
-    const newUser = new User({
+    const existingRejected = await User.findOne({ email, role: "Owner", accountStatus: "Rejected" });
+    const newUser = existingRejected || new User({ email, role: "Owner" });
+    Object.assign(newUser, {
       businessName,
       ownerName,
-      email,
       password,
       businessAddress,
       businessLatitude: Number(businessLatitude),
       businessLongitude: Number(businessLongitude),
       phoneNumber,
       otp: record.otp,
-      role: "Owner",
       accountStatus: "Pending Verification",
       businessPermitUrl: uploadResult.secure_url,
+      rejectionReason: "",
+      rejectedAt: null,
+      verifiedAt: null,
+      verifiedBy: null,
+      registrationArchivedAt: null,
+      verificationStartedAt: new Date(),
     });
 
     await newUser.save();

@@ -129,6 +129,7 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    verificationStartedAt: { type: Date, default: null },
     rejectionReason: {
       type: String,
       trim: true,

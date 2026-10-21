@@ -214,8 +214,9 @@ exports.sendRejectionEmail = async (owner, reason) => {
     bulletsTitle: "What you can do",
     bullets: [
       "Read the reason above carefully.",
-      "If you believe this was a mistake, or you have a corrected document to send, contact us and mention your registered email address.",
+      "Correct the issues and submit a new application using the same email address. Your new application will replace this rejected submission and return to review.",
     ],
+    button: { label: "Resubmit your application", url: `${clientUrl()}/register` },
     links: [
       { label: "Terms of Service", url: termsUrl() },
       { label: "Privacy Policy", url: privacyUrl() },

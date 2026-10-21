@@ -4,6 +4,7 @@ const crypto = require("crypto");
 const User = require("../models/User");
 const PendingStaffRegistration = require("../models/PendingStaffRegistration");
 const config = require("../config/config");
+const { writeAudit } = require("../utils/audit");
 
 const FEATURE_KEYS = [
   "staff",
@@ -384,6 +385,7 @@ exports.updateStaff = async (req, res) => {
   ).select("-password -otp");
   if (!staff)
     return res.status(404).json({ message: "Staff account not found." });
+  await writeAudit(req, "UPDATE", "User", staff._id, staffPassword ? "Staff account updated; password changed by business owner." : "Staff account details updated.");
   return res.json({ message: "Staff account updated successfully.", staff });
 };
 

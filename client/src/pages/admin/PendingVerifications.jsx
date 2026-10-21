@@ -7,6 +7,7 @@ function PendingVerifications({
   filter,
   onFilterChange,
   onPageChange,
+  onRefresh,
   onApprove,
   onReject,
   onArchive,
@@ -69,7 +70,8 @@ function PendingVerifications({
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-2" role="group" aria-label="Filter registrations by status">
+      <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filter registrations by status">
+        <button type="button" onClick={onRefresh} aria-label="Refresh registrations" title="Refresh registrations" className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-sky-100/10 bg-white/[.04] text-[#bce9e9] transition hover:bg-white/10">↻</button>
         {filters.map(([value, label]) => (
           <button
             key={value}

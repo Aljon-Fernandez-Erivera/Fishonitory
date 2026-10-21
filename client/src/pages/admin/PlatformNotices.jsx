@@ -10,12 +10,10 @@ const formatDateTime = (value) => {
     : date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 };
 
-function PlatformNotices({ notices = [], loading = false, onCreate, onDelete }) {
+function PlatformNotices({ notices = [], loading = false, onCreate }) {
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
   const [category, setCategory] = useState("general");
-  const [audience, setAudience] = useState("all");
-  const [expiresAt, setExpiresAt] = useState("");
   const [saving, setSaving] = useState(false);
 
   const submit = async (event) => {
@@ -26,16 +24,13 @@ function PlatformNotices({ notices = [], loading = false, onCreate, onDelete }) 
       title,
       message,
       category,
-      audience,
-      expiresAt: expiresAt ? new Date(`${expiresAt}T23:59:59+08:00`).toISOString() : null,
+      audience: "approved",
     });
     setSaving(false);
     if (created) {
       setTitle("");
       setMessage("");
       setCategory("general");
-      setAudience("all");
-      setExpiresAt("");
     }
   };
 
@@ -45,8 +40,8 @@ function PlatformNotices({ notices = [], loading = false, onCreate, onDelete }) 
         <h2 className="m-0 font-['Poppins'] text-xs font-semibold uppercase tracking-[.16em] text-[#73c4ca]">
           Platform Notice Board
         </h2>
-        <p className="mb-0 mt-2 max-w-2xl font-['Poppins'] text-sm leading-relaxed text-[#b0cbd1]">
-          Share maintenance windows, feature updates, policy changes, and reminders directly with business owners. Notices are read-only in owner dashboards and never appear in staff announcements.
+          <p className="mb-0 mt-2 max-w-2xl font-['Poppins'] text-sm leading-relaxed text-[#b0cbd1]">
+          Share platform announcements with approved business owners. Each owner can dismiss a notice from their own account; it remains visible to other owners.
         </p>
       </header>
 
@@ -74,17 +69,7 @@ function PlatformNotices({ notices = [], loading = false, onCreate, onDelete }) 
             Message
             <textarea className={`${fieldClass} min-h-28 resize-y`} maxLength={2000} required value={message} onChange={(event) => setMessage(event.target.value)} placeholder="What should owners know?" />
           </label>
-          <label className="grid content-start gap-1.5 font-['Poppins'] text-xs font-medium text-[#c5dce1]">
-            Who can see this?
-            <select className={fieldClass} value={audience} onChange={(event) => setAudience(event.target.value)}>
-              <option value="all">All businesses</option>
-              <option value="approved">Approved businesses only</option>
-            </select>
-          </label>
-          <label className="grid content-start gap-1.5 font-['Poppins'] text-xs font-medium text-[#c5dce1]">
-            Hide after <span className="font-normal text-[#a6c3cb]">(optional)</span>
-            <input type="date" className={fieldClass} value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} />
-          </label>
+          <p className="m-0 self-center font-['Poppins'] text-xs text-[#a6c3cb]">Visible to approved business owners. Notices stay published until an admin removes them.</p>
         </div>
         <button type="submit" disabled={!title.trim() || !message.trim() || saving} className="inline-flex min-h-[44px] w-full items-center justify-center rounded-full bg-[#76c7cd] px-5 py-2.5 font-['Poppins'] text-sm font-semibold text-[#052d45] shadow-[0_6px_18px_rgba(118,199,205,.2)] transition hover:bg-[#91d8dc] disabled:cursor-not-allowed disabled:bg-white/[.07] disabled:text-[#789faa] sm:ml-auto sm:w-auto">
           {saving ? "Publishing…" : "Publish notice"}
@@ -100,7 +85,7 @@ function PlatformNotices({ notices = [], loading = false, onCreate, onDelete }) 
         ) : notices.length ? (
           <ul className="m-0 grid list-none gap-3 p-0">
             {notices.map((notice) => {
-              const expired = notice.expiresAt && new Date(notice.expiresAt).getTime() <= Date.now();
+              const expired = false;
               return (
                 <li key={notice._id} className="relative rounded-2xl bg-[#062d48]/80 p-4 transition-colors hover:bg-[#07365a]/90 sm:p-5">
                   <span aria-hidden="true" className={`absolute inset-y-4 left-0 w-1 rounded-r-full ${expired ? "bg-red-300/70" : "bg-[#73c4ca]/80"}`} />
@@ -122,7 +107,6 @@ function PlatformNotices({ notices = [], loading = false, onCreate, onDelete }) 
                       <h4 className="mb-0 mt-3 font-['Poppins'] text-sm font-semibold text-[#e3f2f4]">{notice.title}</h4>
                       <p className="mb-0 mt-1 whitespace-pre-wrap break-words font-['Poppins'] text-sm leading-6 text-[#d9ecef]">{notice.message}</p>
                     </div>
-                    <button type="button" onClick={() => onDelete(notice)} className="shrink-0 rounded-full border border-red-200/20 bg-red-400/[.06] px-3 py-1.5 font-['Poppins'] text-xs font-medium text-red-200 transition hover:bg-red-400/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#76c7cd]">Remove</button>
                   </div>
                 </li>
               );

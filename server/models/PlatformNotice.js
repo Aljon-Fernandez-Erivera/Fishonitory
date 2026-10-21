@@ -8,6 +8,7 @@ const platformNoticeSchema = new mongoose.Schema(
     audience: { type: String, enum: ["all", "approved"], default: "all", index: true },
     expiresAt: { type: Date, default: null, index: true },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    dismissedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   },
   { timestamps: true },
 );

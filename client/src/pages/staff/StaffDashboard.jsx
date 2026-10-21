@@ -15,6 +15,7 @@ import NotificationBell from "../shared/NotificationBell.jsx";
 import DashboardToast from "../../components/DashboardToast.jsx";
 import { oceanicNotice, showOceanicLogoutConfirm } from "../../utils/oceanicSwal.js";
 import Notes from "../owner/Notes.jsx";
+import PlatformNoticeBanner from "../owner/PlatformNoticeBanner.jsx";
 
 // Choices para sa mga fish tank statuses na pwedeng i-update ng staff sa dashboard.
 const tankStatuses = [
@@ -116,6 +117,7 @@ function StaffDashboard() {
   const [fish, setFish] = useState([]);
   const [tanks, setTanks] = useState([]);
   const [notes, setNotes] = useState([]);
+  const [platformNotices, setPlatformNotices] = useState([]);
   const [notePermissions, setNotePermissions] = useState({ canModerate: false, userId: "" });
   const [sales, setSales] = useState([]);
   const [mortality, setMortality] = useState([]);
@@ -131,6 +133,23 @@ function StaffDashboard() {
     customerEmail: "",
     customerPhone: "",
   });
+  const customerNameValue = customerDetails.customerName.trim();
+  const customerEmailValue = customerDetails.customerEmail.trim();
+  const customerPhoneValue = customerDetails.customerPhone.replace(/\s/g, "");
+  const customerNameValid = customerNameValue.length >= 2 && customerNameValue.length <= 120;
+  const customerEmailValid =
+    customerEmailValue.length <= 254 &&
+    /^[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?(?:\.[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?)+$/i.test(customerEmailValue);
+  const customerPhoneValid = /^\+[1-9]\d{6,14}$/.test(customerPhoneValue);
+  const customerDetailsValid =
+    customerNameValid && customerEmailValid && customerPhoneValid;
+  const courierNameValue = orderDetails.courierName.trim();
+  const orderDetailsValid =
+    orderDetails.deliveryMethod !== "courier" ||
+    (courierNameValue.length > 0 && courierNameValue.length <= 80);
+  const requestedDateValid =
+    /^\d{4}-\d{2}-\d{2}$/.test(orderDetails.requestedDate) &&
+    orderDetails.requestedDate >= todayLocal();
 
   const [toastNotice, setToastNotice] = useState(null);
   const [timeClock, setTimeClock] = useState({ email: "", password: "" });
@@ -170,17 +189,19 @@ function StaffDashboard() {
   // Load data from the server for fish, tanks, notes, and sales
   const loadData = async () => {
     try {
-      const [fishData, tankData, noteData, salesData, mortalityData] = await Promise.all([
+      const [fishData, tankData, noteData, salesData, mortalityData, noticeData] = await Promise.all([
         apiRequest("/fish"),
         apiRequest("/store/tanks"),
         apiRequest("/notes"),
         apiRequest("/sales"),
         apiRequest("/operations/mortality"),
+        apiRequest("/platform-notices"),
       ]);
 
       setFish(fishData.fish);
       setTanks(tankData.tanks);
       setNotes(noteData.notes);
+      setPlatformNotices(noticeData.notices || []);
       setNotePermissions(noteData.permissions || { canModerate: false, userId: "" });
       setSales(salesData.sales);
       setMortality(mortalityData.records || []);
@@ -191,6 +212,15 @@ function StaffDashboard() {
 
         return getDefaultSalesRange(salesData.sales);
       });
+    } catch (requestError) {
+      notify("error", requestError.message);
+    }
+  };
+
+  const dismissPlatformNotice = async (notice) => {
+    try {
+      await apiRequest(`/platform-notices/${notice._id}/dismiss`, { method: "PATCH" });
+      setPlatformNotices((current) => current.filter((item) => item._id !== notice._id));
     } catch (requestError) {
       notify("error", requestError.message);
     }
@@ -397,15 +427,23 @@ function StaffDashboard() {
     if (!cart.length) {
       return;
     }
-    if (checkoutMode === "order" && !customerDetails.customerName.trim()) {
-      notify("error", "Enter the customer name to create a customer order.");
+    if (!customerNameValid) {
+      notify("error", "Enter a customer name between 2 and 120 characters.");
       return;
     }
-    if (checkoutMode === "order" && orderDetails.deliveryMethod === "courier" && !orderDetails.courierName.trim()) {
+    if (!customerEmailValid) {
+      notify("error", "Enter a valid customer email address.");
+      return;
+    }
+    if (!customerPhoneValid) {
+      notify("error", "Enter a valid phone number in international format, such as +639171234567.");
+      return;
+    }
+    if (checkoutMode === "order" && !orderDetailsValid) {
       notify("error", "Enter the courier name for courier deliveries.");
       return;
     }
-    if (checkoutMode === "order" && !orderDetails.requestedDate) {
+    if (checkoutMode === "order" && !requestedDateValid) {
       notify("error", "Choose the customer pickup or delivery date.");
       return;
     }
@@ -421,9 +459,9 @@ function StaffDashboard() {
             quantity: item.quantity,
           })),
           discount,
-          customerName: customerDetails.customerName || "Walk-in Customer",
-          customerEmail: customerDetails.customerEmail,
-          customerPhone: customerDetails.customerPhone,
+          customerName: customerNameValue,
+          customerEmail: customerEmailValue,
+          customerPhone: customerPhoneValue,
           ...(isOrder ? {
             ...orderDetails,
             requestedDate: new Date(`${orderDetails.requestedDate}T12:00:00`).toISOString(),
@@ -574,6 +612,7 @@ function StaffDashboard() {
             />
       </DashboardHeader>
         <div key={activePage} className="dashboard-page-transition min-h-0 flex-1 overflow-y-auto px-0 py-6 sm:px-5 lg:px-5 lg:py-8">
+        <PlatformNoticeBanner notices={platformNotices} onDismiss={dismissPlatformNotice} />
         {/* DASHBOARD PAGE CONTENT */}
         <section className="mx-auto grid w-full max-w-7xl gap-6">
           {/* 1. OVERVIEW */}
@@ -1055,6 +1094,11 @@ function StaffDashboard() {
                     </div>
                     <input
                       type="text"
+                      required
+                      minLength={2}
+                      maxLength={120}
+                      aria-label="Customer name"
+                      aria-invalid={!customerNameValid}
                       value={customerDetails.customerName}
                       onChange={(event) =>
                         setCustomerDetails((previous) => ({
@@ -1063,10 +1107,15 @@ function StaffDashboard() {
                         }))
                       }
                       placeholder="Customer name"
-                      className="w-full rounded-lg border border-sky-100/15 bg-white/[.07] px-2.5 py-2 font-['Poppins'] text-xs text-[#d9ecef] outline-none focus:border-[#73c4ca]"
+                      className={`w-full rounded-lg border ${customerNameValid ? "border-sky-100/15" : "border-red-300/40"} bg-white/[.07] px-2.5 py-2 font-['Poppins'] text-xs text-[#d9ecef] outline-none focus:border-[#73c4ca]`}
                     />
+                    {!customerNameValid && <p className="text-[11px] text-red-200">{customerNameValue ? "Use 2–120 characters for the customer name." : "Customer name is required."}</p>}
                     <input
                       type="email"
+                      required
+                      maxLength={254}
+                      aria-label="Customer email"
+                      aria-invalid={!customerEmailValid}
                       value={customerDetails.customerEmail}
                       onChange={(event) =>
                         setCustomerDetails((previous) => ({
@@ -1075,10 +1124,14 @@ function StaffDashboard() {
                         }))
                       }
                       placeholder="customer@email.com"
-                      className="w-full rounded-lg border border-sky-100/15 bg-white/[.07] px-2.5 py-2 font-['Poppins'] text-xs text-[#d9ecef] outline-none focus:border-[#73c4ca]"
+                      className={`w-full rounded-lg border ${customerEmailValid ? "border-sky-100/15" : "border-red-300/40"} bg-white/[.07] px-2.5 py-2 font-['Poppins'] text-xs text-[#d9ecef] outline-none focus:border-[#73c4ca]`}
                     />
+                    {!customerEmailValid && <p className="text-[11px] text-red-200">{customerEmailValue ? "Enter a valid email address." : "Customer email is required."}</p>}
                     <input
                       type="tel"
+                      required
+                      aria-label="Customer phone"
+                      aria-invalid={!customerPhoneValid}
                       value={customerDetails.customerPhone}
                       onChange={(event) =>
                         setCustomerDetails((previous) => ({
@@ -1087,8 +1140,9 @@ function StaffDashboard() {
                         }))
                       }
                       placeholder="+639171234567"
-                      className="w-full rounded-lg border border-sky-100/15 bg-white/[.07] px-2.5 py-2 font-['Poppins'] text-xs text-[#d9ecef] outline-none focus:border-[#73c4ca]"
+                      className={`w-full rounded-lg border ${customerPhoneValid ? "border-sky-100/15" : "border-red-300/40"} bg-white/[.07] px-2.5 py-2 font-['Poppins'] text-xs text-[#d9ecef] outline-none focus:border-[#73c4ca]`}
                     />
+                    {!customerPhoneValid && <p className="text-[11px] text-red-200">{customerDetails.customerPhone.trim() ? "Use a valid international number, e.g. +639171234567." : "Customer phone is required."}</p>}
                   </div>
 
                   {discountAmount > 0 && (
@@ -1108,7 +1162,7 @@ function StaffDashboard() {
 
                 <button
                   type="button"
-                  disabled={!cart.length}
+                  disabled={!cart.length || !customerDetailsValid}
                   onClick={() => setCheckoutOpen(true)}
                   className="mt-6 w-full rounded-xl bg-[#75bec4] py-3 text-center font-['Poppins'] text-sm font-semibold text-[#052d45] transition hover:bg-[#86d0d6] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 >
@@ -1235,7 +1289,7 @@ function StaffDashboard() {
                           <input required type="date" min={todayLocal()} value={orderDetails.requestedDate} onChange={(event) => setOrderDetails((current) => ({ ...current, requestedDate: event.target.value }))} className="mt-1.5 w-full rounded-xl border border-sky-100/15 bg-[#062d48] px-3 py-2.5 text-sm text-[#d9ecef] outline-none [color-scheme:dark] focus:border-[#73c4ca]" />
                         </label>
                         {orderDetails.deliveryMethod === "courier" && <label className="font-['Poppins'] text-xs font-medium text-[#a9c8cf] sm:col-span-2">Courier name<input required value={orderDetails.courierName} onChange={(event) => setOrderDetails((current) => ({ ...current, courierName: event.target.value }))} placeholder="e.g. Lalamove or Grab" className="mt-1.5 w-full rounded-xl border border-sky-100/15 bg-[#062d48] px-3 py-2.5 text-sm text-[#d9ecef] outline-none focus:border-[#73c4ca]" /></label>}
-                        <p className="text-xs text-[#9bbec7] sm:col-span-2">Customer name is required for customer orders. You can enter it in the order summary panel before checkout.</p>
+                        <p className="text-xs text-[#9bbec7] sm:col-span-2">Customer name, valid email, and international phone number are required for checkout. Enter them in the order summary panel.</p>
                       </div>
                     )}
                     <div className="mt-6 flex justify-end gap-3">
@@ -1248,8 +1302,9 @@ function StaffDashboard() {
                       </button>
                       <button
                         type="button"
+                        disabled={!cart.length || !customerDetailsValid || (checkoutMode === "order" && (!orderDetailsValid || !requestedDateValid))}
                         onClick={checkout}
-                        className="rounded-full bg-[#75bec4] px-5 py-2 font-['Poppins'] text-xs font-semibold text-[#052d45] transition hover:bg-[#86d0d6] cursor-pointer"
+                        className="rounded-full bg-[#75bec4] px-5 py-2 font-['Poppins'] text-xs font-semibold text-[#052d45] transition hover:bg-[#86d0d6] cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         {checkoutMode === "order" ? "Create order" : "Complete sale"}
                       </button>

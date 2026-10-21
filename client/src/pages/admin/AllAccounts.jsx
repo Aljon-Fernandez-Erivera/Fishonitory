@@ -19,7 +19,10 @@ function AllAccounts({
   onSearchChange,
   roleFilter,
   onRoleChange,
+  statusFilter = "all",
+  onStatusChange,
   onLoadStaff,
+  onRefresh,
 }) {
   // Tree state: which owners are open, and the staff loaded for each.
   const [expanded, setExpanded] = useState({});
@@ -78,6 +81,7 @@ function AllAccounts({
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
+        <button type="button" onClick={onRefresh} aria-label="Refresh accounts" title="Refresh accounts" className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-sky-100/10 bg-white/[.04] text-[#bce9e9] transition hover:bg-white/10"><span aria-hidden="true">↻</span></button>
         <input
           type="search"
           value={search}
@@ -106,6 +110,16 @@ function AllAccounts({
           <option className="bg-[#062d48]" value="masterStaff">
             Master Staff
           </option>
+        </select>
+        <select
+          value={statusFilter}
+          onChange={(event) => onStatusChange(event.target.value)}
+          aria-label="Filter accounts by approval status"
+          className="min-h-10 min-w-[160px] cursor-pointer rounded-xl border border-sky-100/10 bg-white/[.06] px-3 font-['Poppins'] text-sm text-[#d9ecef] outline-none focus:border-[#73c4ca]"
+        >
+          <option className="bg-[#062d48]" value="all">All statuses</option>
+          <option className="bg-[#062d48]" value="approved">Approved</option>
+          <option className="bg-[#062d48]" value="rejected">Rejected</option>
         </select>
       </div>
 

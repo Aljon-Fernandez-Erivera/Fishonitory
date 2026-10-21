@@ -1,5 +1,3 @@
-import { useEffect, useState } from "react";
-
 const formatDateTime = (value) => {
   if (!value) return "Platform update";
   const date = new Date(value);
@@ -10,17 +8,8 @@ const formatDateTime = (value) => {
   });
 };
 
-function PlatformNoticeBanner({ notices = [] }) {
-  const [clock, setClock] = useState(Date.now());
-
-  useEffect(() => {
-    const timer = window.setInterval(() => setClock(Date.now()), 30000);
-    return () => window.clearInterval(timer);
-  }, []);
-
-  const activeNotices = notices.filter(
-    (notice) => !notice.expiresAt || new Date(notice.expiresAt).getTime() > clock,
-  );
+function PlatformNoticeBanner({ notices = [], onDismiss }) {
+  const activeNotices = notices;
   if (!activeNotices.length) return null;
 
   return (
@@ -73,6 +62,7 @@ function PlatformNoticeBanner({ notices = [] }) {
                   {notice.message}
                 </p>
               </div>
+              <button type="button" onClick={() => onDismiss?.(notice)} aria-label={`Dismiss ${notice.title}`} title="Hide this notice for your account" className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-white/10 bg-white/[.04] text-xl leading-none text-[#b7d2d7] transition hover:bg-red-400/15 hover:text-red-200">×</button>
             </div>
           </li>
         ))}

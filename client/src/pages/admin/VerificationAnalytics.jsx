@@ -8,13 +8,10 @@ function VerificationAnalytics({ data }) {
   };
 
   const formatTime = (hours) => {
-    if (!hours || hours <= 0) return "—";
-
-    if (hours < 24) {
-      return `${hours}h`;
-    }
-
-    return `${analytics.averageApprovalTimeDays}d`;
+    if (!Number.isFinite(hours) || hours < 0) return "—";
+    if (hours < 1) return `${Math.max(1, Math.round(hours * 60))}m`;
+    if (hours < 24) return `${hours}h`;
+    return `${(hours / 24).toFixed(1)}d`;
   };
 
   return (
@@ -65,8 +62,8 @@ function VerificationAnalytics({ data }) {
           </span>
 
           <strong className="mt-2 block font-['Fraunces'] text-3xl font-medium text-emerald-200">
-            {analytics.fastestApprovalTimeHours > 0
-              ? `${analytics.fastestApprovalTimeHours}h`
+            {analytics.approvedCount > 0
+              ? formatTime(analytics.fastestApprovalTimeHours)
               : "—"}
           </strong>
 
@@ -82,8 +79,8 @@ function VerificationAnalytics({ data }) {
           </span>
 
           <strong className="mt-2 block font-['Fraunces'] text-3xl font-medium text-amber-200">
-            {analytics.slowestApprovalTimeHours > 0
-              ? `${analytics.slowestApprovalTimeHours}h`
+            {analytics.approvedCount > 0
+              ? formatTime(analytics.slowestApprovalTimeHours)
               : "—"}
           </strong>
 
