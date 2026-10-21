@@ -119,6 +119,7 @@ function StaffDashboard() {
   const [notes, setNotes] = useState([]);
   const [platformNotices, setPlatformNotices] = useState([]);
   const [platformNoticeModalOpen, setPlatformNoticeModalOpen] = useState(true);
+  const [platformNoticeForceOpen, setPlatformNoticeForceOpen] = useState(false);
   const [notePermissions, setNotePermissions] = useState({ canModerate: false, userId: "" });
   const [sales, setSales] = useState([]);
   const [mortality, setMortality] = useState([]);
@@ -612,11 +613,11 @@ function StaffDashboard() {
               viewerRole="masterStaff"
               viewerId={user?.id}
               platformNotices={platformNotices}
-              onOpenPlatformNotice={() => setPlatformNoticeModalOpen(true)}
+              onOpenPlatformNotice={() => { setPlatformNoticeForceOpen(true); setPlatformNoticeModalOpen(true); }}
             />
       </DashboardHeader>
         <div key={activePage} className="dashboard-page-transition min-h-0 flex-1 overflow-y-auto px-0 py-6 sm:px-5 lg:px-5 lg:py-8">
-        {platformNoticeModalOpen && <PlatformNoticeBanner notices={platformNotices} onClose={() => setPlatformNoticeModalOpen(false)} />}
+        {platformNoticeModalOpen && <PlatformNoticeBanner notices={platformNotices} viewerId={user?.id || user?._id || user?.email} viewerRole={user?.role} forceShow={platformNoticeForceOpen} onClose={() => { setPlatformNoticeModalOpen(false); setPlatformNoticeForceOpen(false); }} />}
         {/* DASHBOARD PAGE CONTENT */}
         <section className="mx-auto grid w-full max-w-7xl gap-6">
           {/* 1. OVERVIEW */}

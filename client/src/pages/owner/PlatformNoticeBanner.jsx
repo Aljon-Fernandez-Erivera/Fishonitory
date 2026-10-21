@@ -1,4 +1,19 @@
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
+
+const dismissedStorageKey = (viewerRole, viewerId) =>
+  `fishonitory:platform-notices-dismissed:v1:${viewerRole || "user"}:${viewerId || "unknown"}`;
+
+const noticeVersion = (notice) =>
+  `${notice._id}:${notice.updatedAt || notice.createdAt || ""}`;
+
+const readDismissedNoticeVersions = (key) => {
+  try {
+    const stored = JSON.parse(window.localStorage.getItem(key) || "[]");
+    return new Set(Array.isArray(stored) ? stored : []);
+  } catch {
+    return new Set();
+  }
+};
 
 const formatDateTime = (value) => {
   if (!value) return "Platform update";
@@ -10,22 +25,38 @@ const formatDateTime = (value) => {
   });
 };
 
-function PlatformNoticeBanner({ notices = [], onClose }) {
+function PlatformNoticeBanner({ notices = [], onClose, viewerId, viewerRole, forceShow = false }) {
+  const storageKey = dismissedStorageKey(viewerRole, viewerId);
+  const dismissedVersions = readDismissedNoticeVersions(storageKey);
+  const visibleNotices = forceShow
+    ? notices
+    : notices.filter((notice) => !dismissedVersions.has(noticeVersion(notice)));
+
+  const closeNotices = useCallback(() => {
+    try {
+      const versions = new Set([...dismissedVersions, ...notices.map(noticeVersion)]);
+      window.localStorage.setItem(storageKey, JSON.stringify([...versions]));
+    } catch {
+      // Keep closing usable when browser storage is unavailable.
+    }
+    onClose?.();
+  }, [dismissedVersions, notices, onClose, storageKey]);
+
   useEffect(() => {
-    if (!notices.length) return undefined;
+    if (!visibleNotices.length) return undefined;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const handleKeyDown = (event) => {
-      if (event.key === "Escape") onClose?.();
+      if (event.key === "Escape") closeNotices();
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => {
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [notices, onClose]);
+  }, [visibleNotices.length, closeNotices]);
 
-  if (!notices.length) return null;
+  if (!visibleNotices.length) return null;
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-[#020e1b]/80 p-4 backdrop-blur-sm sm:p-6">
@@ -44,14 +75,14 @@ function PlatformNoticeBanner({ notices = [], onClose }) {
             Platform announcements
           </h2>
           <p className="mb-0 mt-1 font-['Poppins'] text-xs text-[#9bbec7]">
-            {notices.length} notice{notices.length === 1 ? "" : "s"} need your attention
+            {visibleNotices.length} notice{visibleNotices.length === 1 ? "" : "s"} need your attention
           </p>
           </div>
-          <button type="button" onClick={onClose} aria-label="Close platform notices" title="Close and keep in notifications" className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-white/10 bg-transparent text-2xl leading-none text-[#b7d2d7] transition hover:border-red-300/30 hover:text-red-200">{"\u00d7"}</button>
+          <button type="button" onClick={closeNotices} aria-label="Close platform notices" title="Close and keep in notifications" className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-white/10 bg-transparent text-2xl leading-none text-[#b7d2d7] transition hover:border-red-300/30 hover:text-red-200">{"\u00d7"}</button>
         </header>
 
         <ul className="m-0 grid max-h-[min(65vh,34rem)] list-none gap-3 overflow-y-auto p-0">
-          {notices.map((notice) => (
+          {visibleNotices.map((notice) => (
             <li key={notice._id} className="relative rounded-2xl border border-white/[.07] bg-[#041f35] p-4 sm:p-5">
               <span aria-hidden="true" className="absolute inset-y-4 left-0 w-1 rounded-r-full bg-[#73c4ca]/80" />
               <div className="flex items-start gap-3 sm:gap-4">

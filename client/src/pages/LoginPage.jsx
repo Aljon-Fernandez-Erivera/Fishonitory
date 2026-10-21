@@ -360,7 +360,7 @@ function LoginPage() {
                   id="login-email"
                   name="email"
                   type="email"
-                  autoComplete="username"
+                  autoComplete="email"
                   autoCapitalize="off"
                   spellCheck={false}
                   placeholder="example@gmail.com"
