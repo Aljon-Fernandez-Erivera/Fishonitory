@@ -690,29 +690,37 @@ function AdminDashboard() {
      ENABLE / DISABLE ACCOUNT
   ========================================================= */
 
-  const handleSetStatus = async (accountId, status, label) => {
-    const confirmation = await confirmOceanicAction({
-      title: `${status === "Disabled" ? "Disable" : "Enable"} this account?`,
-      text: `${label} will ${
-        status === "Disabled" ? "lose" : "regain"
-      } the ability to log in.`,
-      confirmText: status === "Disabled" ? "Disable" : "Enable",
-      icon: "warning",
-      tone: "default",
-    });
+  const handleRequestDisableOtp = async (accountId, reason) => {
+    try {
+      const data = await apiRequest(`/admin/accounts/${accountId}/disable-otp`, {
+        method: "POST",
+        body: JSON.stringify({ reason }),
+      });
+      notify("success", data.message);
+      return true;
+    } catch (requestError) {
+      notify("error", requestError.message);
+      return false;
+    }
+  };
 
-    if (!confirmation) {
-      return;
+  const handleSetStatus = async (accountId, status, label, reason = "", otp = "") => {
+    if (status === "Active") {
+      const confirmation = await confirmOceanicAction({
+        title: "Enable this account?",
+        text: `${label} will regain the ability to log in.`,
+        confirmText: "Enable",
+        icon: "warning",
+        tone: "default",
+      });
+      if (!confirmation) return false;
     }
 
     try {
       const data = await apiRequest(`/admin/accounts/${accountId}/status`, {
         method: "PATCH",
-        body: JSON.stringify({
-          status,
-        }),
+        body: JSON.stringify({ status, ...(status === "Disabled" ? { reason, otp } : {}) }),
       });
-
       notify("success", data.message);
 
       await Promise.all([
@@ -722,8 +730,10 @@ function AdminDashboard() {
         // Keep the current page, search and role filter after the change.
         loadAccounts(accountPagination.page, accountSearch, accountRoleFilter, accountStatusFilter),
       ]);
+      return true;
     } catch (requestError) {
       notify("error", requestError.message);
+      return false;
     }
   };
 
@@ -893,6 +903,7 @@ function AdminDashboard() {
               loadAccounts(page, accountSearch, accountRoleFilter, accountStatusFilter)
             }
             onSetStatus={handleSetStatus}
+            onRequestDisableOtp={handleRequestDisableOtp}
             search={accountSearch}
             onSearchChange={setAccountSearch}
             roleFilter={accountRoleFilter}

@@ -1,4 +1,4 @@
-import { Fragment, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 
 const statusStyles = {
   Active: "bg-emerald-500/15 text-emerald-300",
@@ -15,6 +15,7 @@ function AllAccounts({
   pagination,
   onPageChange,
   onSetStatus,
+  onRequestDisableOtp,
   search,
   onSearchChange,
   roleFilter,
@@ -31,6 +32,65 @@ function AllAccounts({
   const [loadingId, setLoadingId] = useState(null);
   const [failedId, setFailedId] = useState(null);
   const [failedReason, setFailedReason] = useState("");
+  const [disableTarget, setDisableTarget] = useState(null);
+  const [disableReason, setDisableReason] = useState("");
+  const [disableOtp, setDisableOtp] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpBusy, setOtpBusy] = useState(false);
+  const [disableBusy, setDisableBusy] = useState(false);
+  const [disableError, setDisableError] = useState("");
+  const [otpExpires, setOtpExpires] = useState(0);
+
+  useEffect(() => {
+    if (otpExpires <= 0) return undefined;
+    const timer = window.setTimeout(() => setOtpExpires((seconds) => Math.max(seconds - 1, 0)), 1000);
+    return () => window.clearTimeout(timer);
+  }, [otpExpires]);
+
+  const openDisableDialog = (account, label, ownerId = null) => {
+    setDisableTarget({ account, label, ownerId });
+    setDisableReason("");
+    setDisableOtp("");
+    setOtpSent(false);
+    setOtpExpires(0);
+    setDisableError("");
+  };
+
+  const requestDisableOtp = async () => {
+    const reason = disableReason.trim();
+    if (reason.length < 5 || reason.length > 500) {
+      setDisableError("Enter a reason between 5 and 500 characters.");
+      return;
+    }
+    setOtpBusy(true);
+    setDisableError("");
+    const sent = await onRequestDisableOtp(disableTarget.account._id, reason);
+    if (sent) {
+      setOtpSent(true);
+      setDisableOtp("");
+      setOtpExpires(300);
+    }
+    setOtpBusy(false);
+  };
+
+  const confirmDisable = async (event) => {
+    event.preventDefault();
+    if (!disableTarget || !otpSent) return;
+    setDisableBusy(true);
+    setDisableError("");
+    const done = await onSetStatus(
+      disableTarget.account._id,
+      "Disabled",
+      disableTarget.label,
+      disableReason.trim(),
+      disableOtp,
+    );
+    setDisableBusy(false);
+    if (!done) return;
+    const ownerId = disableTarget.ownerId;
+    setDisableTarget(null);
+    if (ownerId) await loadStaff(ownerId);
+  };
 
   const loadStaff = async (ownerId) => {
     setLoadingId(ownerId);
@@ -61,6 +121,10 @@ function AllAccounts({
   };
 
   const changeStaffStatus = async (ownerId, member, status) => {
+    if (status === "Disabled") {
+      openDisableDialog(member, member.staffName || member.email, ownerId);
+      return;
+    }
     await onSetStatus(member._id, status, member.staffName || member.email);
     await loadStaff(ownerId); // reflect the change inside the tree
   };
@@ -194,6 +258,7 @@ function AllAccounts({
 
                       <td className="px-5 py-4">
                         <span
+                          title={account.accountStatusReason ? `Disable reason: ${account.accountStatusReason}` : undefined}
                           className={`rounded-full px-2.5 py-1 text-xs ${
                             statusStyles[account.accountStatus] ||
                             "bg-white/10 text-[#aee0e1]"
@@ -227,9 +292,7 @@ function AllAccounts({
                         ) : (
                           <button
                             type="button"
-                            onClick={() =>
-                              onSetStatus(account._id, "Disabled", label)
-                            }
+                            onClick={() => openDisableDialog(account, label)}
                             className="cursor-pointer rounded-full border border-red-200/25 bg-white/[.05] px-3 py-1.5 font-['Poppins'] text-xs font-medium text-red-200/80 transition hover:bg-red-500/20"
                           >
                             Disable
@@ -391,12 +454,12 @@ function AllAccounts({
                     ) : <p className="m-0 break-words text-sm font-medium text-[#d9ecef]">{account.staffName || "—"}</p>}
                     <p className="m-0 mt-1 break-all">{account.email}</p>
                   </div>
-                  <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] ${statusStyles[account.accountStatus] || "bg-white/10 text-[#aee0e1]"}`}>{account.accountStatus}</span>
+                  <span title={account.accountStatusReason ? `Disable reason: ${account.accountStatusReason}` : undefined} className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] ${statusStyles[account.accountStatus] || "bg-white/10 text-[#aee0e1]"}`}>{account.accountStatus}</span>
                 </div>
                 <div className="flex items-center justify-between gap-3 border-t border-sky-100/[.07] pt-2">
                   <span>{account.role === "masterStaff" ? "Master Staff" : account.role} · {account.createdAt ? new Date(account.createdAt).toLocaleDateString("en-PH") : "—"}</span>
                   {!["Pending Verification", "Rejected"].includes(account.accountStatus) && (
-                    <button type="button" onClick={() => onSetStatus(account._id, account.accountStatus === "Disabled" ? "Active" : "Disabled", label)} className={`min-h-10 rounded-lg border px-3 py-2 text-xs ${account.accountStatus === "Disabled" ? "border-emerald-200/25 text-emerald-200" : "border-red-200/25 text-red-200"}`}>
+                    <button type="button" onClick={() => account.accountStatus === "Disabled" ? onSetStatus(account._id, "Active", label) : openDisableDialog(account, label)} className={`min-h-10 rounded-lg border px-3 py-2 text-xs ${account.accountStatus === "Disabled" ? "border-emerald-200/25 text-emerald-200" : "border-red-200/25 text-red-200"}`}>
                       {account.accountStatus === "Disabled" ? "Enable" : "Disable"}
                     </button>
                   )}
@@ -468,6 +531,36 @@ function AllAccounts({
           </div>
         )}
       </div>
+
+      {disableTarget && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !disableBusy && !otpBusy) setDisableTarget(null); }}>
+          <form onSubmit={confirmDisable} className="w-full max-w-lg space-y-5 rounded-2xl border border-sky-100/15 bg-[#062d48] p-5 shadow-2xl sm:p-7" role="dialog" aria-modal="true" aria-labelledby="disable-account-title">
+            <div>
+              <h2 id="disable-account-title" className="m-0 text-lg font-semibold text-[#d9ecef]">Disable {disableTarget.label}?</h2>
+              <p className="mb-0 mt-2 text-sm text-[#9bbec7]">A verification code will be sent to the Super Admin email. Disabling a business also ends its staff sessions.</p>
+            </div>
+            <label className="block text-sm text-[#b7d2d7]">Reason
+              <textarea value={disableReason} onChange={(event) => { setDisableReason(event.target.value); setOtpSent(false); setDisableOtp(""); setOtpExpires(0); }} maxLength={500} rows={3} required minLength={5} className="mt-2 block w-full resize-y rounded-xl border border-sky-100/15 bg-[#031f34] p-3 text-sm text-[#d9ecef] outline-none focus:border-[#73c4ca]" placeholder="Explain why this account is being disabled." />
+            </label>
+            {!otpSent ? (
+              <button type="button" onClick={requestDisableOtp} disabled={otpBusy || disableReason.trim().length < 5} className="min-h-11 rounded-xl border border-[#73c4ca]/40 bg-[#73c4ca]/10 px-4 text-sm font-semibold text-[#bce9e9] disabled:opacity-50">{otpBusy ? "Sending code…" : "Send verification code"}</button>
+            ) : (
+              <div className="space-y-3">
+                <label className="block text-sm text-[#b7d2d7]">Six digit verification code
+                  <input inputMode="numeric" autoComplete="one-time-code" value={disableOtp} onChange={(event) => setDisableOtp(event.target.value.replace(/\D/g, "").slice(0, 6))} maxLength={6} required className="mt-2 block min-h-11 w-full rounded-xl border border-sky-100/15 bg-[#031f34] px-3 text-sm tracking-[.3em] text-[#d9ecef] outline-none focus:border-[#73c4ca]" />
+                </label>
+                <p className="m-0 text-xs text-[#9bbec7]">{otpExpires > 0 ? `Code expires in ${Math.floor(otpExpires / 60)}:${String(otpExpires % 60).padStart(2, "0")}.` : "Code expired. Request a new one."}</p>
+                <button type="button" onClick={requestDisableOtp} disabled={otpBusy} className="border-0 bg-transparent p-0 text-sm font-semibold text-[#73c4ca] underline underline-offset-2 disabled:opacity-50">{otpBusy ? "Sending…" : "Resend OTP"}</button>
+              </div>
+            )}
+            {disableError && <p role="alert" className="m-0 text-sm text-red-200">{disableError}</p>}
+            <div className="flex flex-wrap justify-end gap-3 border-t border-sky-100/10 pt-4">
+              <button type="button" onClick={() => setDisableTarget(null)} disabled={disableBusy || otpBusy} className="min-h-10 rounded-xl border border-sky-100/15 px-4 text-sm text-[#b7d2d7]">Cancel</button>
+              <button type="submit" disabled={!otpSent || otpExpires <= 0 || disableOtp.length !== 6 || disableBusy} className="min-h-10 rounded-xl border border-red-200/25 bg-red-500/15 px-4 text-sm font-semibold text-red-100 disabled:opacity-40">{disableBusy ? "Disabling…" : "Verify and disable"}</button>
+            </div>
+          </form>
+        </div>
+      )}
     </section>
   );
 }

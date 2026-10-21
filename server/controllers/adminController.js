@@ -2,11 +2,18 @@ const User = require("../models/User");
 const AuditLog = require("../models/AuditLog");
 const { writeAudit } = require("../utils/audit");
 const mongoose = require("mongoose");
+const crypto = require("crypto");
 const { checkDisplayName, checkPhone } = require("../utils/validators");
 const {
+  sendEmail,
   sendApprovalEmail,
   sendRejectionEmail,
 } = require("../utils/mailer");
+
+// In-memory, short-lived codes bound to one administrator and one account.
+// The code is replaced on every resend and consumed after a successful disable.
+const pendingAccountDisableOtps = new Map();
+const accountDisableOtpKey = (adminId, accountId) => `${adminId}:${accountId}`;
 
 // List business registrations by review status. Pending applications stay
 // oldest-first; other views show the most recently updated registrations first.
@@ -171,7 +178,7 @@ exports.listAllAccounts = async (req, res) => {
     const [accounts, total] = await Promise.all([
       User.find(filter)
         .select(
-          "businessName ownerName staffName staffPosition email role accountStatus ownerId createdAt verifiedAt rejectionReason",
+          "businessName ownerName staffName staffPosition email role accountStatus accountStatusReason accountStatusChangedAt ownerId createdAt verifiedAt rejectionReason",
         )
         // Staff rows show which business they belong to.
         .populate("ownerId", "businessName")
@@ -398,57 +405,133 @@ exports.rejectOwner = async (req, res) => {
   }
 };
 
-// Enable or disable any Owner/Staff account platform-wide. Distinct from
-// approve/reject, which only applies to first-time Pending Verification.
+exports.requestAccountDisableOtp = async (req, res) => {
+  const reason = String(req.body?.reason || "").trim();
+  if (reason.length < 5 || reason.length > 500) {
+    return res.status(400).json({ message: "Enter a reason between 5 and 500 characters." });
+  }
+  if (!mongoose.isValidObjectId(req.params.id)) {
+    return res.status(400).json({ message: "Invalid account id." });
+  }
+
+  const [account, admin] = await Promise.all([
+    User.findOne({ _id: req.params.id, role: { $in: ["Owner", "Staff", "masterStaff"] } })
+      .select("businessName ownerName staffName email accountStatus"),
+    User.findById(req.user.userId).select("email role"),
+  ]);
+  if (!account) return res.status(404).json({ message: "Account not found." });
+  if (["Pending Verification", "Rejected"].includes(account.accountStatus)) {
+    return res.status(400).json({ message: "Review this registration before disabling its account." });
+  }
+  if (account.accountStatus === "Disabled") {
+    return res.status(400).json({ message: "This account is already disabled." });
+  }
+  if (!admin?.email || admin.role !== "superAdmin") {
+    return res.status(400).json({ message: "Super Admin email address is unavailable." });
+  }
+
+  const code = String(crypto.randomInt(0, 1000000)).padStart(6, "0");
+  const key = accountDisableOtpKey(admin._id, account._id);
+  const target = account.businessName || account.staffName || account.ownerName || account.email;
+  const { error } = await sendEmail({
+    to: admin.email,
+    subject: "Fishonitory - Account Disable Verification",
+    text: `Your verification code to disable ${target} is ${code}. Reason: ${reason}. It expires in 5 minutes. Do not share this code.`,
+  });
+  if (error) {
+    pendingAccountDisableOtps.delete(key);
+    console.error("Could not send account disable OTP:", error);
+    return res.status(503).json({ message: "Could not send the verification code. Please try again." });
+  }
+  pendingAccountDisableOtps.set(key, {
+    hash: crypto.createHash("sha256").update(code).digest("hex"),
+    reason,
+    expiresAt: Date.now() + 5 * 60 * 1000,
+    attempts: 0,
+  });
+  return res.json({ message: "A verification code was sent to the Super Admin email.", expiresIn: 300 });
+};
+
+// Disabling requires a fresh, account-bound OTP and a recorded reason. Enabling
+// remains a direct status change. Distinct from registration approve/reject.
 exports.setAccountStatus = async (req, res) => {
   const { status } = req.body;
-
   if (!["Active", "Disabled"].includes(status)) {
-    return res.status(400).json({
-      message: "Status must be Active or Disabled.",
-    });
+    return res.status(400).json({ message: "Status must be Active or Disabled." });
+  }
+  if (!mongoose.isValidObjectId(req.params.id)) {
+    return res.status(400).json({ message: "Invalid account id." });
   }
 
   const account = await User.findOne({
     _id: req.params.id,
     role: { $in: ["Owner", "Staff", "masterStaff"] },
-  });
-
-  if (!account) {
-    return res.status(404).json({
-      message: "Account not found.",
-    });
+  }).select("businessName ownerName staffName email role accountStatus ownerId");
+  if (!account) return res.status(404).json({ message: "Account not found." });
+  if (["Pending Verification", "Rejected"].includes(account.accountStatus)) {
+    return res.status(400).json({ message: "This account has not been through registration review yet. Approve or reject it first." });
+  }
+  if (account.accountStatus === status) {
+    return res.status(400).json({ message: `This account is already ${status.toLowerCase()}.` });
   }
 
-  if (
-    ["Pending Verification", "Rejected"].includes(
-      account.accountStatus,
-    )
-  ) {
-    return res.status(400).json({
-      message:
-        "This account has not been through registration review yet. Approve or reject it first.",
-    });
+  const now = new Date();
+  const key = accountDisableOtpKey(req.user.userId, account._id);
+  let reason = "";
+  if (status === "Disabled") {
+    reason = String(req.body?.reason || "").trim();
+    if (reason.length < 5 || reason.length > 500) {
+      return res.status(400).json({ message: "Enter a reason between 5 and 500 characters." });
+    }
+    const pending = pendingAccountDisableOtps.get(key);
+    if (!pending || Date.now() > pending.expiresAt || pending.reason !== reason) {
+      pendingAccountDisableOtps.delete(key);
+      return res.status(400).json({ message: "Request a new verification code for this account and reason." });
+    }
+    const submittedHash = crypto.createHash("sha256").update(String(req.body?.otp || "")).digest("hex");
+    if (pending.hash !== submittedHash) {
+      pending.attempts += 1;
+      if (pending.attempts >= 5) pendingAccountDisableOtps.delete(key);
+      return res.status(400).json({ message: "Incorrect verification code. Please try again." });
+    }
   }
 
-  account.accountStatus = status;
-
-  await account.save({
-    validateBeforeSave: false,
+  await User.updateOne({ _id: account._id }, {
+    $set: {
+      accountStatus: status,
+      accountStatusReason: reason,
+      accountStatusChangedAt: now,
+      accountStatusChangedBy: req.user.userId,
+    },
+    $inc: { sessionVersion: 1 },
   });
+  // A business disable immediately invalidates already-issued staff sessions;
+  // those accounts can sign in again after the business is re-enabled.
+  if (status === "Disabled" && account.role === "Owner") {
+    await User.updateMany(
+      { ownerId: account._id, role: { $in: ["Staff", "masterStaff"] } },
+      { $inc: { sessionVersion: 1 } },
+    );
+  }
+  if (status === "Disabled") pendingAccountDisableOtps.delete(key);
 
-  await writeAudit(
-    req,
-    status === "Disabled" ? "DISABLE" : "ENABLE",
-    "User",
-    account._id,
-    `Super Admin set account status to ${status} for ${account.email}`,
-  );
+  try {
+    await AuditLog.create({
+      ownerId: account.role === "Owner" ? account._id : account.ownerId || null,
+      scope: "platform",
+      actorId: req.user.userId,
+      action: status === "Disabled" ? "DISABLE" : "ENABLE",
+      entityType: "User",
+      entityId: account._id,
+      details: status === "Disabled"
+        ? `Disabled ${account.email}. Reason: ${reason}`
+        : `Enabled ${account.email}`,
+    });
+  } catch (auditError) {
+    console.error("Account status audit failed:", auditError.message);
+  }
 
-  return res.json({
-    message: `Account status updated to ${status}.`,
-    account,
-  });
+  return res.json({ message: `Account status updated to ${status}.` });
 };
 
 // Platform-wide audit log — every business, not scoped to one ownerId like

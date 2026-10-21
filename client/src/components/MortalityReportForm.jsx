@@ -246,7 +246,7 @@ function MortalityReportForm({
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <label className={fieldClass}>
           Date
 
@@ -518,7 +518,7 @@ function MortalityReportForm({
           </select>
         </label>
 
-        <label className={`${fieldClass} sm:col-span-2`}>
+        <label className={`${fieldClass} sm:col-span-2 lg:col-span-3`}>
           Photo of dead fish (optional)
 
           <input
@@ -533,7 +533,7 @@ function MortalityReportForm({
           </span>
         </label>
 
-        <fieldset className="grid gap-2 border-0 p-0 sm:col-span-2">
+        <fieldset className="grid gap-2 border-0 p-0 sm:col-span-2 lg:col-span-3">
           <legend className="mb-2 font-['Poppins'] text-xs font-medium text-[#a9c8cf]">
             Signs observed
           </legend>
@@ -561,7 +561,7 @@ function MortalityReportForm({
           </div>
         </fieldset>
 
-        <label className={`${fieldClass} sm:col-span-2`}>
+        <label className={`${fieldClass} sm:col-span-2 lg:col-span-3`}>
           Remarks
 
           <textarea

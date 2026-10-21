@@ -262,3 +262,4 @@ exports.sendOrderStatusEmail = async (order) => {
 };
 
 exports._escapeHtml = escapeHtml;
+exports.sendEmail = sendEmail;

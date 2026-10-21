@@ -350,16 +350,19 @@ function LoginPage() {
           </p>
         </div>
 
-        <form className="mt-7 space-y-4" onSubmit={submit} noValidate>
+        <form className="mt-7 space-y-4" onSubmit={submit} autoComplete="on" noValidate>
           {!totpChallenge && !mfaEnrollment && (
             <>
               <div>
-                <label className={labelClass}>EMAIL ADDRESS</label>
+                <label className={labelClass} htmlFor="login-email">EMAIL ADDRESS</label>
                 <input
                   className={inputClass}
+                  id="login-email"
                   name="email"
                   type="email"
-                  autoComplete="email"
+                  autoComplete="username"
+                  autoCapitalize="off"
+                  spellCheck={false}
                   placeholder="example@gmail.com"
                   value={formData.email}
                   onChange={setField}

@@ -51,7 +51,16 @@ router.get("/businesses", adminController.listActiveBusinesses);
 router.get("/businesses/:id/staff", adminController.listBusinessStaff);
 
 router.get("/accounts", adminController.listAllAccounts);
-router.patch("/accounts/:id/status", adminController.setAccountStatus);
+router.post(
+  "/accounts/:id/disable-otp",
+  adminActionLimiter,
+  adminController.requestAccountDisableOtp,
+);
+router.patch(
+  "/accounts/:id/status",
+  adminActionLimiter,
+  adminController.setAccountStatus,
+);
 
 router.get("/logs", adminController.listSystemLogs);
 router.get("/platform-notices", platformNoticeController.listForAdmin);

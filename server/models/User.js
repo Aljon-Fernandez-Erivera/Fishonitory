@@ -114,6 +114,9 @@ const userSchema = new mongoose.Schema(
       enum: ["Active", "Disabled", "Pending Verification", "Rejected"],
       default: "Active",
     },
+    accountStatusReason: { type: String, trim: true, maxlength: 500, default: "" },
+    accountStatusChangedAt: { type: Date, default: null },
+    accountStatusChangedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
     // Business permit (or other proof-of-legitimacy document) uploaded at
     // registration. Only ever set on Owner accounts.
     businessPermitUrl: {

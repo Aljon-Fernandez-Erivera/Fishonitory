@@ -714,100 +714,30 @@ function StaffDashboard() {
                     {mortality.length} reports
                   </span>
                 </div>
-                <div className="hidden overflow-x-auto lg:block">
-                  <table className="w-full min-w-[1180px] border-collapse font-['Poppins'] text-xs">
-                    <thead className="bg-white/[.025] text-left text-xs uppercase tracking-[.08em] text-[#89afb9]">
-                      <tr>
-                        <th className="whitespace-nowrap px-3 py-2.5">Date &amp; time checked</th>
-                        <th className="whitespace-nowrap px-3 py-2.5">Recorded by</th>
-                        <th className="whitespace-nowrap px-3 py-2.5">Facility</th>
-                        <th className="whitespace-nowrap px-3 py-2.5">Species</th>
-                        <th className="whitespace-nowrap px-3 py-2.5">Life stage</th>
-                        <th className="whitespace-nowrap px-3 py-2.5">Batch / lot</th>
-                        <th className="whitespace-nowrap px-3 py-2.5">Dead / start</th>
-                        <th className="whitespace-nowrap px-3 py-2.5">Cause</th>
-                        <th className="whitespace-nowrap px-3 py-2.5">Treatment</th>
-                        <th className="whitespace-nowrap px-3 py-2.5">Disposal</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {mortality.length ? (
-                        mortality.slice(0, 30).map((item) => (
-                          <tr
-                            className="border-t border-sky-100/[.07] text-[#b7d2d7]"
-                            key={item._id}
-                          >
-                            <td className="whitespace-nowrap px-3 py-2.5">
-                              {new Date(item.recordedAt).toLocaleString()}
-                            </td>
-                            <td className="max-w-36 truncate px-3 py-2.5" title={item.recordedBy?.staffName || item.recordedBy?.ownerName || "Unknown"}>
-                              {item.recordedBy?.staffName ||
-                                item.recordedBy?.ownerName ||
-                                "Unknown"}
-                            </td>
-                            <td className="max-w-36 truncate px-3 py-2.5" title={item.tankId?.name || "Unknown facility"}>
-                              {item.tankId?.name || "—"}
-                            </td>
-                            <td className="max-w-40 truncate px-3 py-2.5" title={item.species || item.fishName || "Unknown species"}>
-                              {item.species || item.fishName || "—"}
-                            </td>
-                            <td className="whitespace-nowrap px-3 py-2.5">
-                              {item.lifeStage || "—"}
-                            </td>
-                            <td className="max-w-32 truncate px-3 py-2.5" title={item.batchNumber || "No batch number"}>
-                              {item.batchNumber || "—"}
-                            </td>
-                            <td className="whitespace-nowrap px-3 py-2.5 font-semibold text-rose-200">
-                              {item.quantity} / {item.initialStockCount ?? "—"}
-                            </td>
-                            <td className="whitespace-nowrap px-3 py-2.5">
-                              {item.suspectedCause || item.reason || "—"}
-                            </td>
-                            <td className="max-w-40 truncate px-3 py-2.5" title={item.treatmentGiven || "None"}>
-                              {item.treatmentGiven || "None"}
-                            </td>
-                            <td className="whitespace-nowrap px-3 py-2.5">
-                              {item.disposalMethod || "—"}
-                            </td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td
-                            colSpan="10"
-                            className="px-3 py-6 text-sm text-[#789faa]"
-                          >
-                            No mortality reports have been recorded.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-                <div className="divide-y divide-sky-100/[.08] lg:hidden">
+                <div className="grid min-w-0 grid-cols-1 gap-3 p-3 sm:grid-cols-2 lg:grid-cols-3 sm:p-4">
                   {mortality.length ? mortality.slice(0, 30).map((item) => (
-                    <article key={item._id} className="space-y-3 p-4 font-['Poppins'] text-xs text-[#b7d2d7]">
-                      <div className="flex items-start justify-between gap-3">
+                    <article key={item._id} className="min-w-0 rounded-xl border border-sky-100/[.08] bg-white/[.025] p-4 font-['Poppins'] text-xs text-[#b7d2d7]">
+                      <div className="mb-3 flex min-w-0 items-start justify-between gap-2 border-b border-sky-100/[.07] pb-3">
                         <div className="min-w-0">
-                          <p className="m-0 text-[#89afb9]">Date &amp; time checked · {new Date(item.recordedAt).toLocaleString("en-PH")}</p>
-                          <p className="mt-1 truncate text-sm font-medium text-[#d9ecef]">{item.species || item.fishName || "Unknown species"}</p>
+                          <p className="m-0 break-words text-[#89afb9]">{new Date(item.recordedAt).toLocaleString("en-PH")}</p>
+                          <p className="mt-1 break-words text-sm font-medium text-[#d9ecef]">{item.species || item.fishName || "Unknown species"}</p>
                         </div>
                         <strong className="shrink-0 text-rose-200">{item.quantity} dead</strong>
                       </div>
-                      <dl className="m-0 grid grid-cols-2 gap-x-4 gap-y-2 border-t border-sky-100/[.07] pt-3 sm:grid-cols-3">
-                        <div><dt className="inline text-[#789faa]">Recorded by: </dt><dd className="inline">{item.recordedBy?.staffName || item.recordedBy?.ownerName || "Unknown"}</dd></div>
-                        <div><dt className="inline text-[#789faa]">Facility: </dt><dd className="inline">{item.tankId?.name || "—"}</dd></div>
-                        <div><dt className="inline text-[#789faa]">Life stage: </dt><dd className="inline">{item.lifeStage || "—"}</dd></div>
-                        <div><dt className="inline text-[#789faa]">Batch / lot: </dt><dd className="inline">{item.batchNumber || "—"}</dd></div>
-                        <div><dt className="inline text-[#789faa]">Starting stock: </dt><dd className="inline">{item.initialStockCount ?? "—"}</dd></div>
-                        <div><dt className="inline text-[#789faa]">Cause: </dt><dd className="inline">{item.suspectedCause || item.reason || "—"}</dd></div>
-                        <div><dt className="inline text-[#789faa]">Treatment: </dt><dd className="inline">{item.treatmentGiven || "None"}</dd></div>
-                        <div><dt className="inline text-[#789faa]">Disposal: </dt><dd className="inline">{item.disposalMethod || "—"}</dd></div>
-                        <div className="col-span-full"><dt className="inline text-[#789faa]">Signs: </dt><dd className="inline">{item.signsObserved?.length ? item.signsObserved.join(", ") : "—"}</dd></div>
-                        {item.remarks && <div className="col-span-full"><dt className="inline text-[#789faa]">Remarks: </dt><dd className="inline">{item.remarks}</dd></div>}
+                      <dl className="m-0 grid min-w-0 grid-cols-1 gap-x-3 gap-y-3 sm:grid-cols-2 xl:grid-cols-3">
+                        <div className="min-w-0"><dt className="text-[#789faa]">Recorded by</dt><dd className="m-0 break-words">{item.recordedBy?.staffName || item.recordedBy?.ownerName || "Unknown"}</dd></div>
+                        <div className="min-w-0"><dt className="text-[#789faa]">Facility</dt><dd className="m-0 break-words">{item.tankId?.name || "—"}</dd></div>
+                        <div className="min-w-0"><dt className="text-[#789faa]">Life stage</dt><dd className="m-0 break-words">{item.lifeStage || "—"}</dd></div>
+                        <div className="min-w-0"><dt className="text-[#789faa]">Batch / lot</dt><dd className="m-0 break-words">{item.batchNumber || "—"}</dd></div>
+                        <div className="min-w-0"><dt className="text-[#789faa]">Dead / starting stock</dt><dd className="m-0 break-words">{item.quantity} / {item.initialStockCount ?? "—"}</dd></div>
+                        <div className="min-w-0"><dt className="text-[#789faa]">Cause</dt><dd className="m-0 break-words">{item.suspectedCause || item.reason || "—"}</dd></div>
+                        <div className="min-w-0"><dt className="text-[#789faa]">Treatment</dt><dd className="m-0 break-words">{item.treatmentGiven || "None"}</dd></div>
+                        <div className="min-w-0"><dt className="text-[#789faa]">Disposal</dt><dd className="m-0 break-words">{item.disposalMethod || "—"}</dd></div>
+                        <div className="min-w-0"><dt className="text-[#789faa]">Signs observed</dt><dd className="m-0 break-words">{item.signsObserved?.length ? item.signsObserved.join(", ") : "—"}</dd></div>
+                        {item.remarks && <div className="min-w-0 sm:col-span-2 xl:col-span-3"><dt className="text-[#789faa]">Remarks</dt><dd className="m-0 break-words">{item.remarks}</dd></div>}
                       </dl>
                     </article>
-                  )) : <p className="m-0 px-4 py-6 text-sm text-[#789faa]">No mortality reports have been recorded.</p>}
+                  )) : <p className="m-0 px-1 py-3 text-sm text-[#789faa]">No mortality reports have been recorded.</p>}
                 </div>
               </section>
             </div>
