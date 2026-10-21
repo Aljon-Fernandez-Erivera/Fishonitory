@@ -157,7 +157,9 @@ function RegisterBusinessPage() {
       switch (name) {
         case "businessName":
         case "ownerName":
-          sanitizedValue = value.replace(/[^a-zA-Z0-9\s]/g, "");
+          // Keep names text-only while allowing common name punctuation and
+          // accented/Unicode letters (e.g. O’Connor, José, Aqua-Farm).
+          sanitizedValue = value.replace(/[^\p{L}\p{M}\s.'&-]/gu, "");
           break;
         case "email":
           sanitizedValue = value.replace(/[^a-zA-Z0-9@._%+-]/g, "");
