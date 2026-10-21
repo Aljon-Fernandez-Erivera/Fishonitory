@@ -62,20 +62,6 @@ select {
 
 select option { background: #0a3650; color: #d9ecef; }
 
-/* Brighter warm borders make fields easy to spot on the dark workspace. */
-input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
-textarea,
-select {
-  border-color: rgba(255, 112, 126, 0.48) !important;
-}
-
-input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):focus,
-textarea:focus,
-select:focus {
-  border-color: #ff7184 !important;
-  box-shadow: 0 0 0 3px rgba(255, 113, 132, 0.18);
-}
-
 /* A readable minimum for every text action. Individual utility classes may
    make headings larger, but buttons should never shrink below 14px. */
 button {
@@ -111,6 +97,37 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   background: rgba(2, 26, 49, 0.78) !important;
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
+}
+
+.auth-water-grid {
+  opacity: 0.8;
+  background-image:
+    radial-gradient(ellipse at 18% 18%, rgba(70, 165, 174, 0.17), transparent 42%),
+    radial-gradient(ellipse at 82% 74%, rgba(108, 190, 190, 0.13), transparent 38%),
+    linear-gradient(rgba(45, 135, 145, 0.09) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(45, 135, 145, 0.09) 1px, transparent 1px);
+  background-size: auto, auto, 38px 38px, 38px 38px;
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 12%, #000 88%, transparent 100%);
+  animation: auth-water-drift 18s ease-in-out infinite alternate;
+}
+
+@keyframes auth-water-drift {
+  from { background-position: 0 0, 0 0, 0 0, 0 0; }
+  to { background-position: 4% 2%, -3% -2%, 8px 12px, 8px 12px; }
+}
+
+@keyframes notice-to-bell {
+  0% { opacity: 1; transform: translate(0, 0) scale(1); }
+  100% { opacity: 0; transform: translate(40vw, -46vh) scale(0.08); }
+}
+
+@keyframes notice-fade-out {
+  to { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-water-grid { animation: none; }
+  .auth-water-grid + * { scroll-behavior: auto; }
 }
 
 .location-map-dialog::backdrop {

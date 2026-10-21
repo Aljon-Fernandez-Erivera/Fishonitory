@@ -33,7 +33,7 @@ export function AuthFooter() {
   const canOpenSupport = ["Owner", "masterStaff"].includes(user?.role);
 
   return (
-    <footer className="mt-auto flex flex-col items-center justify-between gap-2 bg-[#033341] px-5 py-4 font-['Poppins'] text-[11px] text-[#b8d5d9] sm:flex-row sm:px-8 lg:px-12">
+    <footer className="relative z-10 mt-auto flex flex-col items-center justify-between gap-2 bg-[#033341] px-5 py-4 font-['Poppins'] text-[11px] text-[#b8d5d9] sm:flex-row sm:px-8 lg:px-12">
       <span>© 2026 Fishonitory. All rights reserved.</span>
       {canOpenSupport && <Link className="text-inherit no-underline transition hover:text-white" to="/help">Help Center</Link>}
     </footer>
@@ -48,6 +48,7 @@ export function AuthLayout({
 }) {
   return (
     <main className="auth-shell box-border relative isolate flex min-h-dvh w-full flex-1 flex-col overflow-x-clip bg-[#f8f6ef] text-[#18383e]">
+      <div aria-hidden="true" className="auth-water-grid pointer-events-none absolute inset-0 z-0" />
       <div
         aria-hidden="true"
         className="pointer-events-none absolute -right-24 top-32 -z-10 h-72 w-72 rounded-full bg-[#83cbd0]/10 blur-3xl"
@@ -64,7 +65,7 @@ export function AuthLayout({
         </div>
       </header>
       <div
-        className={`mx-auto flex min-h-0 w-full flex-1 ${contentWidth} items-center justify-center px-4 py-6 sm:px-7 sm:py-8`}
+        className={`relative z-10 mx-auto flex min-h-0 w-full flex-1 ${contentWidth} items-center justify-center px-4 py-6 sm:px-7 sm:py-8`}
       >
         {children}
       </div>

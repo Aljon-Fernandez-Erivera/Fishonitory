@@ -22,6 +22,8 @@ function NotificationBell({
   announcementPage = "notes",
   viewerRole = "",
   viewerId = "",
+  platformNotices = [],
+  onOpenPlatformNotice,
 }) {
   const storageKey = readStorageKey(viewerRole, viewerId);
   const [open, setOpen] = useState(false);
@@ -57,6 +59,15 @@ function NotificationBell({
 
   const notifications = useMemo(() => {
     const items = [];
+    platformNotices.forEach((notice) =>
+      items.push({
+        id: `platform-notice-${notice._id}`,
+        title: "Platform notice",
+        body: notice.title,
+        page: null,
+        isPlatformNotice: true,
+      }),
+    );
     notes
       .filter((note) => {
         const author = note.authorId || {};
@@ -125,20 +136,21 @@ function NotificationBell({
       });
     }
     return items.slice(0, 8);
-  }, [notes, fish, tanks, attendance, announcementPage, viewerId, viewerRole, maintenanceCutoff]);
+  }, [notes, fish, tanks, attendance, announcementPage, viewerId, viewerRole, maintenanceCutoff, platformNotices]);
   const unreadCount = notifications.filter((item) => !readIds.includes(item.id)).length;
 
   const openNotification = (item) => {
     setReadIds((current) => (current.includes(item.id) ? current : [...current, item.id]));
     setOpen(false);
-    onNavigate(item.page);
+    if (item.isPlatformNotice) onOpenPlatformNotice?.();
+    else if (item.page) onNavigate(item.page);
   };
 
   return (
     <div ref={wrapperRef} className="relative shrink-0">
       <button
         type="button"
-        aria-label="Open notifications"
+        aria-label={`Open notifications${unreadCount ? `, ${unreadCount} unread` : ""}`}
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
         className="relative grid h-9 w-9 place-items-center rounded-full border border-sky-100/10 bg-white/[.04] text-[#c9e1e5] transition hover:bg-white/[.1]"

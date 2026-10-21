@@ -388,7 +388,8 @@ function RegisterBusinessPage() {
   };
 
   return (
-    <div className="auth-shell box-border flex min-h-dvh w-full flex-1 flex-col overflow-x-clip bg-[#f8f6ef] text-[#18383e]">
+    <div className="auth-shell relative isolate box-border flex min-h-dvh w-full flex-1 flex-col overflow-x-clip bg-[#f8f6ef] text-[#18383e]">
+      <div aria-hidden="true" className="auth-water-grid pointer-events-none absolute inset-0 z-0" />
       {loading && (
         <LoadingOverlay
           label={
@@ -414,7 +415,7 @@ function RegisterBusinessPage() {
         </div>
        </div>
       </header>
-      <div className="auth-card box-border mx-4 my-6 w-[calc(100%-2rem)] max-w-[600px] rounded-2xl border border-[#d9e5df] bg-[#fffefa] p-5 text-[#18383e] shadow-[0_24px_60px_rgba(21,62,67,.12)] sm:mx-auto sm:my-8 sm:p-7">
+      <div className="auth-card relative z-10 box-border mx-4 my-6 w-[calc(100%-2rem)] max-w-[600px] rounded-2xl border border-[#d9e5df] bg-[#fffefa] p-5 text-[#18383e] shadow-[0_24px_60px_rgba(21,62,67,.12)] sm:mx-auto sm:my-8 sm:p-7">
         <h1 className="m-0 text-center font-['Fraunces'] text-3xl text-[#d9ecef] sm:text-[2rem]">
           Create Your Business Account
         </h1>

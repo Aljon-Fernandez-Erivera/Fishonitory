@@ -23,7 +23,7 @@ const labelClass =
 const linkButtonClass =
   "bg-transparent border-0 p-0 cursor-pointer font-['Poppins'] text-[11px] font-medium text-[#8cc7cc] transition-colors hover:text-[#d9ecef]";
 
-const errorClass = "font-['Poppins'] text-xs text-[#ffb4b4]";
+const errorClass = "font-['Poppins'] text-xs text-[#ffd1d1]";
 
 function EyeIcon({ open }) {
   return open ? (

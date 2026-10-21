@@ -118,6 +118,7 @@ function StaffDashboard() {
   const [tanks, setTanks] = useState([]);
   const [notes, setNotes] = useState([]);
   const [platformNotices, setPlatformNotices] = useState([]);
+  const [platformNoticeModalOpen, setPlatformNoticeModalOpen] = useState(true);
   const [notePermissions, setNotePermissions] = useState({ canModerate: false, userId: "" });
   const [sales, setSales] = useState([]);
   const [mortality, setMortality] = useState([]);
@@ -609,10 +610,12 @@ function StaffDashboard() {
               announcementPage="announcements"
               viewerRole="masterStaff"
               viewerId={user?.id}
+              platformNotices={platformNotices}
+              onOpenPlatformNotice={() => setPlatformNoticeModalOpen(true)}
             />
       </DashboardHeader>
         <div key={activePage} className="dashboard-page-transition min-h-0 flex-1 overflow-y-auto px-0 py-6 sm:px-5 lg:px-5 lg:py-8">
-        <PlatformNoticeBanner notices={platformNotices} onDismiss={dismissPlatformNotice} />
+        {platformNoticeModalOpen && <PlatformNoticeBanner notices={platformNotices} onDismiss={dismissPlatformNotice} onClose={() => setPlatformNoticeModalOpen(false)} />}
         {/* DASHBOARD PAGE CONTENT */}
         <section className="mx-auto grid w-full max-w-7xl gap-6">
           {/* 1. OVERVIEW */}

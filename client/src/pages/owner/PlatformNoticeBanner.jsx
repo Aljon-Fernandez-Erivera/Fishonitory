@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 const formatDateTime = (value) => {
   if (!value) return "Platform update";
@@ -10,32 +10,40 @@ const formatDateTime = (value) => {
   });
 };
 
-function PlatformNoticeBanner({ notices = [], onDismiss }) {
+function PlatformNoticeBanner({ notices = [], onDismiss, onClose }) {
+  const [closing, setClosing] = useState(false);
+  const closeToBell = useCallback(() => {
+    if (closing) return;
+    setClosing(true);
+    window.setTimeout(() => onClose?.(), 420);
+  }, [closing, onClose]);
+
   useEffect(() => {
     if (!notices.length) return undefined;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const handleKeyDown = (event) => {
-      if (event.key === "Escape") onDismiss?.(notices[0]);
+      if (event.key === "Escape") closeToBell();
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => {
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [notices, onDismiss]);
+  }, [notices, closeToBell]);
 
   if (!notices.length) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-[#020e1b]/80 p-4 backdrop-blur-sm sm:p-6">
+    <div className={`fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-[#020e1b]/80 p-4 backdrop-blur-sm sm:p-6 ${closing ? "animate-[notice-fade-out_420ms_ease-in_forwards]" : ""}`}>
       <section
         role="dialog"
         aria-modal="true"
         aria-labelledby="platform-notice-heading"
-        className="my-auto grid w-full max-w-2xl gap-4 rounded-3xl border border-[#73c4ca]/25 bg-[#062d48] p-4 shadow-[0_28px_90px_rgba(0,0,0,.65)] sm:gap-5 sm:p-6"
+        className={`my-auto grid w-full max-w-2xl gap-4 rounded-3xl border border-[#73c4ca]/25 bg-[#062d48] p-4 shadow-[0_28px_90px_rgba(0,0,0,.65)] sm:gap-5 sm:p-6 ${closing ? "animate-[notice-to-bell_420ms_cubic-bezier(.2,.8,.2,1)_forwards]" : ""}`}
       >
-        <header>
+        <header className="flex items-start justify-between gap-4">
+          <div>
           <p className="m-0 font-['Poppins'] text-[10px] font-semibold uppercase tracking-[.16em] text-[#73c4ca]">
             Fishonitory updates
           </p>
@@ -45,6 +53,8 @@ function PlatformNoticeBanner({ notices = [], onDismiss }) {
           <p className="mb-0 mt-1 font-['Poppins'] text-xs text-[#9bbec7]">
             {notices.length} notice{notices.length === 1 ? "" : "s"} need your attention
           </p>
+          </div>
+          <button type="button" onClick={closeToBell} aria-label="Close notice and move it to notifications" title="Close and keep in notifications" className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-white/10 bg-white/[.04] text-2xl leading-none text-[#b7d2d7] transition hover:border-red-300/30 hover:bg-red-500/15 hover:text-red-200">{"\u00d7"}</button>
         </header>
 
         <ul className="m-0 grid max-h-[min(65vh,34rem)] list-none gap-3 overflow-y-auto p-0">
