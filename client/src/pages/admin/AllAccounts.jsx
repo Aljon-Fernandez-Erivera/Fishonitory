@@ -7,6 +7,16 @@ const statusStyles = {
   Rejected: "bg-red-400/15 text-red-300",
 };
 
+// Small spinning ring shown inside a button while its request is running.
+function Spinner() {
+  return (
+    <span
+      aria-hidden="true"
+      className="inline-block h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent"
+    />
+  );
+}
+
 // Filtering, searching, and paging all happen on the server now, so this
 // component is purely presentational: `accounts` is already the correct
 // page of already-filtered results, and the parent owns search/roleFilter.
@@ -40,6 +50,7 @@ function AllAccounts({
   const [disableBusy, setDisableBusy] = useState(false);
   const [disableError, setDisableError] = useState("");
   const [otpExpires, setOtpExpires] = useState(0);
+  const [busyId, setBusyId] = useState(null); // account whose Enable request is running
 
   useEffect(() => {
     if (otpExpires <= 0) return undefined;
@@ -127,13 +138,24 @@ function AllAccounts({
     if (!open) loadStaff(ownerId);
   };
 
+  // Enabling is immediate (no dialog), so the button itself shows progress.
+  const enableAccount = async (id, label, ownerId = null) => {
+    if (busyId !== null) return;
+    setBusyId(id);
+    try {
+      await onSetStatus(id, "Active", label);
+      if (ownerId) await loadStaff(ownerId); // reflect the change inside the tree
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const changeStaffStatus = async (ownerId, member, status) => {
     if (status === "Disabled") {
       openDisableDialog(member, member.staffName || member.email, ownerId);
       return;
     }
-    await onSetStatus(member._id, status, member.staffName || member.email);
-    await loadStaff(ownerId); // reflect the change inside the tree
+    await enableAccount(member._id, member.staffName || member.email, ownerId);
   };
 
   const currentPage = pagination?.page || 1;
@@ -153,7 +175,7 @@ function AllAccounts({
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <button type="button" onClick={onRefresh} disabled={refreshing} aria-label="Refresh accounts" title="Refresh accounts" className="flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-sky-100/10 bg-white/[.04] px-3 text-[#bce9e9] transition hover:bg-white/10 disabled:opacity-70">{refreshing ? <><img src="/LOGO.svg" alt="" className="h-6 w-6 animate-[pulse_1.3s_ease-in-out_infinite]"/><span className="text-xs">Refreshing…</span></> : <span aria-hidden="true">↻</span>}</button>
+        <button type="button" onClick={onRefresh} disabled={refreshing} aria-label="Refresh accounts" title="Refresh accounts" className="flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-sky-100/10 bg-white/[.04] px-3 text-[#bce9e9] transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-70">{refreshing ? <><img src="/LOGO.svg" alt="" className="h-6 w-6 animate-[pulse_1.3s_ease-in-out_infinite]"/><span className="text-xs">Refreshing…</span></> : <span aria-hidden="true">↻</span>}</button>
         <input
           type="search"
           value={search}
@@ -289,18 +311,20 @@ function AllAccounts({
                         ) : account.accountStatus === "Disabled" ? (
                           <button
                             type="button"
-                            onClick={() =>
-                              onSetStatus(account._id, "Active", label)
-                            }
-                            className="cursor-pointer rounded-full border border-emerald-200/25 bg-white/[.05] px-3 py-1.5 font-['Poppins'] text-xs font-medium text-emerald-200 transition hover:bg-emerald-500/20"
+                            onClick={() => enableAccount(account._id, label)}
+                            disabled={busyId !== null}
+                            aria-busy={busyId === account._id}
+                            className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-emerald-200/25 bg-white/[.05] px-3 py-1.5 font-['Poppins'] text-xs font-medium text-emerald-200 transition hover:bg-emerald-500/20 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-white/[.05] disabled:active:scale-100"
                           >
-                            Enable
+                            {busyId === account._id && <Spinner />}
+                            {busyId === account._id ? "Enabling…" : "Enable"}
                           </button>
                         ) : (
                           <button
                             type="button"
                             onClick={() => openDisableDialog(account, label)}
-                            className="cursor-pointer rounded-full border border-red-200/25 bg-white/[.05] px-3 py-1.5 font-['Poppins'] text-xs font-medium text-red-200/80 transition hover:bg-red-500/20"
+                            disabled={busyId !== null}
+                            className="cursor-pointer rounded-full border border-red-200/25 bg-white/[.05] px-3 py-1.5 font-['Poppins'] text-xs font-medium text-red-200/80 transition hover:bg-red-500/20 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-white/[.05] disabled:active:scale-100"
                           >
                             Disable
                           </button>
@@ -411,9 +435,12 @@ function AllAccounts({
                                       "Active",
                                     )
                                   }
-                                  className="cursor-pointer rounded-full border border-emerald-200/25 bg-white/[.05] px-3 py-1.5 font-['Poppins'] text-xs font-medium text-emerald-200 transition hover:bg-emerald-500/20"
+                                  disabled={busyId !== null}
+                                  aria-busy={busyId === member._id}
+                                  className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-emerald-200/25 bg-white/[.05] px-3 py-1.5 font-['Poppins'] text-xs font-medium text-emerald-200 transition hover:bg-emerald-500/20 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-white/[.05] disabled:active:scale-100"
                                 >
-                                  Enable
+                                  {busyId === member._id && <Spinner />}
+                                  {busyId === member._id ? "Enabling…" : "Enable"}
                                 </button>
                               ) : member.accountStatus === "Active" ? (
                                 <button
@@ -425,7 +452,8 @@ function AllAccounts({
                                       "Disabled",
                                     )
                                   }
-                                  className="cursor-pointer rounded-full border border-red-200/25 bg-white/[.05] px-3 py-1.5 font-['Poppins'] text-xs font-medium text-red-200/80 transition hover:bg-red-500/20"
+                                  disabled={busyId !== null}
+                                  className="cursor-pointer rounded-full border border-red-200/25 bg-white/[.05] px-3 py-1.5 font-['Poppins'] text-xs font-medium text-red-200/80 transition hover:bg-red-500/20 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-white/[.05] disabled:active:scale-100"
                                 >
                                   Disable
                                 </button>
@@ -466,8 +494,9 @@ function AllAccounts({
                 <div className="flex items-center justify-between gap-3 border-t border-sky-100/[.07] pt-2">
                   <span>{account.role === "masterStaff" ? "Master Staff" : account.role} · {account.createdAt ? new Date(account.createdAt).toLocaleDateString("en-PH") : "—"}</span>
                   {!["Pending Verification", "Rejected"].includes(account.accountStatus) && (
-                    <button type="button" onClick={() => account.accountStatus === "Disabled" ? onSetStatus(account._id, "Active", label) : openDisableDialog(account, label)} className={`min-h-10 rounded-lg border px-3 py-2 text-xs ${account.accountStatus === "Disabled" ? "border-emerald-200/25 text-emerald-200" : "border-red-200/25 text-red-200"}`}>
-                      {account.accountStatus === "Disabled" ? "Enable" : "Disable"}
+                    <button type="button" onClick={() => account.accountStatus === "Disabled" ? enableAccount(account._id, label) : openDisableDialog(account, label)} disabled={busyId !== null} aria-busy={busyId === account._id} className={`inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-xs transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100 ${account.accountStatus === "Disabled" ? "border-emerald-200/25 text-emerald-200" : "border-red-200/25 text-red-200"}`}>
+                      {busyId === account._id && <Spinner />}
+                      {busyId === account._id ? "Enabling…" : account.accountStatus === "Disabled" ? "Enable" : "Disable"}
                     </button>
                   )}
                 </div>
@@ -483,7 +512,7 @@ function AllAccounts({
                           </div>
                           <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] ${statusStyles[member.accountStatus] || "bg-white/10 text-[#aee0e1]"}`}>{member.accountStatus}</span>
                         </div>
-                        {member.accountStatus === "Active" || member.accountStatus === "Disabled" ? <button type="button" onClick={() => changeStaffStatus(account._id, member, member.accountStatus === "Disabled" ? "Active" : "Disabled")} className="mt-2 min-h-10 rounded-lg border border-sky-100/15 px-3 py-2 text-xs text-[#bce9e9]">{member.accountStatus === "Disabled" ? "Enable" : "Disable"}</button> : null}
+                        {member.accountStatus === "Active" || member.accountStatus === "Disabled" ? <button type="button" onClick={() => changeStaffStatus(account._id, member, member.accountStatus === "Disabled" ? "Active" : "Disabled")} disabled={busyId !== null} aria-busy={busyId === member._id} className="mt-2 inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-lg border border-sky-100/15 px-3 py-2 text-xs text-[#bce9e9] transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100">{busyId === member._id && <Spinner />}{busyId === member._id ? "Enabling…" : member.accountStatus === "Disabled" ? "Enable" : "Disable"}</button> : null}
                       </div>
                     )) : <p className="m-0 text-[#9bbec7]">This business has no staff accounts yet.</p>}
                   </div>
@@ -547,23 +576,23 @@ function AllAccounts({
               <p className="mb-0 mt-2 text-sm text-[#9bbec7]">A verification code will be sent to the Super Admin email. Disabling a business also ends its staff sessions.</p>
             </div>
             <label className="block text-sm text-[#b7d2d7]">Reason
-              <textarea value={disableReason} onChange={(event) => { setDisableReason(event.target.value); setOtpSent(false); setDisableOtp(""); setOtpExpires(0); }} maxLength={500} rows={3} required minLength={5} className="mt-2 block w-full resize-y rounded-xl border border-sky-100/15 bg-[#031f34] p-3 text-sm text-[#d9ecef] outline-none focus:border-[#73c4ca]" placeholder="Explain why this account is being disabled." />
+              <textarea value={disableReason} onChange={(event) => { setDisableReason(event.target.value); setOtpSent(false); setDisableOtp(""); setOtpExpires(0); }} maxLength={500} rows={3} required minLength={5} disabled={disableBusy || otpBusy} className="mt-2 block w-full resize-y rounded-xl border border-sky-100/15 bg-[#031f34] p-3 text-sm text-[#d9ecef] outline-none focus:border-[#73c4ca] disabled:cursor-not-allowed disabled:opacity-60" placeholder="Explain why this account is being disabled." />
             </label>
             {!otpSent ? (
-              <button type="button" onClick={requestDisableOtp} disabled={otpBusy || disableReason.trim().length < 5} className="min-h-11 rounded-xl border border-[#73c4ca]/40 bg-[#73c4ca]/10 px-4 text-sm font-semibold text-[#bce9e9] disabled:opacity-50">{otpBusy ? "Sending code…" : "Send verification code"}</button>
+              <button type="button" onClick={requestDisableOtp} disabled={otpBusy || disableReason.trim().length < 5} aria-busy={otpBusy} className="inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border border-[#73c4ca]/40 bg-[#73c4ca]/10 px-4 text-sm font-semibold text-[#bce9e9] transition hover:bg-[#73c4ca]/20 active:scale-[.97] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-[#73c4ca]/10 disabled:active:scale-100">{otpBusy && <Spinner />}{otpBusy ? "Sending code…" : "Send verification code"}</button>
             ) : (
               <div className="space-y-3">
                 <label className="block text-sm text-[#b7d2d7]">Six digit verification code
-                  <input inputMode="numeric" autoComplete="one-time-code" value={disableOtp} onChange={(event) => setDisableOtp(event.target.value.replace(/\D/g, "").slice(0, 6))} maxLength={6} required className="mt-2 block min-h-11 w-full rounded-xl border border-sky-100/15 bg-[#031f34] px-3 text-sm tracking-[.3em] text-[#d9ecef] outline-none focus:border-[#73c4ca]" />
+                  <input inputMode="numeric" autoComplete="one-time-code" value={disableOtp} onChange={(event) => setDisableOtp(event.target.value.replace(/\D/g, "").slice(0, 6))} maxLength={6} required disabled={disableBusy} className="mt-2 block min-h-11 w-full rounded-xl border border-sky-100/15 bg-[#031f34] px-3 text-sm tracking-[.3em] text-[#d9ecef] outline-none focus:border-[#73c4ca] disabled:cursor-not-allowed disabled:opacity-60" />
                 </label>
                 <p className="m-0 text-xs text-[#9bbec7]">{otpExpires > 0 ? `Code expires in ${Math.floor(otpExpires / 60)}:${String(otpExpires % 60).padStart(2, "0")}.` : "Code expired. Request a new one."}</p>
-                <button type="button" onClick={requestDisableOtp} disabled={otpBusy} className="border-0 bg-transparent p-0 text-sm font-semibold text-[#73c4ca] underline underline-offset-2 disabled:opacity-50">{otpBusy ? "Sending…" : "Resend OTP"}</button>
+                <button type="button" onClick={requestDisableOtp} disabled={otpBusy || disableBusy} aria-busy={otpBusy} className="inline-flex cursor-pointer items-center gap-2 border-0 bg-transparent p-0 text-sm font-semibold text-[#73c4ca] underline underline-offset-2 transition hover:text-[#bce9e9] disabled:cursor-not-allowed disabled:opacity-50">{otpBusy && <Spinner />}{otpBusy ? "Sending…" : "Resend OTP"}</button>
               </div>
             )}
             {disableError && <p role="alert" className="m-0 text-sm text-red-200">{disableError}</p>}
             <div className="flex flex-wrap justify-end gap-3 border-t border-sky-100/10 pt-4">
-              <button type="button" onClick={() => setDisableTarget(null)} disabled={disableBusy || otpBusy} className="min-h-10 rounded-xl border border-sky-100/15 bg-transparent px-4 text-sm text-[#b7d2d7]">Cancel</button>
-              <button type="submit" disabled={!otpSent || otpExpires <= 0 || disableOtp.length !== 6 || disableBusy} className="min-h-10 rounded-xl border border-red-200/25 bg-red-500/15 px-4 text-sm font-semibold text-red-100 disabled:opacity-40">{disableBusy ? "Disabling…" : "Verify and disable"}</button>
+              <button type="button" onClick={() => setDisableTarget(null)} disabled={disableBusy || otpBusy} className="min-h-10 cursor-pointer rounded-xl border border-sky-100/15 bg-transparent px-4 text-sm text-[#b7d2d7] transition hover:bg-white/5 active:scale-[.97] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent disabled:active:scale-100">Cancel</button>
+              <button type="submit" disabled={!otpSent || otpExpires <= 0 || disableOtp.length !== 6 || disableBusy} aria-busy={disableBusy} className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-xl border border-red-200/25 bg-red-500/15 px-4 text-sm font-semibold text-red-100 transition hover:bg-red-500/25 active:scale-[.97] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-red-500/15 disabled:active:scale-100">{disableBusy && <Spinner />}{disableBusy ? "Disabling…" : "Verify and disable"}</button>
             </div>
           </form>
         </div>
