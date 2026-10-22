@@ -144,7 +144,11 @@ function TankManagement({
                         </span>
                         {tank.capacity && occupied > tank.capacity ? (
                           <span className="rounded-full bg-red-300/15 px-2 py-1 text-red-200">
-                            Over capacity
+                            Over capacity · no space
+                          </span>
+                        ) : tank.capacity && occupied === Number(tank.capacity) ? (
+                          <span className="rounded-full bg-red-300/15 px-2 py-1 font-semibold text-red-200">
+                            Full capacity · no space
                           </span>
                         ) : tank.capacity && occupied / tank.capacity >= 0.9 ? (
                           <span className="rounded-full bg-amber-300/15 px-2 py-1 text-amber-200">
@@ -241,12 +245,18 @@ function TankManagement({
                 <p className="m-0 text-xs">
                   <span className="text-[#789faa]">Capacity: </span>
                   {occupied} / {tank.capacity || "—"}
-                  {tank.capacity && occupied > tank.capacity
-                    ? " · Over capacity"
-                    : tank.capacity && occupied / tank.capacity >= 0.9
-                      ? " · Near capacity"
-                      : ""}
                 </p>
+                {tank.capacity && occupied >= Number(tank.capacity) ? (
+                  <span className="inline-flex rounded-full bg-red-300/15 px-2.5 py-1 text-xs font-semibold text-red-200">
+                    {occupied > Number(tank.capacity)
+                      ? "Over capacity · no space"
+                      : "Full capacity · no space"}
+                  </span>
+                ) : tank.capacity && occupied / tank.capacity >= 0.9 ? (
+                  <span className="inline-flex rounded-full bg-amber-300/15 px-2.5 py-1 text-xs text-amber-200">
+                    Near capacity
+                  </span>
+                ) : null}
                 <div className="flex flex-wrap gap-1.5">
                   {tankFish.length ? (
                     tankFish.map((item) => (

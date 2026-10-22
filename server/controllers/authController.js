@@ -4,6 +4,7 @@ const { randomInt } = require("crypto");
 const cloudinary = require("cloudinary").v2;
 const User = require("../models/User");
 const Attendance = require("../models/Attendance");
+const LoginAttempt = require("../models/LoginAttempt");
 const config = require("../config/config");
 const { cookieNameForRole } = require("../middleware/authMiddleware");
 const { writeAudit } = require("../utils/audit");
@@ -35,6 +36,8 @@ cloudinary.config({
 const pendingOTPs = new Map();
 const pendingPasswordResets = new Map();
 const pendingTotpResets = new Map();
+const OTP_RESEND_INTERVAL_MS = 60 * 1000;
+const OTP_MAX_ATTEMPTS = 5;
 
 //LOGIN limit, mag lo-lock once na reach ang 3 attempts ng 5 mins
 const ACCOUNT_ATTEMPT_LIMIT = 3;
@@ -67,17 +70,22 @@ function setAuthCookie(res, token, role) {
 }
 
 function clearAuthCookie(res, role) {
-  const cookieName = cookieNameForRole(role) || "access_token";
   const sameSite = config.nodeEnv === "production" ? "None" : "Lax";
   const secure = config.nodeEnv === "production" ? "; Secure" : "";
-  res.setHeader(
-    "Set-Cookie",
-    `${cookieName}=; HttpOnly; Path=/; Max-Age=0; SameSite=${sameSite}${secure}`,
-  );
+  const cookieNames = [
+    cookieNameForRole(role),
+    "owner_access_token",
+    "staff_access_token",
+    "master_staff_access_token",
+    "super_admin_access_token",
+    "access_token",
+  ].filter((name, index, names) => name && names.indexOf(name) === index);
+  res.setHeader("Set-Cookie", cookieNames.map(
+    (name) => `${name}=; HttpOnly; Path=/; Max-Age=0; SameSite=${sameSite}${secure}`,
+  ));
 }
 
 // Login lockouts are process-local: failed-attempt metadata is never persisted.
-const ipLoginAttempts = new Map();
 const accountLoginAttempts = new Map();
 
 function activeLock(map, key, windowMs) {
@@ -108,8 +116,57 @@ function recordAttempt(map, key, limit, windowMs, lockMs) {
   return record;
 }
 
-function getActiveIpLock(ip) { return activeLock(ipLoginAttempts, ip, IP_WINDOW_MS); }
-function recordIpFailure(ip) { return recordAttempt(ipLoginAttempts, ip, IP_ATTEMPT_LIMIT, IP_WINDOW_MS, IP_LOCK_MS); }
+async function getActiveIpLock(ip) {
+  const record = await LoginAttempt.findOne({
+    ip,
+    blockedUntil: { $gt: new Date() },
+  }).select("blockedUntil").lean();
+  return record?.blockedUntil || null;
+}
+
+async function recordIpFailure(ip) {
+  const now = new Date();
+  const resetWindow = {
+    $or: [
+      { $lt: [{ $ifNull: ["$windowStartedAt", new Date(0)] }, new Date(now.getTime() - IP_WINDOW_MS)] },
+      {
+        $and: [
+          { $ne: [{ $ifNull: ["$blockedUntil", null] }, null] },
+          { $lte: ["$blockedUntil", now] },
+        ],
+      },
+    ],
+  };
+  const record = await LoginAttempt.findOneAndUpdate(
+    { ip },
+    [
+      {
+        $set: {
+          createdAt: { $ifNull: ["$createdAt", now] },
+          updatedAt: now,
+          windowStartedAt: { $cond: [resetWindow, now, { $ifNull: ["$windowStartedAt", now] }] },
+          failedAttempts: {
+            $cond: [resetWindow, 1, { $add: [{ $ifNull: ["$failedAttempts", 0] }, 1] }],
+          },
+          blockedUntil: { $cond: [resetWindow, null, "$blockedUntil"] },
+        },
+      },
+      {
+        $set: {
+          blockedUntil: {
+            $cond: [
+              { $gte: ["$failedAttempts", IP_ATTEMPT_LIMIT] },
+              new Date(now.getTime() + IP_LOCK_MS),
+              "$blockedUntil",
+            ],
+          },
+        },
+      },
+    ],
+    { new: true, upsert: true, updatePipeline: true },
+  ).lean();
+  return record;
+}
 function getAccountLock(userId) { return activeLock(accountLoginAttempts, userId, ACCOUNT_LOCK_MS); }
 function recordAccountFailure(user) {
   return recordAttempt(accountLoginAttempts, user._id, ACCOUNT_ATTEMPT_LIMIT, ACCOUNT_LOCK_MS, ACCOUNT_LOCK_MS).blockedUntil;
@@ -147,7 +204,7 @@ async function completeLogin(req, res, user, loginRole) {
   }
 
   accountLoginAttempts.delete(String(user._id));
-  ipLoginAttempts.delete(String(getClientIp(req)));
+  await LoginAttempt.deleteOne({ ip: getClientIp(req) });
   await User.updateOne({ _id: user._id }, { $set: { totpFailedAttempts: 0, totpLockedUntil: null } });
 
   let alreadyClockedIn = false;
@@ -176,7 +233,6 @@ async function completeLogin(req, res, user, loginRole) {
   );
   setAuthCookie(res, token, loginRole);
   return res.json({
-    token,
     user: {
       id: user._id,
       businessName: user.businessName,
@@ -284,11 +340,18 @@ exports.sendOtp = async (req, res) => {
       return res.status(400).json({ message: "Email is already registered." });
     }
 
+    const previousOtp = pendingOTPs.get(email);
+    if (previousOtp && Date.now() - previousOtp.sentAt < OTP_RESEND_INTERVAL_MS) {
+      return res.status(429).json({ message: "Please wait before requesting another verification code." });
+    }
+
     const generatedOTP = randomInt(100000, 1000000);
 
     pendingOTPs.set(email, {
       otp: generatedOTP,
       expiresAt: Date.now() + 5 * 60 * 1000,
+      sentAt: Date.now(),
+      attempts: 0,
     });
 
     const { error: emailErr } = await sendEmail({
@@ -307,6 +370,7 @@ exports.sendOtp = async (req, res) => {
     });
 
     if (emailErr) {
+      pendingOTPs.delete(email);
       console.error("Brevo failed to send the OTP email.");
       console.error("Email error:", emailErr);
       console.error(
@@ -396,6 +460,13 @@ exports.verifyAndRegister = async (req, res) => {
     }
 
     if (parseInt(otp, 10) !== record.otp) {
+      record.attempts = (record.attempts || 0) + 1;
+      if (record.attempts >= OTP_MAX_ATTEMPTS) {
+        pendingOTPs.delete(email);
+        return res.status(400).json({
+          message: "Too many incorrect verification codes. Request a new code.",
+        });
+      }
       return res
         .status(400)
         .json({ message: "Invalid OTP code. Please try again." });
@@ -492,10 +563,18 @@ exports.requestPasswordReset = async (req, res) => {
       .exec();
 
     if (user && user.accountStatus === "Active") {
+      const previousReset = pendingPasswordResets.get(email);
+      if (previousReset && Date.now() - previousReset.sentAt < OTP_RESEND_INTERVAL_MS) {
+        return res.json({
+          message: "If that email belongs to an active account, a reset code has been sent.",
+        });
+      }
       const otp = randomInt(100000, 1000000);
       pendingPasswordResets.set(email, {
         otp,
         expiresAt: Date.now() + 5 * 60 * 1000,
+        sentAt: Date.now(),
+        attempts: 0,
       });
 
       const { error: mailError } = await sendEmail({
@@ -547,12 +626,19 @@ exports.resetPassword = async (req, res) => {
       });
     }
     if (code !== String(pending.otp)) {
+      pending.attempts = (pending.attempts || 0) + 1;
+      if (pending.attempts >= OTP_MAX_ATTEMPTS) {
+        pendingPasswordResets.delete(email);
+        return res.status(400).json({
+          message: "Too many incorrect reset codes. Request a new code.",
+        });
+      }
       return res
         .status(400)
         .json({ message: "That reset code is not correct. Please try again." });
     }
 
-    const user = await User.findOne({ email }).select("+totpLockedUntil");
+    const user = await User.findOne({ email }).select("+totpLockedUntil +sessionVersion");
     if (!user || user.accountStatus !== "Active") {
       pendingPasswordResets.delete(email);
       return res.status(400).json({
@@ -562,13 +648,14 @@ exports.resetPassword = async (req, res) => {
     }
 
     user.password = req.body.password;
+    user.sessionVersion = (user.sessionVersion || 0) + 1;
     // Skip full-document validation here: this endpoint is only changing the
     // password, and revalidating unrelated fields (like a phoneNumber saved
     // before E.164 formatting was enforced) would otherwise block a
     // legitimate password reset over pre-existing, unrelated data.
     await user.save({ validateBeforeSave: false });
     pendingPasswordResets.delete(email);
-    clearAuthCookie(res);
+    clearAuthCookie(res, user.role);
     return res.json({
       message: "Your password has been reset. You can now log in.",
     });
@@ -815,10 +902,16 @@ exports.startTotpReset = async (req, res) => {
         .status(401)
         .json({ message: "This reset request is no longer valid." });
     }
+    const existingReset = pendingTotpResets.get(String(user._id));
+    if (existingReset && Date.now() - existingReset.sentAt < OTP_RESEND_INTERVAL_MS) {
+      return res.status(429).json({ message: "Please wait before requesting another authenticator reset code." });
+    }
     const code = randomInt(100000, 1000000);
     pendingTotpResets.set(String(user._id), {
       code,
       expiresAt: Date.now() + 5 * 60 * 1000,
+      sentAt: Date.now(),
+      attempts: 0,
       role: challenge.role,
     });
 
@@ -837,6 +930,7 @@ exports.startTotpReset = async (req, res) => {
       }),
     });
     if (sendErr) {
+      pendingTotpResets.delete(String(user._id));
       console.error("MFA reset email failed to send:", sendErr);
       return res
         .status(500)
@@ -864,14 +958,21 @@ exports.confirmTotpReset = async (req, res) => {
     if (challenge.purpose !== "totp-login")
       throw new Error("Invalid reset request.");
     const pending = pendingTotpResets.get(String(challenge.userId));
-    if (
-      !pending ||
-      pending.expiresAt <= Date.now() ||
-      String(req.body?.code || "") !== String(pending.code)
-    ) {
+    if (!pending || pending.expiresAt <= Date.now()) {
+      pendingTotpResets.delete(String(challenge.userId));
       return res
         .status(400)
         .json({ message: "That reset code is invalid or expired." });
+    }
+    if (String(req.body?.code || "") !== String(pending.code)) {
+      pending.attempts = (pending.attempts || 0) + 1;
+      if (pending.attempts >= OTP_MAX_ATTEMPTS) {
+        pendingTotpResets.delete(String(challenge.userId));
+        return res.status(400).json({
+          message: "Too many incorrect authenticator reset codes. Sign in and request a new code.",
+        });
+      }
+      return res.status(400).json({ message: "That reset code is incorrect." });
     }
     pendingTotpResets.delete(String(challenge.userId));
     await User.updateOne(
@@ -1349,7 +1450,7 @@ const hashPwCode = (userId, code) =>
 // Shared: load the user and verify the current password, counting wrong
 // attempts toward the normal lockout. Returns { user } or { response }.
 async function verifyCurrentPassword(req, currentPassword) {
-  const user = await User.findById(req.user.userId);
+  const user = await User.findById(req.user.userId).select("+sessionVersion");
   if (!user || user.accountStatus !== "Active") {
     return { status: 401, body: { message: "Session is no longer valid." } };
   }
@@ -1507,7 +1608,15 @@ exports.changePassword = async (req, res) => {
     if (emailProblem) return res.status(400).json({ message: emailProblem });
  
     user.password = newPassword; // hashed by the User model's pre-save hook
+    user.sessionVersion = (user.sessionVersion || 0) + 1;
     await user.save({ validateBeforeSave: false });
+
+    const refreshedToken = jwt.sign(
+      { userId: user._id, role: req.user.role, sessionVersion: user.sessionVersion },
+      config.jwtSecret,
+      { expiresIn: "1d" },
+    );
+    setAuthCookie(res, refreshedToken, req.user.role);
  
     pendingPasswordCodes.delete(userId); // single use
  

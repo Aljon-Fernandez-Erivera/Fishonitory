@@ -5,6 +5,10 @@ import { formatPeso } from "../shared/salesUtils.js";
 const NEW_OPTION = "__new__";
 const COMMON_FISH_SPECIES = ["Koi", "Goldfish", "Betta", "Guppy", "Angelfish", "Molly", "Platy", "Swordtail", "Discus", "Oscar", "Arowana", "Flowerhorn", "Tetra", "Cichlid", "Gourami", "Catfish", " danio"].map((name) => name.trim());
 
+const getTankOccupancy = (fish, tankId) => fish
+  .filter((item) => String(item.tankId?._id || item.tankId || "") === String(tankId))
+  .reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+
 function ViewModeIcon({ mode }) {
   if (mode === "grid") {
     return (
@@ -871,18 +875,25 @@ function Inventory({
                   >
                     <option value="">Choose a tank first</option>
 
-                    {tanks.map((tank) => (
-                      <option
-                        key={tank._id}
-                        value={tank._id}
-                        disabled={tank.status === "Under Maintenance"}
-                      >
-                        {tank.name} ({tank.status})
-                        {tank.status === "Under Maintenance"
-                          ? " - unavailable"
-                          : ""}
-                      </option>
-                    ))}
+                    {tanks.map((tank) => {
+                      const occupied = getTankOccupancy(fish, tank._id);
+                      const isFull = Number(tank.capacity) > 0 && occupied >= Number(tank.capacity);
+                      const unavailable = tank.status === "Under Maintenance" || (!editingFishId && isFull);
+                      return (
+                        <option
+                          key={tank._id}
+                          value={tank._id}
+                          disabled={unavailable}
+                        >
+                          {tank.name} ({tank.status})
+                          {tank.status === "Under Maintenance"
+                            ? " - unavailable"
+                            : isFull
+                              ? " - full capacity, no space"
+                              : ""}
+                        </option>
+                      );
+                    })}
                   </select>
                 </label>
               )}

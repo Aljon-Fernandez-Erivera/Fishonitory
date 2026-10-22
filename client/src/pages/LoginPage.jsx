@@ -228,7 +228,7 @@ function LoginPage() {
         return;
       }
       sessionStorage.setItem("fishonitory_login_success", "1");
-      login(data.token, data.user.role);
+      login(data.user.role);
       const destination =
         data.user.role === "masterStaff"
           ? "/staff-dashboard"
@@ -249,9 +249,18 @@ function LoginPage() {
       });
     } catch (error) {
       sessionStorage.removeItem("fishonitory_login_success");
+      const isInvalidCredentials =
+        error.message === "Invalid email or password." ||
+        error.message === "Incorrect email or password.";
       setDialog({
-        title: lockSeconds ? "Login temporarily locked" : "Unable to sign in",
-        message: friendly(error.message),
+        title: lockSeconds
+          ? "Login temporarily locked"
+          : isInvalidCredentials
+            ? "Incorrect email or password"
+            : "Unable to sign in",
+        message: isInvalidCredentials
+          ? "The email or password you entered is incorrect. Please try again."
+          : friendly(error.message),
         buttonLabel: "Try again",
       });
     } finally {

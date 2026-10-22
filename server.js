@@ -54,6 +54,13 @@ app.use((req, res, next) => {
 const allowedOrigins = (process.env.CLIENT_URL || "http://localhost:5173")
   .split(",")
   .map((origin) => origin.trim())
+  .map((origin) => {
+    try {
+      return new URL(origin).origin;
+    } catch {
+      return "";
+    }
+  })
   .filter(Boolean);
 
 app.use(
@@ -62,6 +69,36 @@ app.use(
     credentials: true,
   }),
 );
+
+const authCookieNames = new Set([
+  "owner_access_token",
+  "staff_access_token",
+  "master_staff_access_token",
+  "super_admin_access_token",
+  "access_token",
+]);
+const unsafeMethods = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+app.use((req, res, next) => {
+  if (!unsafeMethods.has(req.method)) return next();
+
+  const hasAuthCookie = String(req.headers.cookie || "")
+    .split(";")
+    .some((entry) => authCookieNames.has(entry.trim().split("=", 1)[0]));
+  if (!hasAuthCookie) return next();
+
+  let requestOrigin = req.get("origin");
+  if (!requestOrigin && req.get("referer")) {
+    try {
+      requestOrigin = new URL(req.get("referer")).origin;
+    } catch {
+      requestOrigin = "";
+    }
+  }
+  if (!requestOrigin || !allowedOrigins.includes(requestOrigin)) {
+    return res.status(403).json({ message: "This request origin is not allowed." });
+  }
+  return next();
+});
 
 app.use(express.json({ limit: "2mb" }));
 // Clean user-supplied JSON text and reject Mongo operator/dotted keys before

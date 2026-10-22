@@ -10,9 +10,19 @@ const {
 } = require("../middleware/uploadPermit");
 const ownerProfileController = require("../controllers/ownerProfileController");
 const sanitizeRequestBody = require("../middleware/sanitizeRequestBody");
+const {
+  loginLimiter,
+  passwordResetConfirmLimiter,
+  passwordResetRequestLimiter,
+  registrationOtpSendLimiter,
+  registrationOtpVerifyLimiter,
+  totpLoginLimiter,
+  totpResetConfirmLimiter,
+  totpResetStartLimiter,
+} = require("../middleware/authRateLimit");
 
 // Step 1: Send OTP
-router.post("/send-otp", validateRegistration, authController.sendOtp);
+router.post("/send-otp", registrationOtpSendLimiter, validateRegistration, authController.sendOtp);
 
 // Step 2: Verify OTP and Register — now multipart/form-data, since the
 // business permit file rides alongside the registration fields. multer runs
@@ -20,6 +30,7 @@ router.post("/send-otp", validateRegistration, authController.sendOtp);
 // the existing field validation runs exactly as before.
 router.post(
   "/verify-and-register",
+  registrationOtpVerifyLimiter,
   uploadBusinessPermit,
   uploadErrorHandler,
   sanitizeRequestBody,
@@ -28,10 +39,10 @@ router.post(
 );
 
 // Step 3: Login
-router.post("/login", validateRegistration, authController.login);
-router.post("/totp/login", authController.verifyTotpLogin);
-router.post("/totp/reset/start", authController.startTotpReset);
-router.post("/totp/reset/confirm", authController.confirmTotpReset);
+router.post("/login", loginLimiter, validateRegistration, authController.login);
+router.post("/totp/login", totpLoginLimiter, authController.verifyTotpLogin);
+router.post("/totp/reset/start", totpResetStartLimiter, authController.startTotpReset);
+router.post("/totp/reset/confirm", totpResetConfirmLimiter, authController.confirmTotpReset);
 router.post("/totp/enroll/start", authController.startRequiredTotpEnrollment);
 router.post(
   "/totp/enroll/confirm",
@@ -39,11 +50,13 @@ router.post(
 );
 router.post(
   "/password-reset/request",
+  passwordResetRequestLimiter,
   validateRegistration,
   authController.requestPasswordReset,
 );
 router.post(
   "/password-reset/confirm",
+  passwordResetConfirmLimiter,
   validateRegistration,
   authController.resetPassword,
 );

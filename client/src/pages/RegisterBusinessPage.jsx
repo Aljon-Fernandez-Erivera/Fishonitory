@@ -171,7 +171,15 @@ function RegisterBusinessPage() {
           sanitizedValue = value.replace(/[^a-zA-Z0-9\s\-,.#]/g, "");
           break;
         case "phoneNumber":
-          sanitizedValue = sanitizePhoneDigits(value).slice(
+          sanitizedValue = sanitizePhoneDigits(value);
+          if (
+            countryIso === "PH" &&
+            sanitizedValue.length === 11 &&
+            sanitizedValue.startsWith("0")
+          ) {
+            sanitizedValue = sanitizedValue.slice(1);
+          }
+          sanitizedValue = sanitizedValue.slice(
             0,
             maxLocalDigitsForCountry(countryIso),
           );
@@ -245,7 +253,7 @@ function RegisterBusinessPage() {
     ) {
       newErrors.phoneNumber =
         countryIso === "PH"
-          ? "Enter a valid 10-digit PH mobile number starting with 9 (e.g. 9171234567)."
+          ? "Enter a valid PH mobile number (e.g. 09171234567)."
           : "Enter a valid phone number using digits only.";
     }
     if (!formData.acceptedTerms) {

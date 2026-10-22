@@ -349,9 +349,23 @@ const validateOrderCreate = (req, res, next) => {
 
   const customerPhone =
     typeof body.customerPhone === "string" ? body.customerPhone.trim() : "";
-  const compactCustomerPhone = customerPhone.replace(/\s/g, "");
-  if (compactCustomerPhone && !/^\+?\d{7,15}$/.test(compactCustomerPhone)) {
-    return res.status(400).json({ message: "Customer phone must contain digits and an optional leading + sign." });
+  const phoneDigits = customerPhone.replace(/\D/g, "");
+  let internationalCustomerPhone = "";
+  if (customerPhone) {
+    if (customerPhone.startsWith("+")) {
+      internationalCustomerPhone = `+${phoneDigits}`;
+    } else if (phoneDigits.length === 11 && phoneDigits.startsWith("0")) {
+      internationalCustomerPhone = `+63${phoneDigits.slice(1)}`;
+    } else if (phoneDigits.length === 10 && phoneDigits.startsWith("9")) {
+      internationalCustomerPhone = `+63${phoneDigits}`;
+    } else if (phoneDigits.startsWith("63")) {
+      internationalCustomerPhone = `+${phoneDigits}`;
+    } else {
+      internationalCustomerPhone = `+${phoneDigits}`;
+    }
+    if (!/^\+[1-9]\d{6,14}$/.test(internationalCustomerPhone)) {
+      return res.status(400).json({ message: "Customer phone must be a valid international phone number." });
+    }
   }
 
   if (!ORDER_DELIVERY_METHODS.includes(body.deliveryMethod)) {
@@ -389,7 +403,7 @@ const validateOrderCreate = (req, res, next) => {
     items: body.items,
     customerName,
     customerEmail,
-    customerPhone: compactCustomerPhone,
+    customerPhone: internationalCustomerPhone,
     deliveryMethod: body.deliveryMethod,
     courierName,
     requestedDate,

@@ -14,9 +14,11 @@ export function AuthProvider({ children }) {
   const refreshSession = useCallback(async () => {
     const tabSessionKey = "fishonitory_tab_session";
     const hasTabSession = sessionStorage.getItem(tabSessionKey) === "active";
-    const token = sessionStorage.getItem("fishonitory_auth_token");
+    // Remove bearer tokens saved by older builds; authenticated requests use
+    // the HttpOnly session cookie so page scripts cannot read the credential.
+    sessionStorage.removeItem("fishonitory_auth_token");
 
-    if (!hasTabSession && !token) {
+    if (!hasTabSession) {
       sessionStorage.removeItem("role");
       setUser(null);
       return;
@@ -38,7 +40,6 @@ export function AuthProvider({ children }) {
       const response = await fetch(`${API_URL}/auth/session`, {
         credentials: "include",
         headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
           ...(sessionRole ? { "X-Session-Role": sessionRole } : {}),
         },
       });
@@ -85,18 +86,15 @@ export function AuthProvider({ children }) {
     };
   }, [refreshSession]);
 
-  const login = useCallback(async (token, role) => {
+  const login = useCallback(async (role) => {
     sessionStorage.setItem("fishonitory_tab_session", "active");
     sessionStorage.setItem("role", role);
-    if (token) {
-      sessionStorage.setItem("fishonitory_auth_token", token);
-    }
+    sessionStorage.removeItem("fishonitory_auth_token");
     sessionStorage.removeItem("fishonitory_session_expired");
     try {
       const response = await fetch(`${API_URL}/auth/session`, {
         credentials: "include",
         headers: {
-          Authorization: token ? `Bearer ${token}` : undefined,
           "X-Session-Role": role,
         },
       });
@@ -123,9 +121,6 @@ export function AuthProvider({ children }) {
         method: "POST",
         credentials: "include",
         headers: {
-          ...(sessionStorage.getItem("fishonitory_auth_token")
-            ? { Authorization: `Bearer ${sessionStorage.getItem("fishonitory_auth_token")}` }
-            : {}),
           ...(user?.role ? { "X-Session-Role": user.role } : {}),
         },
       });

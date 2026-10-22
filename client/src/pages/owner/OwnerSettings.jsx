@@ -13,9 +13,6 @@ async function ownerRequest(path, options = {}) {
     headers: {
       "Content-Type": "application/json",
       "X-Session-Role": "Owner",
-      ...(sessionStorage.getItem("fishonitory_auth_token")
-        ? { Authorization: `Bearer ${sessionStorage.getItem("fishonitory_auth_token")}` }
-        : {}),
       ...(options.headers || {}),
     },
   });

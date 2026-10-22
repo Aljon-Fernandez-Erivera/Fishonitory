@@ -1,7 +1,7 @@
 ﻿import DashboardSidebar from "../../components/DashboardSidebar.jsx";
 import DashboardHeader from "../../components/DashboardHeader.jsx";
 import { useEffect, useState } from "react";
-import { formatPhoneInput } from "../shared/phoneUtils.js";
+import { formatPhoneInput, normalizePhoneToE164 } from "../shared/phoneUtils.js";
 import { useAuth } from "../shared/useAuth.js";
 import Sales from "../shared/Sales.jsx";
 import Orders from "../shared/Orders.jsx";
@@ -79,9 +79,6 @@ async function apiRequest(path, options = {}) {
   const response = await fetch(`${API_URL}${path}`, {
     ...options,
     headers: {
-      ...(sessionStorage.getItem("fishonitory_auth_token")
-        ? { Authorization: `Bearer ${sessionStorage.getItem("fishonitory_auth_token")}` }
-        : {}),
       ...(options.body instanceof FormData
         ? {}
         : { "Content-Type": "application/json" }),
@@ -153,7 +150,7 @@ function StaffDashboard() {
   });
   const customerNameValue = customerDetails.customerName.trim();
   const customerEmailValue = customerDetails.customerEmail.trim();
-  const customerPhoneValue = customerDetails.customerPhone.replace(/\s/g, "");
+  const customerPhoneValue = normalizePhoneToE164(customerDetails.customerPhone);
   const customerNameValid = customerNameValue.length >= 2 && customerNameValue.length <= 120;
   const customerEmailValid =
     customerEmailValue.length <= 254 &&
@@ -273,9 +270,6 @@ function StaffDashboard() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(sessionStorage.getItem("fishonitory_auth_token")
-            ? { Authorization: `Bearer ${sessionStorage.getItem("fishonitory_auth_token")}` }
-            : {}),
           "X-Session-Role": "masterStaff",
         },
         credentials: "include",
@@ -1178,7 +1172,7 @@ function StaffDashboard() {
                       placeholder="+639171234567"
                       className={`w-full rounded-lg border ${!customerDetailsTouched.customerPhone || customerPhoneValid ? "border-sky-100/15" : "border-red-300/40"} bg-white/[.07] px-2.5 py-2 font-['Poppins'] text-xs text-[#d9ecef] outline-none placeholder:text-[#c8c2b5] focus:border-[#73c4ca]`}
                     />
-                    {customerDetailsTouched.customerPhone && !customerPhoneValid && <p className="text-[11px] text-red-200">{customerDetails.customerPhone.trim() ? "Use a valid international number, e.g. +639171234567." : "Customer phone is required."}</p>}
+                    {customerDetailsTouched.customerPhone && !customerPhoneValid && <p className="text-[11px] text-red-200">{customerDetails.customerPhone.trim() ? "Enter a valid phone number, e.g. 09111111111 or +639111111111." : "Customer phone is required."}</p>}
                   </div>
 
                   {discountAmount > 0 && (
