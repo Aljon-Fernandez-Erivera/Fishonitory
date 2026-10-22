@@ -33,6 +33,7 @@ const formatMaintenanceDate = (value) => {
 function TankManagement({
   tanks,
   fish = [],
+  stockLoading = false,
   tankForm,
   setTankForm,
   editingTankId,
@@ -140,17 +141,19 @@ function TankManagement({
                     <td className="px-5 py-4">
                       <div className="mb-2 flex items-center gap-2 text-xs">
                         <span>
-                          {occupied} / {tank.capacity || "—"} capacity
+                          {stockLoading
+                            ? "Loading stock counts…"
+                            : `${occupied} / ${tank.capacity || "—"} capacity`}
                         </span>
-                        {tank.capacity && occupied > tank.capacity ? (
+                        {!stockLoading && tank.capacity && occupied > tank.capacity ? (
                           <span className="rounded-full bg-red-300/15 px-2 py-1 text-red-200">
                             Over capacity · no space
                           </span>
-                        ) : tank.capacity && occupied === Number(tank.capacity) ? (
+                        ) : !stockLoading && tank.capacity && occupied === Number(tank.capacity) ? (
                           <span className="rounded-full bg-red-300/15 px-2 py-1 font-semibold text-red-200">
                             Full capacity · no space
                           </span>
-                        ) : tank.capacity && occupied / tank.capacity >= 0.9 ? (
+                        ) : !stockLoading && tank.capacity && occupied / tank.capacity >= 0.9 ? (
                           <span className="rounded-full bg-amber-300/15 px-2 py-1 text-amber-200">
                             Near capacity
                           </span>
@@ -165,7 +168,7 @@ function TankManagement({
                             >
                               {item.name}
                               <span className="ml-1 text-[#789faa]">
-                                ×{item.quantity}
+                                ×{stockLoading ? "…" : item.quantity}
                               </span>
                             </span>
                           ))}
@@ -244,15 +247,17 @@ function TankManagement({
                 </div>
                 <p className="m-0 text-xs">
                   <span className="text-[#789faa]">Capacity: </span>
-                  {occupied} / {tank.capacity || "—"}
+                  {stockLoading
+                    ? "Loading stock counts…"
+                    : `${occupied} / ${tank.capacity || "—"}`}
                 </p>
-                {tank.capacity && occupied >= Number(tank.capacity) ? (
+                {!stockLoading && tank.capacity && occupied >= Number(tank.capacity) ? (
                   <span className="inline-flex rounded-full bg-red-300/15 px-2.5 py-1 text-xs font-semibold text-red-200">
                     {occupied > Number(tank.capacity)
                       ? "Over capacity · no space"
                       : "Full capacity · no space"}
                   </span>
-                ) : tank.capacity && occupied / tank.capacity >= 0.9 ? (
+                ) : !stockLoading && tank.capacity && occupied / tank.capacity >= 0.9 ? (
                   <span className="inline-flex rounded-full bg-amber-300/15 px-2.5 py-1 text-xs text-amber-200">
                     Near capacity
                   </span>
@@ -264,7 +269,7 @@ function TankManagement({
                         key={item._id}
                         className="rounded-full bg-white/[.06] px-2 py-1 text-xs text-[#b9dfe1]"
                       >
-                        {item.name} ×{item.quantity}
+                        {item.name} ×{stockLoading ? "…" : item.quantity}
                       </span>
                     ))
                   ) : (
@@ -514,14 +519,16 @@ function TankManagement({
         <div>
           <dt className="text-xs text-[#89afb9]">Current occupancy</dt>
           <dd className="mt-1">
-            {fish
-              .filter(
-                (item) =>
-                  String(item.tankId?._id || item.tankId) ===
-                  String(viewTank._id),
-              )
-              .reduce((sum, item) => sum + Number(item.quantity || 0), 0)}{" "}
-            fish
+            {stockLoading
+              ? "Loading stock count…"
+              : fish
+                  .filter(
+                    (item) =>
+                      String(item.tankId?._id || item.tankId) ===
+                      String(viewTank._id),
+                  )
+                  .reduce((sum, item) => sum + Number(item.quantity || 0), 0)}{" "}
+            {!stockLoading && "fish"}
           </dd>
         </div>
         <div>
@@ -550,14 +557,16 @@ function TankManagement({
         <div className="sm:col-span-2">
           <dt className="text-xs text-[#89afb9]">Fish assigned</dt>
           <dd className="mt-1">
-            {fish
-              .filter(
-                (item) =>
-                  String(item.tankId?._id || item.tankId) ===
-                  String(viewTank._id),
-              )
-              .map((item) => `${item.name} (${item.quantity})`)
-              .join(", ") || "No fish assigned"}
+            {stockLoading
+              ? "Updating fish counts…"
+              : fish
+                  .filter(
+                    (item) =>
+                      String(item.tankId?._id || item.tankId) ===
+                      String(viewTank._id),
+                  )
+                  .map((item) => `${item.name} (${item.quantity})`)
+                  .join(", ") || "No fish assigned"}
           </dd>
         </div>
         <div className="sm:col-span-2">

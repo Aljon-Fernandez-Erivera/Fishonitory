@@ -132,6 +132,7 @@ function OwnerDashboard() {
   const [attendance, setAttendance] = useState([]);
   const [fish, setFish] = useState([]);
   const [tanks, setTanks] = useState([]);
+  const [tankStockLoading, setTankStockLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [staffToast, setStaffToast] = useState("");
   const [payrollToast, setPayrollToast] = useState("");
@@ -209,6 +210,7 @@ function OwnerDashboard() {
     pollingRequestInFlight.current = true;
     if (!background) {
       setRefreshing(true);
+      setTankStockLoading(true);
       setError("");
       setSystemUnavailable(false);
     }
@@ -278,6 +280,7 @@ function OwnerDashboard() {
       }
     } finally {
       pollingRequestInFlight.current = false;
+      if (!background) setTankStockLoading(false);
       if (!background) setRefreshing(false);
       setInitialLoading(false);
     }
@@ -1078,6 +1081,7 @@ function OwnerDashboard() {
           <TankManagement
             tanks={tanks}
             fish={fish}
+            stockLoading={tankStockLoading}
             tankForm={tankForm}
             setTankForm={setTankForm}
             editingTankId={editingTankId}
