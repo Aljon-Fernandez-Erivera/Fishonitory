@@ -1082,7 +1082,7 @@ function StaffDashboard() {
                           </span>
                         </div>
                         <div className="flex items-center gap-3">
-                          <div className="flex items-center rounded-lg border border-sky-100/15 bg-white/[.05]">
+                          <div className="flex items-center rounded-lg border border-sky-100/15 bg-transparent">
                             <button
                               type="button"
                               onClick={() => adjustQuantity(item, -1)}
@@ -1240,7 +1240,7 @@ function StaffDashboard() {
               {inventoryOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
                   <div className="box-border flex max-h-[85vh] w-full max-w-xl flex-col rounded-2xl border border-sky-100/15 bg-[#062d48] p-6 shadow-2xl">
-                    <div className="flex items-center justify-between border-b border-sky-100/10 pb-4">
+                    <div className="flex shrink-0 items-center justify-between border-b border-sky-100/10 pb-4">
                       <h3 className="font-['Fraunces'] text-xl font-medium text-[#d9ecef]">
                         Select Inventory Items
                       </h3>
@@ -1253,18 +1253,20 @@ function StaffDashboard() {
                       </button>
                     </div>
 
-                    <label className="mt-4 block font-['Poppins'] text-xs font-medium text-[#a9c8cf]">
-                      Search inventory
+                    <label className="mt-4 block shrink-0 font-['Poppins'] text-xs font-semibold text-[#d9ecef]">
+                      Search fish and supplies
                       <input
                         type="search"
+                        aria-label="Search fish and supplies"
+                        autoFocus
                         value={inventorySearch}
                         onChange={(event) => setInventorySearch(event.target.value)}
                         placeholder="Search fish or supplies"
-                        className="mt-1.5 w-full rounded-xl border border-sky-100/15 bg-transparent px-3 py-2.5 text-sm text-[#d9ecef] outline-none placeholder:text-[#789faa] focus:border-[#73c4ca]"
+                        className="mt-1.5 block min-h-12 w-full rounded-xl border border-sky-100/30 bg-[#031f33] px-4 py-3 text-sm text-[#f0f8f8] outline-none placeholder:text-[#9bbec7] focus:border-[#73c4ca] focus:ring-2 focus:ring-[#73c4ca]/30"
                       />
                     </label>
 
-                    <div className="mt-4 flex-1 space-y-2 overflow-y-auto pr-1">
+                    <div className="mt-4 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
                       {filteredInventory.map((item) => (
                         <div
                           key={item._id}
@@ -1292,11 +1294,11 @@ function StaffDashboard() {
                               </span>
                             </div>
                           </div>
-                          <div className="flex items-center rounded-lg border border-sky-100/15 bg-white/[.05]">
+                          <div className="flex items-center rounded-lg border border-sky-100/15 bg-transparent">
                             <button
                               type="button"
                               onClick={() => adjustQuantity(item, -1)}
-                              className="cursor-pointer bg-transparent px-2.5 py-1 text-sm font-bold text-[#bce9e9] hover:bg-white/[.08]"
+                              className="cursor-pointer !bg-transparent px-2.5 py-1 text-sm font-bold text-[#bce9e9] hover:!bg-white/[.08]"
                             >
                               -
                             </button>
@@ -1308,7 +1310,7 @@ function StaffDashboard() {
                             <button
                               type="button"
                               onClick={() => adjustQuantity(item, 1)}
-                              className="cursor-pointer bg-transparent px-2.5 py-1 text-sm font-bold text-[#bce9e9] hover:bg-white/[.08]"
+                              className="cursor-pointer !bg-transparent px-2.5 py-1 text-sm font-bold text-[#bce9e9] hover:!bg-white/[.08]"
                             >
                               +
                             </button>
