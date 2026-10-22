@@ -113,6 +113,7 @@ function StaffDashboard() {
   const [settingsTab, setSettingsTab] = useState("profile");
   const [inventoryOpen, setInventoryOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [checkoutBusy, setCheckoutBusy] = useState(false);
   const [receipt, setReceipt] = useState(null);
   const [checkoutMode, setCheckoutMode] = useState("sale");
   const [orderDetails, setOrderDetails] = useState({
@@ -437,7 +438,7 @@ function StaffDashboard() {
   };
 
   const checkout = async () => {
-    if (!cart.length) {
+    if (!cart.length || checkoutBusy) {
       return;
     }
     if (!customerNameValid) {
@@ -461,6 +462,7 @@ function StaffDashboard() {
       return;
     }
 
+    setCheckoutBusy(true);
     try {
       const isOrder = checkoutMode === "order";
       const data = await apiRequest(isOrder ? "/orders" : "/sales", {
@@ -494,6 +496,8 @@ function StaffDashboard() {
       await loadData();
     } catch (requestError) {
       notify("error", requestError.message);
+    } finally {
+      setCheckoutBusy(false);
     }
   };
 
@@ -1332,11 +1336,13 @@ function StaffDashboard() {
                       </button>
                       <button
                         type="button"
-                        disabled={!cart.length || !customerDetailsValid || (checkoutMode === "order" && (!orderDetailsValid || !requestedDateValid))}
+                        disabled={checkoutBusy || !cart.length || !customerDetailsValid || (checkoutMode === "order" && (!orderDetailsValid || !requestedDateValid))}
                         onClick={checkout}
                         className="rounded-full bg-[#75bec4] px-5 py-2 font-['Poppins'] text-xs font-semibold text-[#052d45] transition hover:bg-[#86d0d6] cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
                       >
-                        {checkoutMode === "order" ? "Create order" : "Complete sale"}
+                        {checkoutBusy
+                          ? checkoutMode === "order" ? "Creating order…" : "Completing sale…"
+                          : checkoutMode === "order" ? "Create order" : "Complete sale"}
                       </button>
                     </div>
                   </div>

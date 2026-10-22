@@ -195,28 +195,33 @@ exports.createOrder = async (req, res) => {
   await writeAudit(req, "CREATE", "Order", order._id, `Order created for ${order.customerName}.`);
 
   if (order.customerEmail) {
-    try {
-      await createTransporter().sendMail({
-        from: `"${owner.businessName}" <${process.env.EMAIL_USER}>`,
-        to: order.customerEmail,
-        subject: `${owner.businessName} - Order Confirmation`,
-        html: buildOrderEmailHtml({
-          businessName: owner.businessName,
-          customerName: order.customerName,
-          items: order.items,
-          deliveryMethod: order.deliveryMethod,
-          courierName: order.courierName,
-          requestedDate: order.requestedDate,
-          total: order.total,
-        }),
-      });
-      order.notificationSentAt = new Date();
-      await order.save();
-    } catch (emailError) {
-      // The order still stands even if the email fails — losing a real order
-      // over an SMTP hiccup would be worse than a missed notification.
-      console.error("Order confirmation email failed:", emailError.message);
-    }
+    // Keep SMTP latency out of the order response path. The order is already
+    // committed, so a slow customer email should not hold up checkout.
+    void (async () => {
+      try {
+        await createTransporter().sendMail({
+          from: `"${owner.businessName}" <${process.env.EMAIL_USER}>`,
+          to: order.customerEmail,
+          subject: `${owner.businessName} - Order Confirmation`,
+          html: buildOrderEmailHtml({
+            businessName: owner.businessName,
+            customerName: order.customerName,
+            items: order.items,
+            deliveryMethod: order.deliveryMethod,
+            courierName: order.courierName,
+            requestedDate: order.requestedDate,
+            total: order.total,
+          }),
+        });
+        await Order.updateOne(
+          { _id: order._id },
+          { $set: { notificationSentAt: new Date() } },
+        );
+      } catch (emailError) {
+        // Order creation succeeds even if the confirmation email cannot send.
+        console.error("Order confirmation email failed:", emailError.message);
+      }
+    })();
   }
 
   return res.status(201).json({ message: "Order created successfully.", order });

@@ -168,7 +168,7 @@ function TankManagement({
                             >
                               {item.name}
                               <span className="ml-1 text-[#789faa]">
-                                ×{stockLoading ? "…" : item.quantity}
+                                ×{item.quantity}
                               </span>
                             </span>
                           ))}
@@ -269,7 +269,7 @@ function TankManagement({
                         key={item._id}
                         className="rounded-full bg-white/[.06] px-2 py-1 text-xs text-[#b9dfe1]"
                       >
-                        {item.name} ×{stockLoading ? "…" : item.quantity}
+                        {item.name} ×{item.quantity}
                       </span>
                     ))
                   ) : (
@@ -557,16 +557,14 @@ function TankManagement({
         <div className="sm:col-span-2">
           <dt className="text-xs text-[#89afb9]">Fish assigned</dt>
           <dd className="mt-1">
-            {stockLoading
-              ? "Updating fish counts…"
-              : fish
-                  .filter(
-                    (item) =>
-                      String(item.tankId?._id || item.tankId) ===
-                      String(viewTank._id),
-                  )
-                  .map((item) => `${item.name} (${item.quantity})`)
-                  .join(", ") || "No fish assigned"}
+            {fish
+              .filter(
+                (item) =>
+                  String(item.tankId?._id || item.tankId) ===
+                  String(viewTank._id),
+              )
+              .map((item) => `${item.name} (${item.quantity})`)
+              .join(", ") || "No fish assigned"}
           </dd>
         </div>
         <div className="sm:col-span-2">
