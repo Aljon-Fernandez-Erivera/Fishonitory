@@ -163,10 +163,12 @@ exports.createFish = async (req, res) => {
       return res.status(400).json({ message: "Choose a tank before adding fish." });
     const tankProblem = await checkTank(body.tankId, ownerId);
     if (tankProblem) return res.status(400).json({ message: tankProblem });
-    const tank = await Tank.findById(body.tankId).select("capacity");
-    if (tank?.capacity) {
+    const tank = await Tank.findOne({ _id: body.tankId, ownerId }).select("capacity");
+    if (tank?.capacity != null) {
       const currentFish = await Fish.aggregate([
-        { $match: { ownerId: tank.ownerId, tankId: tank._id } },
+        // The tank is already scoped to this owner. Match by tankId so this
+        // remains correct even though the projection above only selects capacity.
+        { $match: { tankId: tank._id, category: { $ne: "Fish Food" } } },
         { $group: { _id: null, total: { $sum: "$quantity" } } },
       ]);
       if ((currentFish[0]?.total || 0) + quantity.value > tank.capacity)

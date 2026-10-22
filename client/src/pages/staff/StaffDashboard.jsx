@@ -64,6 +64,16 @@ const todayLocal = () => {
     .slice(0, 10);
 };
 
+const sanitizeCurrencyInput = (value) => {
+  const cleaned = String(value).replace(/[^\d.]/g, "");
+  const decimalIndex = cleaned.indexOf(".");
+  if (decimalIndex < 0) return cleaned.slice(0, 9);
+
+  const whole = cleaned.slice(0, decimalIndex).slice(0, 9);
+  const fraction = cleaned.slice(decimalIndex + 1).replace(/\./g, "").slice(0, 2);
+  return `${whole}.${fraction}`.slice(0, 12);
+};
+
 // Function to make API requests with authentication headers
 async function apiRequest(path, options = {}) {
   const response = await fetch(`${API_URL}${path}`, {
@@ -467,7 +477,7 @@ function StaffDashboard() {
             name: item.name,
             quantity: item.quantity,
           })),
-          discount,
+          discount: Number(discount) || 0,
           customerName: customerNameValue,
           customerEmail: customerEmailValue,
           customerPhone: customerPhoneValue,
@@ -843,6 +853,11 @@ function StaffDashboard() {
                       </button>
                     </div>
                   ))}
+                  {!fishInventory.length && (
+                    <p className="col-span-full rounded-xl border border-dashed border-sky-100/15 px-5 py-10 text-center font-['Poppins'] text-sm text-[#9bbec7]">
+                      No fish items yet.
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -905,6 +920,11 @@ function StaffDashboard() {
                       </button>
                     </div>
                   ))}
+                  {!food.length && (
+                    <p className="col-span-full rounded-xl border border-dashed border-sky-100/15 px-5 py-10 text-center font-['Poppins'] text-sm text-[#9bbec7]">
+                      No fish food items yet.
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -1076,12 +1096,15 @@ function StaffDashboard() {
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <label className="text-[#89afb9]">Discount (₱)</label>
+                    <label htmlFor="checkout-discount" className="text-[#89afb9]">Discount (₱)</label>
                     <input
-                      type="number"
-                      min="0"
+                      id="checkout-discount"
+                      type="text"
+                      inputMode="decimal"
+                      autoComplete="off"
+                      maxLength={12}
                       value={discount}
-                      onChange={(event) => setDiscount(event.target.value)}
+                      onChange={(event) => setDiscount(sanitizeCurrencyInput(event.target.value))}
                       className="w-24 rounded-lg border border-sky-100/15 bg-white/[.07] px-2.5 py-1 text-right font-['Poppins'] text-xs text-[#d9ecef] outline-none focus:border-[#73c4ca]"
                     />
                   </div>
@@ -1090,7 +1113,9 @@ function StaffDashboard() {
                     <div className="font-['Poppins'] text-[10px] font-semibold uppercase tracking-[0.12em] text-[#89afb9]">
                       Customer details
                     </div>
+                    <label htmlFor="customer-name" className="block font-['Poppins'] text-[11px] font-medium text-[#b7d2d7]">Customer name</label>
                     <input
+                      id="customer-name"
                       type="text"
                       required
                       minLength={2}
@@ -1101,15 +1126,20 @@ function StaffDashboard() {
                       value={customerDetails.customerName}
                       onChange={(event) =>
                         {
-                          setCustomerDetails((previous) => ({ ...previous, customerName: event.target.value }));
+                          const customerName = event.target.value
+                            .replace(/[^\p{L}\p{M}\s.'&-]/gu, "")
+                            .slice(0, 120);
+                          setCustomerDetails((previous) => ({ ...previous, customerName }));
                           setCustomerDetailsTouched((previous) => ({ ...previous, customerName: true }));
                         }
                       }
-                      placeholder="Customer name"
-                      className={`w-full rounded-lg border ${!customerDetailsTouched.customerName || customerNameValid ? "border-sky-100/15" : "border-red-300/40"} bg-white/[.07] px-2.5 py-2 font-['Poppins'] text-xs text-[#d9ecef] outline-none focus:border-[#73c4ca]`}
+                      placeholder="e.g. Maria Santos"
+                      className={`w-full rounded-lg border ${!customerDetailsTouched.customerName || customerNameValid ? "border-sky-100/15" : "border-red-300/40"} bg-white/[.07] px-2.5 py-2 font-['Poppins'] text-xs text-[#d9ecef] outline-none placeholder:text-[#c8c2b5] focus:border-[#73c4ca]`}
                     />
                     {customerDetailsTouched.customerName && !customerNameValid && <p className="text-[11px] text-red-200">{customerNameValue ? "Use 2–120 characters for the customer name." : "Customer name is required."}</p>}
+                    <label htmlFor="customer-email" className="block font-['Poppins'] text-[11px] font-medium text-[#b7d2d7]">Customer email</label>
                     <input
+                      id="customer-email"
                       type="email"
                       required
                       maxLength={254}
@@ -1119,15 +1149,20 @@ function StaffDashboard() {
                       value={customerDetails.customerEmail}
                       onChange={(event) =>
                         {
-                          setCustomerDetails((previous) => ({ ...previous, customerEmail: event.target.value }));
+                          const customerEmail = event.target.value
+                            .replace(/[^a-zA-Z0-9@._%+-]/g, "")
+                            .slice(0, 254);
+                          setCustomerDetails((previous) => ({ ...previous, customerEmail }));
                           setCustomerDetailsTouched((previous) => ({ ...previous, customerEmail: true }));
                         }
                       }
-                      placeholder="customer@email.com"
-                      className={`w-full rounded-lg border ${!customerDetailsTouched.customerEmail || customerEmailValid ? "border-sky-100/15" : "border-red-300/40"} bg-white/[.07] px-2.5 py-2 font-['Poppins'] text-xs text-[#d9ecef] outline-none focus:border-[#73c4ca]`}
+                      placeholder="name@example.com"
+                      className={`w-full rounded-lg border ${!customerDetailsTouched.customerEmail || customerEmailValid ? "border-sky-100/15" : "border-red-300/40"} bg-white/[.07] px-2.5 py-2 font-['Poppins'] text-xs text-[#d9ecef] outline-none placeholder:text-[#c8c2b5] focus:border-[#73c4ca]`}
                     />
                     {customerDetailsTouched.customerEmail && !customerEmailValid && <p className="text-[11px] text-red-200">{customerEmailValue ? "Enter a valid email address." : "Customer email is required."}</p>}
+                    <label htmlFor="customer-phone" className="block font-['Poppins'] text-[11px] font-medium text-[#b7d2d7]">Customer phone</label>
                     <input
+                      id="customer-phone"
                       type="tel"
                       required
                       aria-label="Customer phone"
@@ -1141,7 +1176,7 @@ function StaffDashboard() {
                         }
                       }
                       placeholder="+639171234567"
-                      className={`w-full rounded-lg border ${!customerDetailsTouched.customerPhone || customerPhoneValid ? "border-sky-100/15" : "border-red-300/40"} bg-white/[.07] px-2.5 py-2 font-['Poppins'] text-xs text-[#d9ecef] outline-none focus:border-[#73c4ca]`}
+                      className={`w-full rounded-lg border ${!customerDetailsTouched.customerPhone || customerPhoneValid ? "border-sky-100/15" : "border-red-300/40"} bg-white/[.07] px-2.5 py-2 font-['Poppins'] text-xs text-[#d9ecef] outline-none placeholder:text-[#c8c2b5] focus:border-[#73c4ca]`}
                     />
                     {customerDetailsTouched.customerPhone && !customerPhoneValid && <p className="text-[11px] text-red-200">{customerDetails.customerPhone.trim() ? "Use a valid international number, e.g. +639171234567." : "Customer phone is required."}</p>}
                   </div>
@@ -1363,7 +1398,7 @@ function StaffDashboard() {
 
                     <div className="mt-6 space-y-3">
                       <div className="rounded-xl border border-sky-100/10 bg-white/[.03] p-3 font-['Poppins'] text-xs text-[#9bbec7]">
-                        <div className="font-semibold text-[#d9ecef]">
+                        <div className="font-semibold text-[#c1c3c4]">
                           Customer details
                         </div>
                         <div className="mt-1">

@@ -16,6 +16,8 @@ import {
 
 const emailPattern = /^\S+@\S+\.\S+$/;
 
+const errorClass = "font-['Poppins'] text-xs !text-[#ffd1d1]";
+
 function EyeIcon({ open }) {
   return open ? (
     <svg
@@ -197,9 +199,7 @@ function ForgotPasswordPage() {
               />
             </label>
             {errors.email && (
-              <p className="font-['Poppins'] text-xs text-[#ffd1d1]">
-                {errors.email}
-              </p>
+              <span className={`mt-1.5 block ${errorClass}`}>{errors.email}</span>
             )}
             <button
               className="w-full rounded-full bg-[#75bec4] py-2.5 font-['Poppins'] text-sm font-medium text-[#052d45] transition hover:bg-[#91d2d5]"
@@ -222,9 +222,7 @@ function ForgotPasswordPage() {
               />
             </label>
             {errors.otp && (
-              <p className="font-['Poppins'] text-xs text-[#ffd1d1]">
-                {errors.otp}
-              </p>
+              <span className={`mt-1.5 block ${errorClass}`}>{errors.otp}</span>
             )}
             {errors.otp?.includes("expired") && (
               <p className="text-center font-['Poppins'] text-xs text-[#9abcc5]">
@@ -261,9 +259,7 @@ function ForgotPasswordPage() {
               </div>
             </label>
             {errors.password && (
-              <p className="font-['Poppins'] text-xs text-[#ffd1d1]">
-                {errors.password}
-              </p>
+              <span className={`mt-1.5 block ${errorClass}`}>{errors.password}</span>
             )}
             <PasswordRequirements password={form.password} />
             <label className="block font-['Poppins'] text-[10px] font-medium tracking-[0.12em] text-[#9ebfc8]">
@@ -295,9 +291,7 @@ function ForgotPasswordPage() {
               </div>
             </label>
             {errors.confirmPassword && (
-              <p className="font-['Poppins'] text-xs text-[#ffd1d1]">
-                {errors.confirmPassword}
-              </p>
+              <span className={`mt-1.5 block ${errorClass}`}>{errors.confirmPassword}</span>
             )}
             <button
               className="w-full rounded-full bg-[#75bec4] py-2.5 font-['Poppins'] text-sm font-medium text-[#052d45] transition hover:bg-[#91d2d5]"

@@ -102,21 +102,35 @@ function WorkspaceSetup({ features, setFeatures, onSave, saving, error }) {
                 key={feature.key}
                 className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 ${features[feature.key] ? "border-[#73c4ca]/45 bg-[#73c4ca]/10" : "border-sky-100/10 bg-white/[.025]"}`}
               >
-                <input
-                  type="checkbox"
-                  className="mt-1 h-4 w-4 accent-[#73c4ca]"
-                  checked={Boolean(features[feature.key])}
-                  disabled={disabled}
-                  onChange={(event) =>
-                    updateFeature(feature.key, event.target.checked)
-                  }
-                />
-                <span>
-                  <span className="block font-['Poppins'] text-sm font-medium text-[#d9ecef]">
-                    {feature.label}
+                <span className="flex min-w-0 flex-1 items-start justify-between gap-4">
+                  <span>
+                    <span className="block font-['Poppins'] text-sm font-medium text-[#d9ecef]">
+                      {feature.label}
+                    </span>
+                    <span className="mt-1 block font-['Poppins'] text-xs text-[#8fb7be]">
+                      {feature.description}
+                    </span>
                   </span>
-                  <span className="mt-1 block font-['Poppins'] text-xs text-[#8fb7be]">
-                    {feature.description}
+                  <span className="relative mt-0.5 inline-flex shrink-0 items-center">
+                    <input
+                      type="checkbox"
+                      role="switch"
+                      aria-label={feature.label}
+                      className="peer sr-only"
+                      checked={Boolean(features[feature.key])}
+                      disabled={disabled}
+                      onChange={(event) =>
+                        updateFeature(feature.key, event.target.checked)
+                      }
+                    />
+                    <span
+                      aria-hidden="true"
+                      className="h-6 w-11 rounded-full bg-[#426477] transition-colors peer-checked:bg-[#73c4ca] peer-focus-visible:outline-none peer-focus-visible:ring-2 peer-focus-visible:ring-[#bce9e9] peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-[#062d48] peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
+                    />
+                    <span
+                      aria-hidden="true"
+                      className="pointer-events-none absolute left-0.5 h-5 w-5 rounded-full bg-[#e7f5f4] shadow transition-transform peer-checked:translate-x-5"
+                    />
                   </span>
                 </span>
               </label>

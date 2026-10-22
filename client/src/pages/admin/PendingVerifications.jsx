@@ -18,6 +18,7 @@ function PendingVerifications({
   const totalPages = pagination?.totalPages || 1;
   const total = pagination?.total || 0;
   const [processingId, setProcessingId] = useState(null);
+  const [expandedId, setExpandedId] = useState(null);
   const filters = [
     ["all", "All"],
     ["pending", "Pending"],
@@ -96,28 +97,34 @@ function PendingVerifications({
         </div>
       ) : (
         <>
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid gap-3">
             {pending.map((owner) => (
               <article
                 key={owner._id}
-                className="flex flex-col gap-4 rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-5 shadow-[0_14px_35px_rgba(0,12,31,.14)]"
+                className="overflow-hidden rounded-2xl border border-sky-100/10 bg-[#062d48]/80 shadow-[0_14px_35px_rgba(0,12,31,.14)]"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
+                <div className="flex flex-wrap items-center justify-between gap-3 p-4 sm:p-5">
+                  <div className="min-w-0">
                     <h3 className="m-0 font-['Fraunces'] text-xl font-medium text-[#d9ecef]">
                       {owner.businessName}
                     </h3>
 
-                    <p className="mt-1 font-['Poppins'] text-xs text-[#9bbec7]">
+                    <p className="mt-1 truncate font-['Poppins'] text-xs text-[#9bbec7]">
                       {owner.ownerName} · {owner.email}
                     </p>
                   </div>
 
-                  <span className={`shrink-0 rounded-full border px-2.5 py-1 font-['Poppins'] text-[10px] font-semibold uppercase tracking-[0.1em] ${owner.registrationArchivedAt ? "border-slate-300/25 bg-slate-300/10 text-slate-200" : owner.accountStatus === "Rejected" ? "border-red-300/30 bg-red-400/10 text-red-200" : owner.accountStatus === "Pending Verification" ? "border-amber-300/30 bg-amber-400/10 text-amber-200" : "border-emerald-300/30 bg-emerald-400/10 text-emerald-200"}`}>
-                    {owner.registrationArchivedAt ? "Archived" : owner.accountStatus === "Pending Verification" ? "Pending" : owner.accountStatus === "Rejected" ? "Rejected" : "Approved"}
-                  </span>
+                  <div className="flex items-center gap-3">
+                    <span className={`shrink-0 rounded-full border px-2.5 py-1 font-['Poppins'] text-[10px] font-semibold uppercase tracking-[0.1em] ${owner.registrationArchivedAt ? "border-slate-300/25 bg-slate-300/10 text-slate-200" : owner.accountStatus === "Rejected" ? "border-red-300/30 bg-red-400/10 text-red-200" : owner.accountStatus === "Pending Verification" ? "border-amber-300/30 bg-amber-400/10 text-amber-200" : "border-emerald-300/30 bg-emerald-400/10 text-emerald-200"}`}>
+                      {owner.registrationArchivedAt ? "Archived" : owner.accountStatus === "Pending Verification" ? "Pending" : owner.accountStatus === "Rejected" ? "Rejected" : "Approved"}
+                    </span>
+                    <button type="button" aria-expanded={expandedId === owner._id} onClick={() => setExpandedId((current) => current === owner._id ? null : owner._id)} className="rounded-full border border-[#73c4ca]/35 px-3 py-1.5 font-['Poppins'] text-xs font-medium text-[#bce9e9] transition hover:bg-[#73c4ca]/10">
+                      {expandedId === owner._id ? "Hide details" : "View more"}
+                    </button>
+                  </div>
                 </div>
 
+                {expandedId === owner._id && <div className="grid gap-4 border-t border-sky-100/10 p-4 sm:p-5">
                 <div className="grid gap-1.5 font-['Poppins'] text-xs text-[#a9c8cf]">
                   <div>
                     <span className="text-[#6f9ca5]">Phone: </span>
@@ -171,7 +178,7 @@ function PendingVerifications({
                   )}
                 </div>
 
-                {owner.businessPermitUrl && (
+                {owner.businessPermitUrl ? (
                   <div className="rounded-xl border border-sky-100/[.08] bg-white/[.03] p-3">
                   {isPdfUrl(owner.businessPermitUrl) ? (
                     <a
@@ -196,7 +203,7 @@ function PendingVerifications({
                     </a>
                   )}
                   </div>
-                )}
+                ) : <p className="font-['Poppins'] text-xs text-[#9bbec7]">No business permit uploaded.</p>}
 
                 <div className="flex flex-wrap gap-3">
                   {owner.accountStatus === "Pending Verification" && !owner.registrationArchivedAt ? (
@@ -239,6 +246,7 @@ function PendingVerifications({
                     </button>
                   )}
                 </div>
+                </div>}
               </article>
             ))}
           </div>

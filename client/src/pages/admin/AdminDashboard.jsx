@@ -84,7 +84,7 @@ function AdminDashboard() {
 
   const [stats, setStats] = useState(null);
   const [pending, setPending] = useState([]);
-  const [registrationFilter, setRegistrationFilter] = useState("pending");
+  const [registrationFilter, setRegistrationFilter] = useState("all");
   const [pendingPagination, setPendingPagination] = useState({
     page: 1,
     limit: 20,
@@ -212,7 +212,7 @@ function AdminDashboard() {
      REGISTRATIONS
   ========================================================= */
 
-  const loadPending = useCallback(async (page = 1, status = "pending") => {
+  const loadPending = useCallback(async (page = 1, status = "all") => {
     try {
       const res = await apiRequest(
         `/admin/owners/pending?page=${page}&limit=20&status=${status}`,

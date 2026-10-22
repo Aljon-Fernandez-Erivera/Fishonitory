@@ -23,7 +23,7 @@ const labelClass =
 const linkButtonClass =
   "bg-transparent border-0 p-0 cursor-pointer font-['Poppins'] text-[11px] font-medium text-[#8cc7cc] transition-colors hover:text-[#d9ecef]";
 
-const errorClass = "font-['Poppins'] text-xs text-[#ffd1d1]";
+const errorClass = "font-['Poppins'] text-xs !text-[#ffd1d1]";
 
 function EyeIcon({ open }) {
   return open ? (
@@ -369,7 +369,7 @@ function LoginPage() {
                   disabled={loading || lockSeconds > 0}
                 />
                 {errors.email && (
-                  <p className={`mt-1.5 ${errorClass}`}>{errors.email}</p>
+                  <span className={`mt-1.5 block ${errorClass}`}>{errors.email}</span>
                 )}
               </div>
 
@@ -399,7 +399,7 @@ function LoginPage() {
                   </button>
                 </div>
                 {errors.password && (
-                  <p className={`mt-1.5 ${errorClass}`}>{errors.password}</p>
+                  <span className={`mt-1.5 block ${errorClass}`}>{errors.password}</span>
                 )}
               </div>
 
@@ -437,7 +437,7 @@ function LoginPage() {
                   disabled={loading || lockSeconds > 0}
                 />
                 {errors.totp && (
-                  <p className={`mt-1.5 ${errorClass}`}>{errors.totp}</p>
+                  <span className={`mt-1.5 block ${errorClass}`}>{errors.totp}</span>
                 )}
               </div>
 
@@ -501,7 +501,7 @@ function LoginPage() {
                   disabled={loading}
                 />
                 {errors.totp && (
-                  <p className={`mt-1.5 ${errorClass}`}>{errors.totp}</p>
+                  <span className={`mt-1.5 block ${errorClass}`}>{errors.totp}</span>
                 )}
               </div>
               <div className="border-t border-sky-100/[.08] pt-3">
@@ -553,22 +553,22 @@ function LoginPage() {
                   disabled={loading}
                 />
                 {errors.totp && (
-                  <p className={`mt-1.5 ${errorClass}`}>{errors.totp}</p>
+                  <span className={`mt-1.5 block ${errorClass}`}>{errors.totp}</span>
                 )}
               </div>
             </div>
           )}
 
           {lockSeconds > 0 && (
-            <div className="rounded-xl border border-red-300/20 bg-white p-3 ">
-              <p className={errorClass}>
+            <div className="rounded-xl border border-[#eaa5a5]/40 bg-[#5b3941]/35 px-3 py-2.5">
+              <span className={`block ${errorClass}`}>
                 Please try again in{" "}
                 <span className="font-semibold">
                   {String(Math.floor(lockSeconds / 60)).padStart(2, "0")}:
                   {String(lockSeconds % 60).padStart(2, "0")}
                 </span>
                 .
-              </p>
+              </span>
             </div>
           )}
 
