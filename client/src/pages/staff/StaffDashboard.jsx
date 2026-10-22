@@ -556,7 +556,7 @@ function StaffDashboard() {
           </style>
         </head>
         <body>
-          <h1>Fishonitory {receipt.receiptKind === "order" ? "Order Confirmation" : "Receipt"}</h1>
+          <h1>Fishonitory ${receipt.receiptKind === "order" ? "Order Confirmation" : "Receipt"}</h1>
           <p>
             Cashier: ${escapeHtml(user?.staffName || user?.role || "Staff")}<br />
             Customer: ${escapeHtml(receipt.customerName || "Walk-in Customer")}<br />

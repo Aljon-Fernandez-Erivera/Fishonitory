@@ -149,40 +149,55 @@ function Orders({ request, onChanged }) {
       <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-3">
         <input aria-label="Search orders" placeholder="Search customer or item" className={`${fieldClass} min-w-[180px] flex-1`} value={query} onChange={(event) => setQuery(event.target.value)} />
         <select aria-label="Fulfillment filter" className={fieldClass} value={methodFilter} onChange={(event) => setMethodFilter(event.target.value)}><option value="all">All methods</option><option value="pickup">Pickup</option><option value="rider">Rider</option><option value="courier">Courier</option></select>
-        <select aria-label="Order status filter" className={fieldClass} value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="all">All statuses</option><option value="pending">Pending</option><option value="preparing">Preparing</option><option value="ready_for_pickup">Ready for pickup</option><option value="out_for_delivery">Out for delivery</option><option value="fulfilled">Fulfilled · unpaid</option><option value="completed">Completed</option></select>
+        <select aria-label="Order status filter" className={fieldClass} value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="all">All statuses</option><option value="pending">Pending</option><option value="preparing">Preparing</option><option value="ready_for_pickup">Ready for pickup</option><option value="out_for_delivery">Out for delivery</option><option value="fulfilled">Fulfilled (unpaid)</option><option value="completed">Completed</option></select>
         <button type="button" className={secondaryClass} onClick={() => { setShowArchived((value) => !value); setStatusFilter("all"); }}>{showArchived ? "View active" : "View archive"}</button>
       </div>
 
       <div className="space-y-3">
-        {loading ? <div className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-8 text-center text-sm text-[#9bbec7]">Loading orders…</div> : visibleOrders.length === 0 ? <div className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-8 text-center text-sm text-[#9bbec7]">{showArchived ? "No archived orders match these filters." : "No active orders match these filters. Create a customer order from POS."}</div> : visibleOrders.map((order) => {
+        {loading ? <div className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-8 text-center text-sm text-[#9bbec7]">Loading orders...</div> : visibleOrders.length === 0 ? <div className="rounded-2xl border border-sky-100/10 bg-[#062d48]/80 p-8 text-center text-sm text-[#9bbec7]">{showArchived ? "No archived orders match these filters." : "No active orders match these filters. Create a customer order from POS."}</div> : visibleOrders.map((order) => {
           const completed = Boolean(order.saleId);
           const nextStep = nextFulfillmentStep(order);
           const cancelable = ["pending", "preparing", "ready_for_pickup"].includes(order.deliveryStatus);
-          const method = order.deliveryMethod === "pickup" ? "Customer pickup" : order.deliveryMethod === "rider" ? "Rider delivery" : `Courier delivery${order.courierName ? ` · ${order.courierName}` : ""}`;
+          const method = order.deliveryMethod === "pickup" ? "Customer pickup" : order.deliveryMethod === "rider" ? "Rider delivery" : `Courier delivery${order.courierName ? ` - ${order.courierName}` : ""}`;
+          const requestedDate = order.requestedDate
+            ? new Date(order.requestedDate).toLocaleDateString("en-PH", { dateStyle: "medium" })
+            : "No requested date";
           return (
-            <article key={order._id} className="rounded-2xl border border-sky-100/15 bg-[#062d48]/90 p-4 shadow-lg sm:p-5">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div>
-                  <h3 className="font-semibold text-[#d9ecef]">{order.customerName}</h3>
-                  <p className="mt-1 text-xs text-[#9bbec7]">{order.customerEmail || "No email"} · {order.customerPhone || "No phone"}</p>
-                  <p className="mt-2 text-sm text-[#73c4ca]">{method} · {order.requestedDate ? new Date(order.requestedDate).toLocaleDateString("en-PH", { dateStyle: "medium" }) : "No requested date"}</p>
+            <article key={order._id} className="min-w-0 rounded-2xl border border-sky-100/15 bg-[#062d48]/90 p-4 shadow-lg sm:p-5">
+              <div className="flex min-w-0 flex-col gap-4 border-b border-sky-100/10 pb-4 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <h3 className="break-words font-semibold text-[#d9ecef]">{order.customerName || "Customer"}</h3>
+                  <p className="mt-1 break-all text-xs text-[#9bbec7]">{order.customerEmail || "No email"}</p>
+                  <p className="mt-1 text-xs text-[#9bbec7]">{order.customerPhone || "No phone"}</p>
+                  <p className="mt-2 break-words text-sm text-[#73c4ca]">{method}</p>
+                  <p className="mt-1 text-xs text-[#9bbec7]">Requested date: {requestedDate}</p>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  <span className="rounded-full border border-sky-100/15 bg-white/[.05] px-3 py-1 text-xs text-[#d9ecef]">{completed ? "Completed" : order.deliveryStatus === "fulfilled" ? "Fulfilled · unpaid" : fulfillmentLabels[order.deliveryStatus] || "Pending"}</span>
+                <div className="flex shrink-0 flex-wrap gap-2">
+                  <span className="rounded-full border border-sky-100/15 bg-white/[.05] px-3 py-1 text-xs text-[#d9ecef]">{completed ? "Completed" : order.deliveryStatus === "fulfilled" ? "Fulfilled (unpaid)" : fulfillmentLabels[order.deliveryStatus] || "Pending"}</span>
                   <span className="rounded-full border border-sky-100/15 bg-white/[.05] px-3 py-1 text-xs text-[#d9ecef]">{order.paymentStatus === "paid" ? "Paid" : "Unpaid"}</span>
                 </div>
               </div>
-              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-sky-100/10 pt-3">
-                <div className="text-sm text-[#b7d2d7]">
-                  {(order.items || []).map((item) => `${item.name} × ${item.quantity}`).join(" · ")}
-                  <p className="mt-1 font-semibold text-[#d9ecef]">Total {formatPeso(order.total)}</p>
-                  {order.notes && <p className="mt-1 text-xs text-[#9bbec7]">Note: {order.notes}</p>}
+              <div className="mt-4 grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+                <div className="min-w-0">
+                  <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#89afb9]">Items</h4>
+                  <ul className="m-0 space-y-1.5 p-0 text-sm text-[#b7d2d7]">
+                    {(order.items || []).map((item, index) => (
+                      <li key={item.itemId || `${item.name}-${index}`} className="flex min-w-0 justify-between gap-3">
+                        <span className="min-w-0 break-words">{item.name || "Item"}</span>
+                        <span className="shrink-0 text-[#9bbec7]">x{item.quantity}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  {order.notes && <p className="mt-3 break-words text-xs text-[#9bbec7]">Note: {order.notes}</p>}
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {!completed && !showArchived && nextStep && <button disabled={busy} className={secondaryClass} onClick={() => updateOrder(order, { deliveryStatus: nextStep[0] })} type="button">{nextStep[1]}</button>}
-                  {!completed && !showArchived && order.deliveryStatus === "fulfilled" && <button disabled={busy} className={primaryClass} onClick={() => updateOrder(order, { paymentStatus: "paid" })} type="button">Record payment & complete</button>}
-                  {!completed && !showArchived && cancelable && <button disabled={busy} className="inline-flex min-h-10 items-center justify-center rounded-xl border border-red-200/30 px-4 py-2 text-sm font-medium text-red-100 transition hover:bg-red-200/10 disabled:cursor-not-allowed disabled:opacity-50" onClick={() => cancelOrder(order)} type="button">Cancel order</button>}
-                  {completed && <button disabled={busy} className={secondaryClass} onClick={() => moveArchive(order)} type="button">{showArchived ? "Restore" : "Archive"}</button>}
+                <div className="flex flex-col gap-3 border-t border-sky-100/10 pt-3 lg:min-w-[220px] lg:border-0 lg:pt-0 lg:text-right">
+                  <p className="m-0 text-sm font-semibold text-[#d9ecef]">Total <span className="font-['Fraunces'] text-xl text-[#73c4ca]">{formatPeso(order.total)}</span></p>
+                  <div className="flex flex-wrap gap-2 lg:justify-end">
+                    {!completed && !showArchived && nextStep && <button disabled={busy} className={secondaryClass} onClick={() => updateOrder(order, { deliveryStatus: nextStep[0] })} type="button">{nextStep[1]}</button>}
+                    {!completed && !showArchived && order.deliveryStatus === "fulfilled" && <button disabled={busy} className={primaryClass} onClick={() => updateOrder(order, { paymentStatus: "paid" })} type="button">Record payment & complete</button>}
+                    {!completed && !showArchived && cancelable && <button disabled={busy} className="inline-flex min-h-10 items-center justify-center rounded-xl border border-red-200/30 bg-transparent px-4 py-2 text-sm font-medium text-red-100 transition hover:bg-red-200/10 disabled:cursor-not-allowed disabled:opacity-50" onClick={() => cancelOrder(order)} type="button">Cancel order</button>}
+                    {completed && <button disabled={busy} className={secondaryClass} onClick={() => moveArchive(order)} type="button">{showArchived ? "Restore" : "Archive"}</button>}
+                  </div>
                 </div>
               </div>
             </article>
