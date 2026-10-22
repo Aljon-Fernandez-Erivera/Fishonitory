@@ -247,9 +247,8 @@ exports.createFish = async (req, res) => {
 };
 
 // ---------------------------------------------------------------------
-// Update details. Quantity is NOT editable here any more: stock changes only
-// through a purchase (restock), a sale, a mortality report, or "Adjust stock"
-// with a reason, so the numbers can always be explained.
+// Update inventory details and quantity while keeping the assigned tank
+// within its configured capacity.
 // ---------------------------------------------------------------------
 exports.updateFish = async (req, res) => {
   if (req.user.role !== "Owner")
@@ -296,18 +295,15 @@ exports.updateFish = async (req, res) => {
     if (r.error) return res.status(400).json({ message: r.error });
     updates.costPrice = r.value;
   }
+  if (has("quantity")) {
+    const r = checkQuantity(body.quantity, category);
+    if (r.error) return res.status(400).json({ message: r.error });
+    updates.quantity = r.value;
+  }
   if (has("photoUrl")) {
     const r = checkPhotoUrl(body.photoUrl);
     if (r.error) return res.status(400).json({ message: r.error });
     updates.photoUrl = r.value;
-  }
-
-  // Old clients send the whole form back, quantity included. Unchanged is fine;
-  // a different number is refused.
-  if (has("quantity") && Number(body.quantity) !== existing.quantity) {
-    return res.status(400).json({
-      message: "Quantity cannot be edited here. Use Adjust stock or record a purchase.",
-    });
   }
 
   if (category === "Fish Food") {
@@ -316,10 +312,28 @@ exports.updateFish = async (req, res) => {
     const tankId = has("tankId") ? body.tankId : existing.tankId?.toString();
     if (!tankId)
       return res.status(400).json({ message: "Choose a tank before saving fish." });
-    if (has("tankId")) {
-      const tankProblem = await checkTank(String(tankId), ownerId);
-      if (tankProblem) return res.status(400).json({ message: tankProblem });
-      updates.tankId = tankId;
+    const tankProblem = await checkTank(String(tankId), ownerId);
+    if (tankProblem) return res.status(400).json({ message: tankProblem });
+    updates.tankId = tankId;
+
+    const tank = await Tank.findOne({ _id: tankId, ownerId }).select("capacity");
+    if (tank?.capacity != null) {
+      const currentFish = await Fish.aggregate([
+        {
+          $match: {
+            _id: { $ne: existing._id },
+            tankId: tank._id,
+            category: { $ne: "Fish Food" },
+          },
+        },
+        { $group: { _id: null, total: { $sum: "$quantity" } } },
+      ]);
+      const requestedQuantity = updates.quantity ?? existing.quantity;
+      if ((currentFish[0]?.total || 0) + requestedQuantity > tank.capacity) {
+        return res.status(400).json({
+          message: `This would exceed the tank capacity of ${tank.capacity} fish.`,
+        });
+      }
     }
   }
 
@@ -330,7 +344,10 @@ exports.updateFish = async (req, res) => {
   );
   if (!fish) return res.status(404).json({ message: "Fish item not found." });
 
-  await writeAudit(req, "UPDATE", "Fish", fish._id, `Inventory item ${fish.name} updated`);
+  const quantityAudit = has("quantity") && updates.quantity !== existing.quantity
+    ? ` Quantity changed from ${existing.quantity} to ${updates.quantity}.`
+    : "";
+  await writeAudit(req, "UPDATE", "Fish", fish._id, `Inventory item ${fish.name} updated.${quantityAudit}`);
   return res.json({ message: "Fish item updated successfully.", fish });
 };
 

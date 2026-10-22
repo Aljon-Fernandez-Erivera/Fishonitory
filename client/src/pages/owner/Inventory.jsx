@@ -946,14 +946,13 @@ function Inventory({
                   placeholder="Quantity"
                   value={fishForm.quantity}
                   onChange={updateField}
-                  disabled={Boolean(editingFishId)}
                   required
                 />
 
                 {editingFishId && (
                   <span className="text-[11px] font-normal text-[#789faa]">
-                    Quantity is locked. Use Adjust stock for corrections, or
-                    Record purchase to restock.
+                    Changing this updates inventory stock and the assigned
+                    tank occupancy.
                   </span>
                 )}
               </label>
