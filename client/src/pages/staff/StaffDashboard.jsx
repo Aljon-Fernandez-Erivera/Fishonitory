@@ -23,6 +23,10 @@ const tankStatuses = [
   "Available",
 ];
 
+const getTankOccupancy = (tank, fish) => fish
+  .filter((item) => String(item.tankId?._id || item.tankId || "") === String(tank._id))
+  .reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+
 function MillisecondClock() {
   const [time, setTime] = useState(() => new Date());
   useEffect(() => {
@@ -112,6 +116,7 @@ function StaffDashboard() {
   const [activePage, setActivePage] = useState("overview");
   const [settingsTab, setSettingsTab] = useState("profile");
   const [inventoryOpen, setInventoryOpen] = useState(false);
+  const [inventorySearch, setInventorySearch] = useState("");
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [checkoutBusy, setCheckoutBusy] = useState(false);
   const [receipt, setReceipt] = useState(null);
@@ -199,6 +204,11 @@ function StaffDashboard() {
   );
   const food = fish.filter((item) => item.category === "Fish Food");
   const inventory = [...fishInventory, ...food];
+  const normalizedInventorySearch = inventorySearch.trim().toLowerCase();
+  const filteredInventory = inventory.filter((item) =>
+    [item.name, item.species, item.category]
+      .some((value) => String(value || "").toLowerCase().includes(normalizedInventorySearch)),
+  );
   const fishTypesCount = new Set(
     fishInventory.map((item) => item.species || item.name),
   ).size;
@@ -942,7 +952,12 @@ function StaffDashboard() {
               </div>
               {Array.isArray(tanks) && tanks.length > 0 ? (
                 <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                  {tanks.map((tank) => (
+                  {tanks.map((tank) => {
+                    const occupied = getTankOccupancy(tank, fish);
+                    const capacity = Number(tank.capacity) || 0;
+                    const isFull = capacity > 0 && occupied >= capacity;
+                    const isNearCapacity = capacity > 0 && !isFull && occupied / capacity >= 0.9;
+                    return (
                   <div
                     key={tank._id}
                     className="rounded-xl border border-sky-100/[.08] bg-white/[.03] p-4"
@@ -954,6 +969,22 @@ function StaffDashboard() {
                       <span className="rounded-md bg-white/[.06] px-2 py-0.5 font-['Poppins'] text-[10px] text-[#73c4ca]">
                         Tank #{tank._id.slice(-4)}
                       </span>
+                    </div>
+
+                    <div className="mt-2 flex flex-wrap items-center gap-2 font-['Poppins'] text-[11px]">
+                      <span className="text-[#9bbec7]">
+                        Stock: {occupied} / {capacity || "—"} fish
+                      </span>
+                      {capacity > 0 && isFull && (
+                        <span className="rounded-full border border-red-300/25 bg-red-300/10 px-2 py-1 font-semibold text-red-200">
+                          {occupied > capacity ? "Over capacity · no space" : "Full · no space"}
+                        </span>
+                      )}
+                      {isNearCapacity && (
+                        <span className="rounded-full border border-amber-300/25 bg-amber-300/10 px-2 py-1 font-semibold text-amber-100">
+                          Near capacity
+                        </span>
+                      )}
                     </div>
 
                     <div className="mt-3">
@@ -988,7 +1019,8 @@ function StaffDashboard() {
                       </p>
                     )}
                   </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <p className="mt-5 rounded-xl border border-sky-100/[.08] bg-white/[.03] px-4 py-8 text-center font-['Poppins'] text-sm text-[#9bbec7]">
@@ -1014,7 +1046,7 @@ function StaffDashboard() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => setInventoryOpen(true)}
+                    onClick={() => { setInventorySearch(""); setInventoryOpen(true); }}
                     className="rounded-full bg-[#75bec4] px-4 py-2 font-['Poppins'] text-xs font-semibold text-[#052d45] transition hover:bg-[#86d0d6] cursor-pointer"
                   >
                     + Open Inventory Selector
@@ -1028,7 +1060,7 @@ function StaffDashboard() {
                     </p>
                     <button
                       type="button"
-                      onClick={() => setInventoryOpen(true)}
+                      onClick={() => { setInventorySearch(""); setInventoryOpen(true); }}
                       className="mt-3 rounded-full border border-sky-100/20 bg-white/[.04] px-4 py-2 font-['Poppins'] text-xs text-[#73c4ca] hover:bg-white/[.08] cursor-pointer"
                     >
                       Browse Available Products
@@ -1054,7 +1086,7 @@ function StaffDashboard() {
                             <button
                               type="button"
                               onClick={() => adjustQuantity(item, -1)}
-                              className="px-2.5 py-1 text-sm font-bold text-[#bce9e9] hover:bg-white/[.08] cursor-pointer"
+                              className="cursor-pointer bg-transparent px-2.5 py-1 text-sm font-bold text-[#bce9e9] hover:bg-white/[.08]"
                             >
                               -
                             </button>
@@ -1064,7 +1096,7 @@ function StaffDashboard() {
                             <button
                               type="button"
                               onClick={() => adjustQuantity(item, 1)}
-                              className="px-2.5 py-1 text-sm font-bold text-[#bce9e9] hover:bg-white/[.08] cursor-pointer"
+                              className="cursor-pointer bg-transparent px-2.5 py-1 text-sm font-bold text-[#bce9e9] hover:bg-white/[.08]"
                             >
                               +
                             </button>
@@ -1221,8 +1253,19 @@ function StaffDashboard() {
                       </button>
                     </div>
 
+                    <label className="mt-4 block font-['Poppins'] text-xs font-medium text-[#a9c8cf]">
+                      Search inventory
+                      <input
+                        type="search"
+                        value={inventorySearch}
+                        onChange={(event) => setInventorySearch(event.target.value)}
+                        placeholder="Search fish or supplies"
+                        className="mt-1.5 w-full rounded-xl border border-sky-100/15 bg-transparent px-3 py-2.5 text-sm text-[#d9ecef] outline-none placeholder:text-[#789faa] focus:border-[#73c4ca]"
+                      />
+                    </label>
+
                     <div className="mt-4 flex-1 space-y-2 overflow-y-auto pr-1">
-                      {inventory.map((item) => (
+                      {filteredInventory.map((item) => (
                         <div
                           key={item._id}
                           className="flex items-center justify-between rounded-xl border border-sky-100/[.08] bg-white/[.03] p-3 text-xs"
@@ -1253,7 +1296,7 @@ function StaffDashboard() {
                             <button
                               type="button"
                               onClick={() => adjustQuantity(item, -1)}
-                              className="px-2.5 py-1 text-sm font-bold text-[#bce9e9] hover:bg-white/[.08] cursor-pointer"
+                              className="cursor-pointer bg-transparent px-2.5 py-1 text-sm font-bold text-[#bce9e9] hover:bg-white/[.08]"
                             >
                               -
                             </button>
@@ -1265,13 +1308,20 @@ function StaffDashboard() {
                             <button
                               type="button"
                               onClick={() => adjustQuantity(item, 1)}
-                              className="px-2.5 py-1 text-sm font-bold text-[#bce9e9] hover:bg-white/[.08] cursor-pointer"
+                              className="cursor-pointer bg-transparent px-2.5 py-1 text-sm font-bold text-[#bce9e9] hover:bg-white/[.08]"
                             >
                               +
                             </button>
                           </div>
                         </div>
                       ))}
+                      {!filteredInventory.length && (
+                        <p className="rounded-xl border border-dashed border-sky-100/15 px-4 py-8 text-center font-['Poppins'] text-xs text-[#89afb9]">
+                          {normalizedInventorySearch
+                            ? "No inventory matches your search."
+                            : "No inventory items available."}
+                        </p>
+                      )}
                     </div>
 
                     <div className="mt-5 border-t border-sky-100/10 pt-4 text-right">
@@ -1418,7 +1468,7 @@ function StaffDashboard() {
                         <button
                           type="button"
                           onClick={() => setReceipt(null)}
-                          className="rounded-full border border-sky-100/15 px-4 py-2 font-['Poppins'] text-xs text-[#89afb9] hover:text-[#d9ecef] cursor-pointer"
+                          className="cursor-pointer rounded-full border border-sky-100/15 bg-transparent px-4 py-2 font-['Poppins'] text-xs text-[#89afb9] hover:text-[#d9ecef]"
                         >
                           Close
                         </button>
