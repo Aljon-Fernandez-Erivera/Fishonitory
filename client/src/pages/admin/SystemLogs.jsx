@@ -120,7 +120,7 @@ function SystemLogs({ logs, pagination, onPageChange }) {
                 type="button"
                 disabled={currentPage <= 1}
                 onClick={() => onPageChange(currentPage - 1)}
-                className="rounded-xl border border-sky-100/10 px-3 py-2 font-['Poppins'] text-xs text-[#b7d2d7] transition hover:bg-sky-100/5 disabled:cursor-not-allowed disabled:opacity-40"
+                className="rounded-xl border border-sky-100/10 px-3 py-2 font-['Poppins'] text-xs text-[#b7d2d7] bg-transparent transition hover:bg-sky-100/5 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Previous
               </button>
@@ -133,7 +133,7 @@ function SystemLogs({ logs, pagination, onPageChange }) {
                 type="button"
                 disabled={currentPage >= totalPages}
                 onClick={() => onPageChange(currentPage + 1)}
-                className="rounded-xl border border-sky-100/10 px-3 py-2 font-['Poppins'] text-xs text-[#b7d2d7] transition hover:bg-sky-100/5 disabled:cursor-not-allowed disabled:opacity-40"
+                className="rounded-xl border border-sky-100/10 px-3 py-2 font-['Poppins'] text-xs text-[#b7d2d7] bg-transparent transition hover:bg-sky-100/5 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Next
               </button>

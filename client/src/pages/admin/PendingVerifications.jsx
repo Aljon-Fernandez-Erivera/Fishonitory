@@ -118,7 +118,7 @@ function PendingVerifications({
                     <span className={`shrink-0 rounded-full border px-2.5 py-1 font-['Poppins'] text-[10px] font-semibold uppercase tracking-[0.1em] ${owner.registrationArchivedAt ? "border-slate-300/25 bg-slate-300/10 text-slate-200" : owner.accountStatus === "Rejected" ? "border-red-300/30 bg-red-400/10 text-red-200" : owner.accountStatus === "Pending Verification" ? "border-amber-300/30 bg-amber-400/10 text-amber-200" : "border-emerald-300/30 bg-emerald-400/10 text-emerald-200"}`}>
                       {owner.registrationArchivedAt ? "Archived" : owner.accountStatus === "Pending Verification" ? "Pending" : owner.accountStatus === "Rejected" ? "Rejected" : "Approved"}
                     </span>
-                    <button type="button" aria-expanded={expandedId === owner._id} onClick={() => setExpandedId((current) => current === owner._id ? null : owner._id)} className="rounded-full border border-[#73c4ca]/35 px-3 py-1.5 font-['Poppins'] text-xs font-medium text-[#bce9e9] transition hover:bg-[#73c4ca]/10">
+                    <button type="button" aria-expanded={expandedId === owner._id} onClick={() => setExpandedId((current) => current === owner._id ? null : owner._id)} className="rounded-full border border-[#73c4ca]/35 px-3 py-1.5 font-['Poppins'] text-xs font-medium text-[#bce9e9] bg-cyan-800/30 transition hover:bg-[#73c4ca]/20">
                       {expandedId === owner._id ? "Hide details" : "View more"}
                     </button>
                   </div>

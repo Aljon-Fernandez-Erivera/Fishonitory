@@ -966,14 +966,14 @@ function Payroll({ staff, attendance, payroll, onSave, onDelete, toast, owner = 
                   <td className="px-5 py-4">
                     <div className="flex gap-2">
                       <button
-                        className="rounded-lg border border-sky-100/15 px-3 py-1.5 text-xs text-[#bce9e9] transition hover:bg-white/[.08]"
+                        className="rounded-lg border border-sky-100/15 px-3 py-1.5 text-xs bg-transparent text-[#bce9e9] transition hover:bg-white/[.08]"
                         type="button"
                         onClick={() => printSlip(entry, owner, attendance, staff)}
                       >
                         Print slip
                       </button>
                       <button
-                        className="rounded-lg border border-red-200/25 px-3 py-1.5 text-xs text-red-200 transition hover:bg-red-400/10"
+                        className="rounded-lg border border-red-200/25 px-3 py-1.5 text-xs bg-transparent text-red-200 transition hover:bg-red-400/10"
                         type="button"
                         onClick={() => confirmDelete(entry._id)}
                       >
